@@ -43,17 +43,19 @@ test("Home XP forms a more semicircular arc with accessible proportional progres
 
 test("pet team keeps five editable hit targets but no circular frames or helper copy", () => {
   assert.match(homeHud, /Array\.from\(\{ length: PLAYER_PET_TEAM_MAX \}/);
-  assert.match(homeHud, /onClick=\{\(\) => setPickerSlot\(index\)\}/);
+  assert.match(homeHud, /setPickerSlot\(index\)/);
+  assert.match(homeHud, /suppressTeamClick\.current/);
   assert.match(homeHud, /saveTeam\(next\)/);
   assert.match(homeHud, /src=\{emptyPetIcon\}/);
   assert.match(homeHud, /\{id \? "!" : "\+"\}/);
   assert.match(homeCss, /home-player-hud__slot::before/);
-  assert.match(homeCss, /border: 1px solid rgba\(204, 181, 115, \.32\)/);
-  assert.match(homeCss, /translateY\(-24px\)/);
-  assert.match(homeCss, /translateY\(-9px\)/);
-  assert.match(homeCss, /translateY\(5px\)/);
+  assert.match(homeCss, /border: 1px solid rgba\(204, 181, 115, \.35\)/);
+  assert.match(homeCss, /home-player-hud__slot--position-0/);
+  assert.match(homeCss, /home-player-hud__slot--position-1/);
+  assert.match(homeCss, /home-player-hud__slot--position-2/);
+  assert.match(homeCss, /home-player-hud__slot--position-3/);
+  assert.match(homeCss, /home-player-hud__slot--position-4/);
   assert.match(homeCss, /border-radius: 50%/);
-  assert.match(homeCss, /home-player-hud__slot:nth-child\(1\)/);
   assert.match(homeCss, /border: 0;\s*border-radius: 0;\s*background: none/);
   assert.match(homeHud, /avatarHome \? null : "Tap a portrait to edit your team"/);
 });
@@ -71,7 +73,7 @@ test("compact blinking pet thumbnails retain equipped adornments and mini pets",
   const miniCss = homeCss.split(".home-player-hud__mini-companion {")[1].split("}")[0];
   assert.doesNotMatch(miniCss, /drop-shadow\(1px 0 0|drop-shadow\(-1px 0 0/);
   assert.match(miniCss, /drop-shadow\(0 2px 2px rgba/);
-  assert.match(homeCss, /transform: translateY\(6px\) scale\(1\.16\)/);
+  assert.match(homeCss, /transform: translateY\(6px\) scale\(1\.17\)/);
 });
 
 test("Home keeps username above smaller Watcher without changing its tap target or messages", () => {

@@ -25,8 +25,10 @@ test("admin-only artwork anchor is stored using existing game settings", () => {
   assert.match(api, /storage\.setGameSetting\(HOME_XP_ANCHOR_KEY/);
   assert.match(hud, /viewportPointToCoverArtwork\(avatarArtworkSize, avatarBackdrop/);
   assert.match(hud, /coverArtworkPoint\(avatarArtworkSize, avatarBackdrop/);
-  assert.match(hud, /onPointerDown=\{startXpDrag\}/);
-  assert.match(hud, /if \(!avatarHome \|\| !isAdmin \|\| !movingXp/);
+  assert.doesNotMatch(hud, /onPointerDown=\{startXpDrag\}|startXpDrag|moveXpDrag|finishXpDrag|movingXp/);
+  assert.match(hud, /const effectiveAnchor = anchorQuery\.data\?\.anchor \?\? null/);
+  assert.match(hud, /data-testid="button-home-edit-xp-curve"/);
+  assert.match(hud, /apiRequest\("PUT", "\/api\/admin\/settings\/home-xp-anchor", \{ anchor: next \}\)/);
   assert.match(home, /isAdmin=\{currentUser\.isAdmin === true\}/);
 });
 

@@ -11,6 +11,8 @@ test("admin can flatten the Home XP curve without changing a saved default", () 
   assert.ok(homeXpArcGeometry(HOME_XP_MIN_CURVE).viewHeight < homeXpArcGeometry(HOME_XP_DEFAULT_CURVE).viewHeight);
   assert.match(hud, /min=\{HOME_XP_MIN_CURVE\} max=\{HOME_XP_MAX_CURVE\}/);
   assert.match(hud, /data-testid="input-home-xp-curve"/);
+  assert.match(hud, /data-testid="button-home-edit-xp-curve"/);
+  assert.doesNotMatch(hud, /button-home-adjust-xp|startXpDrag|moveXpDrag|finishXpDrag/);
 });
 
 test("Home-only overlay darkens all four edges, not the center or touch targets", () => {
@@ -25,10 +27,11 @@ test("Home companions share their ground circles, keep stars off faces and anima
   const css = read("client/src/components/HomePlayerHud.css");
   assert.match(hud, /mode="idle" lowMemory size=\{58\}/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
-  assert.match(css, /transform: translateY\(6px\) scale\(1\.16\)/);
-  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-stars \{ top: -28px; \}/);
-  assert.match(css, /\.home-player-hud__mini-companion \{[\s\S]*?width: 43%/);
-  assert.match(css, /@media \(max-height: 690px\) \{[\s\S]*?transform: translateY\(4px\) scale\(1\.09\)/);
+  assert.match(css, /transform: translateY\(6px\) scale\(1\.17\)/);
+  assert.match(css, /home-player-hud__slot--position-2 \.home-player-hud__pet-renderer/);
+  assert.match(css, /home-player-hud__slot--position-2 \.home-player-hud__slot-stars \{ top: -48px; \}/);
+  assert.match(css, /\.home-player-hud__mini-companion \{[\s\S]*?width: 48%/);
+  assert.doesNotMatch(css, /width: min\(100%, clamp\(58px, 17vw, 68px\)\)/);
 });
 
 test("Home quick icons reveal labels only once selected, while routes reuse their delay", () => {

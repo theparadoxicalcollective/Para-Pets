@@ -14,6 +14,7 @@ import cardStarImg from "@assets/uploads/CardStar.png";
 import { coverArtworkPoint, viewportPointToCoverArtwork, type ArtworkPoint, type BackdropRect, type ArtworkSize } from "@/lib/artworkCoverGeometry";
 import { HOME_XP_DEFAULT_CURVE, HOME_XP_MIN_CURVE, HOME_XP_MAX_CURVE, homeXpArcGeometry, type HomeXpAnchor } from "@shared/homeXpAnchor";
 import { homeAvatarPosition } from "@/lib/homeAvatarLayout";
+import { homeTeamOffset, homeTeamSwipeStep, homeTeamVisualPosition } from "@/lib/homeTeamCarousel";
 import "./HomePlayerHud.css";
 
 export interface HomeHudPet {
@@ -69,16 +70,17 @@ export default function HomePlayerHud({
 }) {
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const cache = useQueryClient();
-  const [movingXp, setMovingXp] = useState(false);
-  const [anchorDraft, setAnchorDraft] = useState<HomeXpAnchor | null | undefined>(undefined);
+  const [curveControlsOpen, setCurveControlsOpen] = useState(false);
   const [anchorSaving, setAnchorSaving] = useState(false);
   const [anchorError, setAnchorError] = useState<string | null>(null);
   const [curvePreview, setCurvePreview] = useState<number | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const anchorDrag = useRef<{
-    id: number; x: number; y: number; offsetX: number; offsetY: number;
-    latest: HomeXpAnchor | null; moved: boolean;
-  } | null>(null);
+  // Carousel rotation changes only presentation. Actual team slot IDs are
+  // unchanged, so roster editing and PvP/Raid persistence remain intact.
+  const [teamOffset, setTeamOffset] = useState(0);
+  const teamSwipe = useRef<{ pointerId: number; startX: number; startY: number;
+    moved: boolean } | null>(null);
+  const suppressTeamClick = useRef(false);
   const anchorQuery = useQuery<{ anchor: HomeXpAnchor | null }>({
     queryKey: ["/api/settings/home-xp-anchor"],
     enabled: avatarHome,
@@ -110,11 +112,12 @@ export default function HomePlayerHud({
   // another account's Home or the main navigation.
   useEffect(() => {
     setPickerSlot(null);
-    setMovingXp(false);
-    setAnchorDraft(undefined);
+    setCurveControlsOpen(false);
     setAnchorError(null);
     setCurvePreview(null);
-    anchorDrag.current = null;
+    setTeamOffset(0);
+    teamSwipe.current = null;
+    suppressTeamClick.current = false;
   }, [userId]);
   useEffect(() => { if (!inventoryReady) setPickerSlot(null); }, [inventoryReady]);
   useEffect(() => {
@@ -127,7 +130,9 @@ export default function HomePlayerHud({
 
   const avatarPosition = avatarHome && avatarBackdrop
     ? homeAvatarPosition(avatarLandmark, avatarBackdrop) : null;
-  const effectiveAnchor = anchorDraft === undefined ? anchorQuery.data?.anchor ?? null : anchorDraft;
+  // Read the existing saved artwork-relative position as-is. Home never
+  // rewrites its x/y coordinates through touch movement again.
+  const effectiveAnchor = anchorQuery.data?.anchor ?? null;
   const curveDepth = curvePreview ?? effectiveAnchor?.curveDepth ?? HOME_XP_DEFAULT_CURVE;
   const xpArc = homeXpArcGeometry(curveDepth);
   // Project a saved admin position from the background's intrinsic image,
@@ -161,12 +166,10 @@ export default function HomePlayerHud({
       const response = await apiRequest("PUT", "/api/admin/settings/home-xp-anchor", { anchor: next });
       const saved = await response.json() as { anchor: HomeXpAnchor | null };
       cache.setQueryData(["/api/settings/home-xp-anchor"], saved);
-      setAnchorDraft(undefined);
       setCurvePreview(null);
     } catch {
-      setAnchorDraft(undefined);
       setCurvePreview(null);
-      setAnchorError("Position not saved. Try again.");
+      setAnchorError("Curve not saved. Try again.");
     } finally {
       setAnchorSaving(false);
     }
@@ -189,54 +192,40 @@ export default function HomePlayerHud({
     }
     void saveXpAnchor({ ...base, curveDepth: depth });
   };
-  const startXpDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!avatarHome || !isAdmin || !movingXp || anchorSaving ||
-        !avatarBackdrop || !avatarArtworkSize?.width || !avatarArtworkSize.height ||
+  const beginTeamSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!avatarHome || pickerSlot !== null || !event.isPrimary ||
         (event.pointerType === "mouse" && event.button !== 0)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    anchorDrag.current = {
-      id: event.pointerId, x: event.clientX, y: event.clientY,
-      offsetX: event.clientX - (rect.left + rect.width / 2),
-      offsetY: event.clientY - rect.top,
-      latest: null, moved: false,
-    };
-    try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+    teamSwipe.current = { pointerId: event.pointerId,
+      startX: event.clientX, startY: event.clientY, moved: false };
   };
-  const moveXpDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = anchorDrag.current;
-    if (!drag || drag.id !== event.pointerId || !avatarBackdrop || !avatarArtworkSize) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5 && !drag.moved) return;
-    const art = viewportPointToCoverArtwork(avatarArtworkSize, avatarBackdrop, {
-      x: event.clientX - drag.offsetX,
-      y: event.clientY - drag.offsetY,
-    });
-    if (!art || !avatarArtworkSize.width || !avatarArtworkSize.height) return;
-    const next = {
-      xPct: Math.max(0, Math.min(1, art.x / avatarArtworkSize.width)),
-      yPct: Math.max(0, Math.min(1, art.y / avatarArtworkSize.height)),
-      ...(effectiveAnchor?.curveDepth !== undefined ? { curveDepth: effectiveAnchor.curveDepth } : {}),
-    };
-    drag.latest = next;
-    drag.moved = true;
-    setAnchorDraft(next);
+  const moveTeamSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = teamSwipe.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && homeTeamSwipeStep(dx, dy) !== 0) {
+      drag.moved = true;
+      // Capture only once a deliberate horizontal swipe is recognized.
+      // Normal taps keep reaching their own edit buttons.
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+    }
+    if (drag.moved) event.preventDefault();
   };
-  const finishXpDrag = (event: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
-    const drag = anchorDrag.current;
-    if (!drag || drag.id !== event.pointerId) return;
-    event.stopPropagation();
-    anchorDrag.current = null;
-    try {
-      if (event.currentTarget.hasPointerCapture(event.pointerId))
-        event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {}
-    if (cancelled) {
-      setAnchorDraft(undefined);
-    } else if (drag.moved && drag.latest) {
-      void saveXpAnchor(drag.latest);
+  const finishTeamSwipe = (event: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
+    const drag = teamSwipe.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    teamSwipe.current = null;
+    if (drag.moved) {
+      // A synthetic click sometimes follows a touch drag on iOS; do not
+      // turn that swipe into an unintended team-slot edit.
+      suppressTeamClick.current = true;
+      window.setTimeout(() => { suppressTeamClick.current = false; }, 0);
+      if (!cancelled) {
+        const step = homeTeamSwipeStep(event.clientX - drag.startX,
+          event.clientY - drag.startY);
+        if (step !== 0) setTeamOffset(previous => homeTeamOffset(previous + step));
+      }
+      event.stopPropagation();
     }
   };
 
@@ -280,23 +269,16 @@ export default function HomePlayerHud({
             style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * (avatarHome ? 31 : 14)}px) rotate(${(i - 2) * 9}deg)` }} />
         ))}
       </div>
-      <div className={`home-player-hud__progress${movingXp ? " home-player-hud__progress--moving" : ""}`}
-        aria-label="Player level and experience" ref={progressRef}
-        onPointerDown={startXpDrag}
-        onPointerMove={moveXpDrag}
-        onPointerUp={event => finishXpDrag(event)}
-        onPointerCancel={event => finishXpDrag(event, true)}>
+      <div className="home-player-hud__progress"
+        aria-label="Player level and experience" ref={progressRef}>
         {avatarHome && isAdmin && (
-          <div className="home-player-hud__xp-admin-tools" data-testid="home-xp-admin-tools"
-            onPointerDown={event => event.stopPropagation()}>
-            <button type="button" data-testid="button-home-adjust-xp"
-              aria-pressed={movingXp} disabled={anchorSaving}
-              onClick={() => { setMovingXp(!movingXp); setAnchorError(null); }}>
-              {movingXp ? "Done" : "Move XP"}
+          <div className="home-player-hud__xp-admin-tools" data-testid="home-xp-admin-tools">
+            <button type="button" data-testid="button-home-edit-xp-curve"
+              aria-expanded={curveControlsOpen} disabled={anchorSaving}
+              onClick={() => { setCurveControlsOpen(open => !open); setAnchorError(null); }}>
+              {curveControlsOpen ? "Done" : "XP Curve"}
             </button>
-            {movingXp && <button type="button" data-testid="button-home-reset-xp"
-              disabled={anchorSaving} onClick={() => { setCurvePreview(null); void saveXpAnchor(null); }}>Reset</button>}
-            {movingXp && <label className="home-player-hud__xp-curve-control" htmlFor="home-xp-curve">
+            {curveControlsOpen && <label className="home-player-hud__xp-curve-control" htmlFor="home-xp-curve">
               Curve (flat to deep)
               <input id="home-xp-curve" data-testid="input-home-xp-curve" type="range"
                 min={HOME_XP_MIN_CURVE} max={HOME_XP_MAX_CURVE} step={5}
@@ -308,7 +290,7 @@ export default function HomePlayerHud({
                     saveXpCurve(Number(event.currentTarget.value));
                 }} />
             </label>}
-            {movingXp && <span>{anchorSaving ? "Saving…" : anchorError ?? "Drag bar to move"}</span>}
+            {curveControlsOpen && (anchorSaving || anchorError) && <span role="status">{anchorSaving ? "Saving…" : anchorError}</span>}
           </div>
         )}
         {!avatarHome && (
@@ -358,10 +340,20 @@ export default function HomePlayerHud({
       </div>
 
       <div className="home-player-hud__party-panel">
-      <div className="home-player-hud__team" aria-label="Your five companion team slots"
-        data-testid="home-player-team-slots">
+      <div className="home-player-hud__team" aria-label="Your five companion team slots. Swipe left or right to rotate."
+        data-testid="home-player-team-slots" tabIndex={avatarHome ? 0 : undefined}
+        onPointerDown={beginTeamSwipe} onPointerMove={moveTeamSwipe}
+        onPointerUp={event => finishTeamSwipe(event)}
+        onPointerCancel={event => finishTeamSwipe(event, true)}
+        onLostPointerCapture={event => finishTeamSwipe(event, true)}
+        onKeyDown={event => {
+          if (!avatarHome || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+          event.preventDefault();
+          setTeamOffset(previous => homeTeamOffset(previous + (event.key === "ArrowLeft" ? -1 : 1)));
+        }}>
         {Array.from({ length: PLAYER_PET_TEAM_MAX }, (_, index) => {
           const id = selectedPetIds[index];
+          const visualPosition = avatarHome ? homeTeamVisualPosition(index, teamOffset) : index;
           const pet = id ? petsById.get(id) : undefined;
           const name = pet?.petNickname || pet?.name || (id ? "Unavailable companion" : `Empty slot ${index + 1}`);
           const image = pet?.hatchedImageUrl || pet?.imageUrl;
@@ -370,11 +362,15 @@ export default function HomePlayerHud({
           return (
             <button key={index} type="button"
               data-testid={`home-player-team-slot-${index + 1}`}
-              className={`home-player-hud__slot ${pet ? "home-player-hud__slot--occupied" : "home-player-hud__slot--vacant"}`}
+              className={`home-player-hud__slot ${pet ? "home-player-hud__slot--occupied" : "home-player-hud__slot--vacant"}${avatarHome ? " home-player-hud__slot--position-" + visualPosition : ""}`}
+              data-visual-position={visualPosition}
               disabled={!isReady || isSaving || inventoryLoading || !inventoryReady}
               aria-label={`Team slot ${index + 1}: ${name}. Edit companion`}
               title={name}
-              onClick={() => setPickerSlot(index)}>
+              onClick={() => {
+                if (suppressTeamClick.current) return;
+                setPickerSlot(index);
+              }}>
               {id && pet ? (
                 <span className="home-player-hud__slot-portrait" data-testid={`home-player-team-art-${index + 1}`}>
                   <img className="home-player-hud__fallback-pet"
