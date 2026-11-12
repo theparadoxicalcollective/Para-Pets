@@ -264,6 +264,16 @@ try {
       .getByTestId("select-world-legacy-page");
     assert.equal(await selectedLegacy.inputValue(), legacyPages[0].id,
       name + ": created building keeps legacy page selection");
+    const linkEdit = page.waitForResponse(r =>
+      r.request().method() === "PATCH" && r.url().includes("/placements/"));
+    await selectedLegacy.selectOption(legacyPages[1].id);
+    await linkEdit;
+    assert.equal(await selectedLegacy.inputValue(), legacyPages[1].id,
+      name + ": selected building can be linked to a different old world");
+    const linkReset = page.waitForResponse(r =>
+      r.request().method() === "PATCH" && r.url().includes("/placements/"));
+    await selectedLegacy.selectOption(legacyPages[0].id);
+    await linkReset;
     await page.getByRole("button", { name: "Enter Building" }).click();
     await page.getByTestId("world-editor-interior").waitFor({ state: "visible" });
     assert.equal(await page.getByTestId("world-editor-interior").locator("img").first().getAttribute("src"),
