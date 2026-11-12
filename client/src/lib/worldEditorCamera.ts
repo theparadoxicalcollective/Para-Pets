@@ -2,7 +2,7 @@ import { parkCameraGeometry, PARK_ZOOM_MAX } from "./petParkCamera";
 
 /** Only the private World Editor can zoom out to see an entire authored world.
  * Pet Park keeps its own 0.6 floor and camera logic unchanged. */
-export const WORLD_EDITOR_ZOOM_MIN = 0.12;
+export const WORLD_EDITOR_ZOOM_MIN = 0.08;
 
 /** Best fit for the WHOLE world, not merely enough to cover the viewport.
  * The surrounding viewport is painted in the same ground palette; it never

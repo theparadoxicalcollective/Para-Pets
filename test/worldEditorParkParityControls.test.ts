@@ -36,7 +36,7 @@ test("Being a shop changes functionality, not an on-map badge or label", () => {
   assert.match(page, /<WorldShopShelf/);
 });
 test("Overview is viewport-relative and does not change Pet Park geometry", () => {
-  assert.equal(WORLD_EDITOR_ZOOM_MIN,.12);
+  assert.equal(WORLD_EDITOR_ZOOM_MIN,.08);
   const wide=worldEditorCameraGeometry(390,844,4,worldEditorMinZoom(390,844,4));
   const pan=worldEditorClampCamera({x:0,y:0},wide,{width:390,height:844});
   assert.ok(wide.sceneWidth<=392 && wide.sceneHeight<=846);

@@ -95,7 +95,7 @@ test("world terrain grid keys remain valid when the author expands the ground", 
 });
 
 test("World Editor Fit reveals the full authored ground and centers small scenes", () => {
-  assert.equal(WORLD_EDITOR_ZOOM_MIN, 0.12);
+  assert.equal(WORLD_EDITOR_ZOOM_MIN, 0.08);
   for (const [width, height] of [[390, 844], [834, 1194], [320, 768], [768, 1024]]) {
     for (const groundLevel of [1, 2, 4]) {
       const minimum = worldEditorMinZoom(width, height, groundLevel);
