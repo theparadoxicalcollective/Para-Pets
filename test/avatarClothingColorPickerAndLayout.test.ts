@@ -13,7 +13,7 @@ const clothing = {
 };
 const inventoryId = "00000000-0000-4000-8000-000000000001";
 
-test("legacy clothing saves accept historical color flags but player controls remain hair-only", () => {
+test("top/bottom clothing saves accept opt-in flags for player color selection", () => {
   for (const enabled of [true, false]) {
     const parsed = saveUniversalClothingItemSchema.safeParse({ ...clothing, colorPickerEnabled: enabled });
     assert.equal(parsed.success, true);
@@ -49,18 +49,22 @@ test("admin publication and avatar saves store color metadata without altering c
   assert.match(adminMigration, /ADD COLUMN IF NOT EXISTS color_picker_enabled/);
   assert.match(avatarMigration, /ADD COLUMN IF NOT EXISTS color_tint text/);
   assert.match(adminServer, /colorPickerEnabled: input\.data\.category === "hair"/);
+  assert.match(adminServer, /input\.data\.colorPickerEnabled \?\? existing\?\.colorPickerEnabled \?\? false/);
   assert.match(playerServer, /if \(!playerClothingCanRecolor\(slot, item\.colorPickerEnabled\) && input\.data\.colorTint\)/);
   assert.match(playerServer, /if \(existing\?\.inventoryId === inventory\.id\)/);
   assert.match(playerServer, /if \(existing\.colorTint === colorTint\)/);
   assert.match(playerServer, /set: \{ inventoryId: inventory\.id, colorTint, equippedAt:/);
-  assert.doesNotMatch(editor, /data-testid="avatar-clothing-color-picker-enabled"/);
+  assert.match(editor, /data-testid="avatar-clothing-color-picker-enabled"/);
+  assert.match(editor, /data-testid="avatar-clothing-color-preview-controls"/);
   assert.match(editor, /colorPickerEnabled: category === "hair"/);
   assert.match(wardrobe, /data-testid="avatar-clothing-custom-color"/);
   assert.match(wardrobe, /data-testid="avatar-clothing-color-controls"/);
   assert.match(wardrobe, /"avatar-save-character-button"/);
   assert.match(wardrobe, /const draftOutfit = PLAYER_CLOTHING_CATEGORIES\.reduce/);
   assert.doesNotMatch(wardrobe, /toast\(\{ title: "Wardrobe saved"/);
-  assert.match(renderer, /filter: tintFilter\(layer\.colorTint\)/);
+  assert.match(renderer, /filter: grouped \? undefined : tintFilter\(layer\.colorTint\)/);
+  assert.match(renderer, /data-testid="avatar-clothing-composite"/);
+  assert.match(renderer, /filter: tintFilter\(garment\.color\)/);
   assert.match(renderer, /playerCharacterColorMatrix\(color\)/);
   assert.doesNotMatch(renderer, /player-character-renderer__legacy-tint|player-character-renderer__canvas-tint/);
   assert.match(renderer, /clothingLayerDepth\(/);
