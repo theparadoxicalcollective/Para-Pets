@@ -55,8 +55,9 @@ test("skin recoloring applies to the flattened eight-part body, not per-part mas
 test("hair uses one artwork-filter per segment without extra translucent duplicates", () => {
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
   const css = read("client/src/components/PlayerCharacterRenderer.css");
-  assert.match(renderer, /outfit\.category === "hair" \? outfit\.colorTint \?\? null : null/);
-  assert.equal((renderer.match(/filter: tintFilter\(layer\.colorTint\)/g) ?? []).length, 2);
+  assert.match(renderer, /colorTint: outfit\.colorTint \?\? null/);
+  assert.equal((renderer.match(/filter: grouped \? undefined : tintFilter\(layer\.colorTint\)/g) ?? []).length, 2);
+  assert.match(renderer, /data-testid="avatar-clothing-composite"/);
   assert.match(renderer, /const isBackArtwork/);
   assert.match(renderer, /isBackArtwork\(layer\) \? bodyMinDepth - 140 : bodyMaxDepth \+ 140/);
   assert.match(renderer, /transformOrigin: attachment \? /);
