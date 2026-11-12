@@ -33,9 +33,10 @@
   height: 100%;
   z-index: 2;
   pointer-events: none;
-  /* Multiply retains line art and source shading while allowing genuine
-     light-to-deep tonal differences (color blend would keep lightness fixed). */
-  mix-blend-mode: multiply;
+  /* A gentle hue overlay preserves the original painted highlights and
+     avoids turning all skin parts muddy/dark with full-strength multiply. */
+  mix-blend-mode: color;
+  opacity: .78;
   mask-size: 100% 100%;
   -webkit-mask-size: 100% 100%;
   mask-position: center;

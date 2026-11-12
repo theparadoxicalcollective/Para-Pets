@@ -95,8 +95,8 @@ await server.listen();
 const browser=await chromium.launch({headless:true});
 try {
   const scenarios=[
-    {name:"first-time compact phone",width:320,height:568,created:false},
-    {name:"first-time phone",width:390,height:844,created:false},
+    {name:"first-time compact phone",width:320,height:568,created:false,zeroXp:true},
+    {name:"first-time phone",width:390,height:844,created:false,zeroXp:true},
     {name:"saved character phone",width:390,height:844,created:true},
     {name:"saved character tablet",width:834,height:1194,created:true},
     {name:"avatar API unavailable",width:390,height:844,created:false,apiError:true},
@@ -124,7 +124,9 @@ try {
       if(path==="/api/auth/me")return fulfill(route,user);
       if(path==="/api/inventory")return fulfill(route,[playerPet]);
       if(path==="/api/player/progression")
-        return fulfill(route,{level:3,totalXp:240,cycleXp:240,stars:1,nextLevelTotalXp:330,xpToNextLevel:90});
+        return fulfill(route,sc.zeroXp
+          ? {level:1,totalXp:0,cycleXp:0,stars:1,nextLevelTotalXp:80,xpToNextLevel:80}
+          : {level:3,totalXp:240,cycleXp:240,stars:1,nextLevelTotalXp:330,xpToNextLevel:90});
       if(path==="/api/player/pet-team")
         return fulfill(route,{petInventoryIds:["pet-owned"],attackPower:100});
       if(path==="/api/pet-template-parts/pet-template" && method==="GET")
@@ -270,9 +272,24 @@ try {
     const xpArc=await page.getByTestId("home-player-xp-track").evaluate(el=>({
       paths:el.querySelectorAll("svg path").length,
       curve:el.querySelector("svg path")?.getAttribute("d"),
+      innerTrack: getComputedStyle(el.querySelector(".home-player-hud__xp-arc-track")).stroke,
+      rimWidth: parseFloat(getComputedStyle(el.querySelector(".home-player-hud__xp-arc-rim")).strokeWidth),
+      fillCount:el.querySelectorAll(".home-player-hud__xp-arc-fill").length,
+      value:Number(el.getAttribute("aria-valuenow")),
+      text:document.querySelector('[data-testid="home-player-total-xp"]')?.textContent,
     }));
-    assert.ok(xpArc.paths>=2 && xpArc.curve?.includes(" Q "),
-      sc.name+": XP follows an SVG arc below the avatar");
+    assert.ok(xpArc.paths>=(sc.zeroXp?3:4) && xpArc.curve?.includes(" Q "),
+      sc.name+": XP follows the outlined SVG arc below the avatar");
+    assert.ok(xpArc.innerTrack.includes("18, 43, 29") && xpArc.rimWidth<=5,
+      sc.name+": XP is a dark empty groove with a slim gold outline: "+JSON.stringify(xpArc));
+    assert.equal(xpArc.fillCount,sc.zeroXp?0:1,
+      sc.name+": 0 XP has NO painted fill; earned XP paints the proportional fill");
+    if(sc.zeroXp){
+      assert.equal(xpArc.value,0,sc.name+": empty XP progress has zero value");
+      assert.match(xpArc.text,/0 \/ 80 XP/,sc.name+": empty track labels the next level requirement");
+    } else {
+      assert.ok(xpArc.value>0 && xpArc.value<100,sc.name+": partial XP stays partially filled");
+    }
     assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
       sc.name+": team panel not overlapping player XP");
     assert.ok(homeLayout.profile && homeLayout.headerName &&
@@ -325,24 +342,28 @@ try {
     const centerSlot = await page.getByTestId("home-player-team-slot-3").boundingBox();
     assert.ok(teamSlot && centerSlot && teamSlot.width >= (sc.height <= 690 ? 48 : 56),
       sc.name+": pet portraits enlarged without losing the five slots");
-    assert.ok(teamSlot.y < centerSlot.y - 3,
-      sc.name+": pet shadows follow a shallow curve below the character");
+    assert.ok(teamSlot.y < centerSlot.y - (sc.height<=690?9:18),
+      sc.name+": occupied and empty slots arc noticeably around the player");
     const slotChrome = await page.getByTestId("home-player-team-slot-1").evaluate(el=>({
       border:getComputedStyle(el).borderStyle,
       oval:getComputedStyle(el,"::before").borderRadius,
+      ovalBorder:getComputedStyle(el,"::before").borderColor,
     }));
     assert.equal(slotChrome.border,"none",sc.name+": pet art has no circular frame");
     assert.equal(slotChrome.oval,"50%",sc.name+": small shadow oval anchors each pet");
+    assert.ok(slotChrome.ovalBorder.includes("204, 181, 115"),
+      sc.name+": companion oval has a readable muted gold edge");
     assert.ok(await page.getByTestId("home-player-team-slot-4").locator(".home-player-hud__slot-placeholder img").count(),
       sc.name+": empty slot contains a greyed-out pet image");
     assert.equal((await page.getByTestId("home-player-team-slot-4").textContent()).trim(),"+",
       sc.name+": empty slot only shows a plus");
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
-    assert.ok(homeLayout.xpText.top >= homeLayout.xp.bottom - 3,
-      sc.name+": XP label is below progress bar");
-    assert.ok(homeLayout.xpText.right < homeLayout.playerLevel.centerX,
-      sc.name+": XP amount is left of centered player level");
+    assert.ok(homeLayout.xpText.top >= homeLayout.xp.top + 30 &&
+      homeLayout.xpText.bottom <= homeLayout.xp.bottom+2,
+      sc.name+": XP amount stays readable inside the curve");
+    assert.ok(Math.abs(homeLayout.xpText.centerX-homeLayout.xp.centerX)<8,
+      sc.name+": current-level XP is centered under the level pill");
     assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 7,
       sc.name+": player level centered directly below the progress bar");
     assert.ok(homeLayout.levelPill &&

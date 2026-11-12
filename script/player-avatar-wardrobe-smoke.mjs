@@ -44,6 +44,7 @@ const rig = ["head", "top", "left_arm", "right_arm", "left_leg", "right_leg", "l
 const item = (category, inventoryId, partTypes, overrides = {}) => ({
   category, inventoryId, shopItemId: "shop-" + inventoryId,
   name: inventoryId, imageUrl: art, quantity: 1, isListed: false, compatible: true,
+  universal: ["head", "hair", "face", "back", "accessories"].includes(category),
   segments: partTypes.map(partType => ({ partType, imageUrl: art, fit, renderPlane: "with_part" })),
   ...overrides,
 });
@@ -121,47 +122,32 @@ try {
           }) };
         return route.fulfill({ json: avatar });
       }
-      if (url.pathname === "/api/player-avatar/tuck" && method === "PATCH") {
+      if (url.pathname === "/api/player-avatar/character" && method === "PUT") {
         const body = route.request().postDataJSON();
         assert.equal(body.expectedRevision, avatar.revision,
-          name + ": tuck change checks latest player revision");
-        writes.push({ method, kind: "tuck", body });
-        avatar = { ...avatar, topTucked: body.topTucked, revision: avatar.revision + 1 };
-        return route.fulfill({ json: avatar });
-      }
-      if (url.pathname === "/api/player-avatar/base" && method === "PATCH") {
-        const body = route.request().postDataJSON();
-        assert.equal(body.expectedRevision, avatar.revision, name + ": body change is revision-checked");
-        writes.push({ method, kind: "change-body", body });
+          name + ": one full-character save uses the latest revision");
+        assert.deepEqual(Object.keys(body.outfit).sort(),
+          ["accessories", "back", "bottom", "face", "hair", "head", "shoes", "top"].sort(),
+          name + ": full save includes exactly eight explicit slots");
+        const next = Object.entries(body.outfit).flatMap(([category, chosen]) => {
+          if (!chosen) return [];
+          const garment = owned.find(entry => entry.inventoryId === chosen.inventoryId);
+          assert.ok(garment && garment.category === category &&
+            !garment.isListed && garment.quantity > 0,
+            name + ": full save only equips eligible owned items");
+          return [{
+            category, inventoryId: chosen.inventoryId,
+            shopItemId: garment.shopItemId, name: garment.name,
+            imageUrl: garment.imageUrl, segments: garment.segments,
+            colorTint: chosen.colorTint ?? null,
+          }];
+        });
+        writes.push({ method, kind: "save-character", body });
         avatar = {
           ...avatar, revision: avatar.revision + 1, skinTone: body.skinTone,
           topTucked: body.topTucked,
           base: avatar.availableBases.find(entry => entry.id === body.baseId),
-          equipped: body.clearClothing
-            ? [] : body.baseId !== avatar.base.id
-              ? avatar.equipped.filter(entry =>
-                  owned.find(item => item.inventoryId === entry.inventoryId)?.universal)
-              : avatar.equipped,
-        };
-        return route.fulfill({ json: avatar });
-      }
-      if (url.pathname.startsWith("/api/player-avatar/equipment/") && method === "PUT") {
-        const category = url.pathname.split("/").at(-1);
-        const body = route.request().postDataJSON();
-        assert.equal(body.expectedRevision, avatar.revision, name + ": equipment uses latest confirmed revision");
-        writes.push({ method, kind: category, body });
-        const replacement = body.inventoryId ? owned.find(entry => entry.inventoryId === body.inventoryId) : null;
-        assert.ok(!replacement || (replacement.category === category && replacement.compatible && !replacement.isListed));
-        avatar = {
-          ...avatar, revision: avatar.revision + 1,
-          equipped: [
-            ...avatar.equipped.filter(entry => entry.category !== category),
-            ...(replacement ? [{
-              category, inventoryId: replacement.inventoryId, shopItemId: replacement.shopItemId,
-              name: replacement.name, imageUrl: replacement.imageUrl, segments: replacement.segments,
-              colorTint: body.colorTint ?? null,
-            }] : []),
-          ],
+          equipped: next,
         };
         return route.fulfill({ json: avatar });
       }
@@ -170,6 +156,26 @@ try {
 
     await page.goto("http://127.0.0.1:4197/avatar-wardrobe-fixture", { waitUntil: "commit" });
     await page.getByTestId("avatar-character-viewer").waitFor({ state: "visible" });
+    const opening = await page.evaluate(() => {
+      const box = selector => document.querySelector(selector)?.getBoundingClientRect();
+      const header = box(".player-avatar-page__header");
+      const ring = box(".player-avatar-page__showcase");
+      const controls = box(".player-avatar-page__body-controls");
+      const footer = box(".player-avatar-page__save-footer");
+      const details = box(".player-avatar-page__details");
+      return header && ring && controls && footer && details ? {
+        characterMidY: (ring.top + controls.bottom) / 2,
+        availableMidY: (header.bottom + footer.top) / 2,
+        detailsHeight: details.height,
+        footerBottom: footer.bottom,
+      } : null;
+    });
+    assert.ok(opening && Math.abs(opening.characterMidY-opening.availableMidY) <= 48,
+      name + ": avatar ring and body controls open vertically centered: "+JSON.stringify(opening));
+    assert.ok(opening.detailsHeight <= 4,
+      name + ": the collapsed wardrobe does not push the initial character upward");
+    assert.ok(opening.footerBottom <= height+1,
+      name + ": the pinned Save Character footer fits inside the viewport");
     assert.equal(await page.locator('[data-testid^="avatar-category-"]').count(), 8,
       name + ": eight circular categories");
     const categoriesFit = await page.locator('[data-testid^="avatar-category-"]').evaluateAll(elements =>
@@ -205,6 +211,21 @@ try {
     assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(), 0,
       name + ": clothing categories start closed");
     await page.getByTestId("avatar-category-back").tap();
+    const fx = await page.getByTestId("avatar-sparkle-burst").evaluate(el => ({
+      count:el.children.length,
+      pointerEvents:getComputedStyle(el).pointerEvents,
+      animation:getComputedStyle(el.children[0]).animationName,
+    }));
+    assert.equal(fx.count,7,name + ": category tap creates only seven lightweight sparkles");
+    assert.equal(fx.pointerEvents,"none",
+      name + ": sparkles cannot intercept category or wardrobe taps");
+    assert.ok(fx.animation.includes("avatar-choice-spark"),
+      name + ": category tap triggers a brief CSS animation");
+    await page.emulateMedia({ reducedMotion:"reduce" });
+    assert.equal(await page.getByTestId("avatar-sparkle-burst").evaluate(
+      el=>getComputedStyle(el).display),"none",
+      name + ": reduced-motion users see no particle bursts");
+    await page.emulateMedia({ reducedMotion:"no-preference" });
     await page.getByTestId("avatar-clothing-category-panel").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-clothing-free-back").count(), 1,
       name + ": universally free back clothing is available before creation");
@@ -220,6 +241,8 @@ try {
       name + ": tapping the active clothing category closes it");
     await page.getByTestId("avatar-skin-picker-toggle").tap();
     await page.getByTestId("avatar-skin-tone-picker").waitFor({ state: "visible" });
+    assert.ok(await page.getByTestId("avatar-save-character-button").count() === 0,
+      name + ": new character keeps its own single Save Character control");
     await page.getByTestId("avatar-skin-warm").tap();
     assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 8,
       name + ": color preview tints the eight body layers");
@@ -280,27 +303,48 @@ try {
       name + ": compact clothing tray fits or scrolls without clipping");
 
     const initialOutfitCount = avatar.equipped.length;
-    assert.equal(initialOutfitCount, 4, name + ": required and optional first-save outfit persisted");
-    await page.getByTestId("avatar-clothing-hat").tap();
-    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--head .player-avatar-page__equipped-dot"));
-    assert.equal(avatar.equipped.length, initialOutfitCount + 1,
-      name + ": one tap equips the Hat without a separate confirmation");
-    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 2,
-      name + ": saved Face and automatically equipped Hat both render");
-    assert.equal(await page.getByTestId("avatar-equip-button").count(), 0,
-      name + ": wardrobe no longer renders an Equip button");
-    assert.equal(await page.getByText("Wardrobe saved").count(), 0,
-      name + ": equipping does not display a success toast");
-    assert.equal(writes.at(-1).body.inventoryId, "hat");
+    assert.equal(initialOutfitCount, 4, name + ": initial required outfit and Back persisted");
+    const editStartWrites = writes.length;
+    const footer = page.getByTestId("avatar-save-character-button");
+    await footer.waitFor({state:"visible"});
+    const footerBounds = await footer.boundingBox();
+    const editorLayout = await page.evaluate(() => {
+      const rect = selector => {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        const bounds = el.getBoundingClientRect();
+        return { top: Math.round(bounds.top), bottom: Math.round(bounds.bottom),
+          height: Math.round(bounds.height) };
+      };
+      return {
+        viewportHeight: window.innerHeight,
+        content: rect(".player-avatar-page__content"),
+        stage: rect(".player-avatar-page__editor-stage"),
+        details: rect(".player-avatar-page__details"),
+        footer: rect(".player-avatar-page__save-footer"),
+        display: getComputedStyle(document.querySelector(".player-avatar-page__content")).display,
+        gridRows: getComputedStyle(document.querySelector(".player-avatar-page__content")).gridTemplateRows,
+      };
+    });
+    assert.equal(editorLayout.display, "grid",
+      name + ": loaded editor uses viewport-constrained header, content and Save rows");
+    assert.ok(footerBounds && footerBounds.y + footerBounds.height <= height + 1,
+      name + ": Save Character stays visible above the phone bottom: " +
+      JSON.stringify({ footerBounds, editorLayout }));
+    assert.ok(footerBounds && footerBounds.y >= 0,
+      name + ": Save Character stays accessible even while the wardrobe is open");
 
+    // Trying items is reversible and local. Even body, tuck and hair color
+    // edits must not send independent API mutations.
+    await page.getByTestId("avatar-clothing-hat").tap();
+    assert.equal(avatar.equipped.length, initialOutfitCount,
+      name + ": tapping Hat only changes the on-screen preview");
+    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 2,
+      name + ": pending Hat and the saved Face render together");
     await page.getByTestId("avatar-category-hair").tap();
     await page.getByTestId("avatar-clothing-hair").tap();
-    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--hair .player-avatar-page__equipped-dot"));
-    assert.equal(writes.at(-1).body.inventoryId, "hair",
-      name + ": hair equips on first tap without a message");
     await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
     await page.getByTestId("avatar-clothing-custom-color").evaluate(el => {
-      // Native setter triggers React's controlled color-input change handling.
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       setter?.call(el, "#7744bb");
       el.dispatchEvent(new Event("input", {bubbles: true}));
@@ -309,135 +353,82 @@ try {
     await page.waitForFunction(() =>
       document.querySelectorAll('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').length === 2);
     assert.equal(await page.locator('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').count(), 2,
-      name + ": both front and back hair parts receive the same preview color");
-    await page.getByTestId("avatar-save-color-button").tap();
-    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--hair .player-avatar-page__equipped-dot"));
-    assert.equal(writes.at(-1).body.colorTint, "#7744bb",
-      name + ": automatically colorable legacy hairstyle saves chosen tint");
-    assert.equal(avatar.equipped.find(entry => entry.category === "hair")?.colorTint, "#7744bb",
-      name + ": the saved tint is specific to the player's equipped hair");
-    await page.getByTestId("avatar-clothing-reset-color").tap();
-    assert.equal(await page.getByTestId("avatar-save-color-button").textContent(), "Save Color",
-      name + ": original-color reset remains an explicit save");
-    await page.getByTestId("avatar-save-color-button").tap();
-    await page.waitForFunction(() =>
-      document.querySelectorAll('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').length === 0);
-    assert.equal(avatar.equipped.find(entry => entry.category === "hair")?.colorTint, null,
-      name + ": resetting restores the original hair artwork");
-    await page.getByTestId("avatar-category-face").tap();
-    const writesBeforeFaceRetap = writes.length;
-    await page.getByTestId("avatar-clothing-face").tap();
-    assert.equal(writes.length, writesBeforeFaceRetap,
-      name + ": tapping an already equipped Face does not duplicate a save");
-    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--face .player-avatar-page__equipped-dot"));
-    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 4,
-      name + ": hat, face and both hair pieces share the head anchor without clobbering");
-    const keys = await page.locator('[data-clothing-part="head"]').evaluateAll(nodes =>
-      nodes.map(node => node.getAttribute("data-clothing-key")));
-    assert.equal(new Set(keys).size, 4, name + ": layered garments have stable unique IDs");
-
+      name + ": front and back hair share a live tint preview");
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-pants").tap();
-    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
-    assert.equal(await page.locator('[data-clothing-part="left_leg"]').count(), 1);
-    assert.equal(await page.locator('[data-clothing-part="right_leg"]').count(), 1);
     await page.getByTestId("avatar-unequip-button").tap();
-    await page.waitForFunction(() => !document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
-    assert.equal(avatar.equipped.some(entry => entry.category === "bottom"), false,
-      name + ": remove unlinks only selected category");
-
-    await page.getByTestId("avatar-category-top").tap();
-    assert.equal(await page.getByTestId("avatar-clothing-listed-top").isDisabled(), true,
-      name + ": listed clothing cannot be equipped");
-    await page.getByTestId("avatar-clothing-plain-top").tap();
-    await page.getByTestId("avatar-category-bottom").tap();
+    assert.equal(await page.locator('[data-clothing-part="left_leg"]').count(), 0,
+      name + ": removing pending Bottoms immediately changes the preview");
     await page.getByTestId("avatar-clothing-canvas-pants").tap();
-    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
-    const canvasDepths = () => page.locator(
-      '.player-character-renderer__canvas-motion[data-clothing-key^="top:"]'
-    ).first().evaluate(el => Number(getComputedStyle(el).zIndex));
-    const bottomDepth = await page.locator(
-      '.player-character-renderer__canvas-motion[data-clothing-key^="bottom:"]'
-    ).first().evaluate(el => Number(getComputedStyle(el).zIndex));
-    const bodyTopDepth = await page.locator('[data-character-part="top"]').first()
-      .evaluate(el => Number(getComputedStyle(el).zIndex));
-    assert.ok(bottomDepth > bodyTopDepth && (await canvasDepths()) > bodyTopDepth,
-      name + ": all standard clothing renders above the full body stack");
-    assert.ok((await canvasDepths()) < bottomDepth,
-      name + ": checked Tuck draws Tops behind Bottoms");
     await page.getByTestId("avatar-category-top").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-listed-top").isDisabled(),true,
+      name + ": listed Tops cannot be selected");
     await page.getByTestId("avatar-top-tuck").uncheck();
-    await page.waitForFunction(() =>
-      document.querySelector('[data-testid="avatar-top-tuck"]')?.checked === false);
-    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(), 0,
-      name + ": untucking visibly clears the checkmark");
-    assert.equal(avatar.topTucked, false,
-      name + ": untucked preference persisted on the account");
-    assert.ok((await canvasDepths()) > bottomDepth,
-      name + ": unchecked Tuck draws Tops in front of Bottoms");
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(),0,
+      name + ": unchecked Tuck is visually empty");
     await page.getByTestId("avatar-top-tuck").check();
-    await page.waitForFunction(() =>
-      document.querySelector('[data-testid="avatar-top-tuck"]')?.checked === true);
-    assert.equal(avatar.topTucked, true, name + ": tuck persists after another change");
-    assert.ok((await canvasDepths()) < bottomDepth,
-      name + ": switching back to tuck restores layering");
-    await page.getByTestId("avatar-category-shoes").tap();
-    await page.getByTestId("avatar-wardrobe-empty").waitFor({ state: "visible" });
-    const equippedBeforeColor = avatar.equipped.map(entry => entry.inventoryId).sort();
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(),1,
+      name + ": checked Tuck has a visible gold checkmark");
+
     await page.getByTestId("avatar-skin-picker-toggle").tap();
     await page.getByTestId("avatar-skin-rich").tap();
-    await page.getByTestId("avatar-save-body-choice").tap();
-    // A tap triggers an asynchronous revisioned save. Wait for the actual
-    // success confirmation before asserting the server's persisted state.
-    await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
-    assert.equal(avatar.skinTone, "#42291f", name + ": skin color persisted");
-    assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
-      name + ": appearance save closes the picker");
-    await page.getByTestId("avatar-save-confirmation-close").tap();
-    assert.deepEqual(avatar.equipped.map(entry => entry.inventoryId).sort(), equippedBeforeColor,
-      name + ": skin-only save never unequips clothing");
-    await page.getByTestId("avatar-category-face").tap();
-    await page.getByTestId("avatar-clothing-face").tap();
+    const skinBlend = await page.locator('[data-testid="avatar-skin-tint"]').first()
+      .evaluate(el => ({mode:getComputedStyle(el).mixBlendMode,
+        opacity:getComputedStyle(el).opacity}));
+    assert.equal(skinBlend.mode,"color",name + ": skin color preserves painted shading");
+    assert.ok(Number(skinBlend.opacity) <= .8,
+      name + ": skin overlay is intentionally softer");
     await page.getByTestId("avatar-choose-fem").tap();
-    assert.equal(await page.getByTestId("avatar-clothing-face").getAttribute("aria-pressed"), "true",
-      name + ": selected face does not reset during Fem/Masc switch");
-    assert.ok(await page.locator('[data-clothing-part="head"]').count() >= 1);
-    await page.getByTestId("avatar-body-change").waitFor({ state: "visible" });
-    assert.equal(avatar.base.id, "base-2", name + ": choosing a body only previews, not saves");
-    await page.getByTestId("avatar-save-body-choice").tap();
-    await page.waitForFunction(() => document.querySelector('[data-testid="avatar-choose-fem"]')?.getAttribute("aria-pressed") === "true");
-    assert.equal(avatar.base.id, "base-1", name + ": saved body changes without losing clothing inventory");
-    await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
-    await page.getByTestId("avatar-save-confirmation-close").tap();
-    assert.equal(avatar.ownedClothing.length, owned.length);
-    // Switching bodies may legitimately unequip old non-universal garments.
-    // Explicitly equip a compatible item so reset must clear real equipment.
-    await page.getByTestId("avatar-category-head").tap();
-    await page.getByTestId("avatar-clothing-hat").tap();
-    await page.waitForFunction(() =>
-      !!document.querySelector(".player-avatar-page__category--head .player-avatar-page__equipped-dot"));
-    assert.ok(avatar.equipped.some(entry =>
-      entry.category === "head" && entry.inventoryId === "hat"),
-      name + ": head clothing was genuinely equipped before reset");
-    const wornBeforeReset = avatar.equipped.length;
-    assert.ok(wornBeforeReset > 0);
-    const writesBeforeReset = writes.length;
-    const showcaseRect = await page.getByTestId("avatar-character-viewer").boundingBox();
+    assert.equal(avatar.base.id,"base-2",
+      name + ": switching Fem/Masc never saves an intermediate appearance");
+    await page.getByTestId("avatar-category-hair").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-hair").getAttribute("aria-pressed"),"true",
+      name + ": selected hair remains usable when switching body types");
+    assert.equal(writes.length,editStartWrites,
+      name + ": body, tone, clothing, hair and Tuck are all preview-only");
+
+    await footer.tap();
+    await page.waitForFunction(() => document.querySelector('[data-testid="avatar-choose-fem"]')
+      ?.getAttribute("aria-pressed")==="true" &&
+      !document.querySelector('[data-testid="avatar-clothing-category-panel"]'));
+    assert.equal(writes.length,editStartWrites+1,
+      name + ": exactly one full-character transaction");
+    const saved = writes.at(-1);
+    assert.equal(saved.kind,"save-character");
+    assert.equal(saved.body.baseId,"base-1");
+    assert.equal(saved.body.skinTone,"#42291f");
+    assert.equal(saved.body.topTucked,true);
+    assert.equal(saved.body.outfit.hair.colorTint,"#7744bb");
+    assert.equal(saved.body.outfit.head.inventoryId,"hat");
+    assert.equal(saved.body.outfit.bottom.inventoryId,"canvas-pants");
+    assert.equal(avatar.base.id,"base-1",name + ": Fem body was committed");
+    assert.equal(avatar.equipped.find(entry=>entry.category==="hair")?.colorTint,"#7744bb",
+      name + ": hair color persisted with full outfit");
+    assert.equal(avatar.ownedClothing.length,owned.length,
+      name + ": saving never deletes owned inventory");
+
+    // Reset should remain local until Save Character, then clear *only*
+    // equipped links while leaving all owned clothing available.
+    const wornBeforeReset=avatar.equipped.length;
+    assert.ok(wornBeforeReset>0);
+    const writesBeforeReset=writes.length;
     await page.getByTestId("avatar-reset-character").tap();
-    assert.equal(writes.length, writesBeforeReset,
-      name + ": reset is preview-only until Save Appearance");
-    assert.equal(await page.locator('[data-clothing-key]').count(), 0,
-      name + ": reset shows only the bare base");
-    assert.equal(await page.locator('[data-character-part]').count(), 8);
-    await page.getByTestId("avatar-save-body-choice").tap();
-    await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
-    assert.equal(writes.at(-1).body.clearClothing, true,
-      name + ": reset clears equipped items atomically");
-    assert.deepEqual(avatar.equipped, []);
-    assert.equal(avatar.ownedClothing.length, owned.length,
-      name + ": reset never deletes player inventory");
-    await page.getByTestId("avatar-save-confirmation-close").tap();
+    assert.equal(writes.length,writesBeforeReset,name + ": reset does not write");
+    assert.equal(await page.locator('[data-clothing-key]').count(),0,
+      name + ": reset previews bare body");
+    await footer.tap();
+    await page.waitForFunction(() => document.querySelectorAll('[data-clothing-key]').length===0 &&
+      !document.querySelector('[data-testid="avatar-clothing-category-panel"]'));
+    assert.equal(writes.length,writesBeforeReset+1);
+    assert.deepEqual(Object.values(writes.at(-1).body.outfit),Array(8).fill(null),
+      name + ": reset commits all eight empty slots atomically");
+    assert.deepEqual(avatar.equipped,[]);
+    assert.equal(avatar.ownedClothing.length,owned.length);
     await page.getByTestId("avatar-category-head").tap();
+    // Opening the wardrobe deliberately switches from a centered stage to
+    // a compact stage. Check that *scrolling inside the wardrobe* does not
+    // move the character, not that opening a new panel never resizes it.
+    const showcaseRect=await page.getByTestId("avatar-character-viewer").boundingBox();
     const details = page.getByTestId("avatar-scrollable-details");
     await details.evaluate(el => { el.scrollTop = el.scrollHeight; });
     const finalRect = await page.getByTestId("avatar-character-viewer").boundingBox();

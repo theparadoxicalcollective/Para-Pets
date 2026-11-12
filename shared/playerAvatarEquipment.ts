@@ -34,6 +34,27 @@ export const createPlayerAvatarSchema = z.object({
   outfit: avatarCreationOutfitSchema,
 }).strict();
 
+/** A single revision-checked edit commit for body, tone, tuck, and the entire
+ * outfit. Each key is explicit so an omitted garment cannot be mistaken for
+ * a request to remove it. Null means an intentionally empty slot. */
+export const savePlayerAvatarCharacterSchema = z.object({
+  expectedRevision: z.number().int().min(0),
+  baseId: z.string().uuid(),
+  skinTone: playerSkinToneSchema.optional(),
+  topTucked: z.boolean(),
+  outfit: z.object({
+    head: avatarCreationItemSchema.nullable(),
+    hair: avatarCreationItemSchema.nullable(),
+    face: avatarCreationItemSchema.nullable(),
+    top: avatarCreationItemSchema.nullable(),
+    bottom: avatarCreationItemSchema.nullable(),
+    shoes: avatarCreationItemSchema.nullable(),
+    back: avatarCreationItemSchema.nullable(),
+    accessories: avatarCreationItemSchema.nullable(),
+  }).strict(),
+}).strict();
+export type AvatarCharacterOutfit = z.infer<typeof savePlayerAvatarCharacterSchema>["outfit"];
+
 export const changePlayerAvatarBaseSchema = z.object({
   baseId: z.string().uuid(),
   skinTone: playerSkinToneSchema.optional(),

@@ -67,7 +67,7 @@ test("fixed character preview with only details-area scrolling", () => {
   assert.match(page, /data-testid="avatar-scrollable-details"/);
   assert.match(page, /data-testid="avatar-reset-character"/);
   assert.match(page, /setPreviewSelections\(\{\}\)/);
-  assert.match(page, /onClick=\{\(\) => setBodyChoiceId\(option.id\)\}/);
+  assert.match(page, /onClick=\{\(\) => \{ setBodyChoiceId\(option.id\); showSparkle\(\); \}\}/);
   assert.match(css, /\.player-avatar-page\s*\{[^}]*overflow: hidden/s);
   assert.match(css, /\.player-avatar-page__details\s*\{[^}]*overflow-y: auto/s);
   assert.match(css, /\.player-avatar-page__showcase\s*\{[^}]*touch-action: manipulation/s);

@@ -158,14 +158,14 @@ test("a listed or incompatible item cannot alter the character preview", () => {
   assert.deepEqual(wardrobeLayers(avatar), []);
 });
 
-test("the player page uses authenticated avatar APIs and saves worn items on tap", () => {
+test("the player page uses authenticated avatar APIs and previews until Save Character", () => {
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
   const model = read("client/src/lib/playerAvatarWardrobe.ts");
   assert.match(model, /fetch\("\/api\/player-avatar", \{/);
   assert.match(model, /credentials: "include", signal, cache: "no-store"/);
   assert.match(page, /queryFn: \(\{ signal \}\) => fetchPlayerAvatar\(signal\)/);
   assert.match(page, /writePlayerAvatar\("POST", "\/api\/player-avatar\/create"/);
-  assert.match(page, /\`\/api\/player-avatar\/equipment\/\$\{input.category\}\`/);
+  assert.match(page, /"PUT", "\/api\/player-avatar\/character"/);
   assert.match(page, /expectedRevision: avatar.revision/);
   assert.match(page, /const avatarKey = playerAvatarQueryKey\(userId\)/);
   assert.match(page, /queryKey: avatarKey/);
@@ -175,11 +175,11 @@ test("the player page uses authenticated avatar APIs and saves worn items on tap
   assert.doesNotMatch(page, /qc\.setQueryData\(PLAYER_AVATAR_QUERY_KEY, saved\)/);
   assert.match(page, /setPreviewSelections\(\{\}\)/);
   assert.match(page, /setResetPending\(!!avatar\?\.created\)/);
-  assert.match(page, /clearClothing: resetPending/);
-  assert.match(page, /error.status === 409/);
-  assert.match(page, /data-testid="avatar-create-button"/);
+  assert.match(page, /const draftOutfit = PLAYER_CLOTHING_CATEGORIES\.reduce/);
+  assert.match(page, /"Character not saved"/);
+  assert.match(page, /avatar.created \? "avatar-save-character-button" : "avatar-create-button"/);
   assert.match(page, /onClick=\{\(\) => chooseClothing\(item\)\}/);
-  assert.match(page, /saveEquipment\(item\.inventoryId\)/);
+  assert.match(page, /setPreviewSelections\(current => \(\{ \.\.\.current, \[category\]: item\.inventoryId \}\)\)/);
   assert.doesNotMatch(page, /data-testid="avatar-equip-button"/);
   assert.match(page, /data-testid="avatar-unequip-button"/);
   assert.match(page, /data-testid="avatar-owned-inventory"/);

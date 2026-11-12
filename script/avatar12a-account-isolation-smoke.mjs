@@ -82,12 +82,12 @@ try{
         if(requestAccount==="account-B")await bReadGate;
         return route.fulfill({json:accounts[requestAccount]});
       }
-      if(path==="/api/player-avatar/equipment/head"&&method==="PUT"){
+      if(path==="/api/player-avatar/character"&&method==="PUT"){
         const requestAccount=active;
         const body=route.request().postDataJSON();
         assert.equal(body.expectedRevision,accounts[requestAccount].revision,
           name+": revision stays tied to the authenticated account");
-        assert.equal(body.inventoryId,"hat-"+requestAccount,
+        assert.equal(body.outfit.head?.inventoryId,"hat-"+requestAccount,
           name+": cannot equip another account's clothing");
         confirmASaveStarted();
         // Complete the old account's save only AFTER B has loaded.
@@ -106,9 +106,11 @@ try{
     // Wardrobes now start closed until a clothing category is tapped.
     await page.getByTestId("avatar-category-head").tap();
     await page.getByTestId("avatar-clothing-hat-account-A").waitFor({state:"visible"});
-    const save=page.waitForResponse(r=>r.request().method()==="PUT"&&r.url().includes("/equipment/head"));
     await page.getByTestId("avatar-clothing-hat-account-A").tap();
-    // Selecting an item now begins the revisioned save immediately.
+    assert.equal(writes.length,0,name+": choosing clothing does not send an API request");
+    const save=page.waitForResponse(r=>r.request().method()==="PUT"&&r.url().includes("/character"));
+    await page.getByTestId("avatar-save-character-button").tap();
+    // One complete revisioned character write now begins after Save Character.
     await aSaveStarted;
     // Force a live account change while account A's server mutation is still
     // in flight. Completing A's response must NEVER populate B's cache.
