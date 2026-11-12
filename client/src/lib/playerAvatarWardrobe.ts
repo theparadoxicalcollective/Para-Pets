@@ -5,6 +5,7 @@ import {
   type PlayerClothingSegment,
   type PlayerClothingBodyVariants,
   clothingSegmentsForBody,
+  playerClothingCanRecolor,
 } from "@shared/playerCharacterClothing";
 
 export const PLAYER_AVATAR_QUERY_KEY = ["/api/player-avatar"] as const;
@@ -123,8 +124,9 @@ export function wardrobeLayers(
   const unavailable = new Set(avatar.unavailableEquipmentSlots);
   const equipped: AvatarClothingLayer[] = clearEquipped ? [] : avatar.equipped
     .filter(item => !unavailable.has(item.category))
-    .map(({ category, inventoryId, segments, bodyVariants, colorTint }) => ({
-      category, inventoryId, colorTint: category === "hair" ? colorTint : null,
+    .map(({ category, inventoryId, segments, bodyVariants, colorTint, colorPickerEnabled }) => ({
+      category, inventoryId,
+      colorTint: playerClothingCanRecolor(category, colorPickerEnabled) ? colorTint ?? null : null,
       segments: clothingSegmentsForBody(segments, bodyVariants, selectedBodyName),
     }));
 
@@ -144,7 +146,7 @@ export function wardrobeLayers(
     equipped.push({
       category: chosen.category,
       inventoryId: chosen.inventoryId,
-      colorTint: chosen.category === "hair"
+      colorTint: playerClothingCanRecolor(chosen.category, chosen.colorPickerEnabled)
         ? avatar.equipped.find(e => e.inventoryId === chosen.inventoryId)?.colorTint ?? null
         : null,
       segments: clothingSegmentsForBody(
