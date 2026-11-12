@@ -33,7 +33,8 @@ test("admin-only old-world page catalog lists actual legacy location backgrounds
   assert.match(server, /changes\.legacyLocationId = body\.legacyLocationId/);
   assert.match(picker, /Add Old World Page/);
   assert.match(picker, /<optgroup key=\{name\} label=\{name\}>/);
-  assert.match(picker, /<option value="">No old page linked<\/option>/);
+  assert.match(picker, /compact \? "Add Old World Page" : "No old page linked"/);
+  assert.match(picker, /compact\?: boolean/);
   assert.match(picker, /value=\{value \?\? ""\}/);
   assert.match(picker, /credentials: "include"/);
 });
