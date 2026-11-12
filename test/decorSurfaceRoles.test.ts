@@ -67,7 +67,9 @@ test("both editors expose single-choice legible controls and save their roles", 
   assert.match(park,/testId="park-decoration-behavior"/);
   assert.match(world,/testId="world-decoration-behavior"/);
   assert.match(park,/api\/admin\/pet-park\/items\/\$\{id\}\/surface/);
-  assert.match(world,/onChange=\{role => void patchSelected\(decorRoleUpdate\(role\)\)\}/);
+  assert.match(world,/onChange=\{role => void changeDecorRole\(role\)\}/);
+  assert.match(world,/pendingDecorRole\?\.id === props\.selected\.id/);
+  assert.match(world,/setPendingDecorRole\(\{ id: selectedId, role \}\)/);
   assert.match(world,/decorSurface: source\.decorSurface/);
 });
 
