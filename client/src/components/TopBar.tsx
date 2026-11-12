@@ -1,3 +1,4 @@
+import { DEFAULT_PLAYER_PROFILE_IMAGE } from "@/lib/defaultPlayerProfileImage";
 import { useState, useRef, useEffect, useId, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -317,14 +318,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div
-                        className="w-full h-full flex items-center justify-center"
-                        style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
-                      >
-                        <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(18px, calc(5.5*var(--vw)), 26px)" }}>
-                          {(user.username ?? "?").charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      <img src={DEFAULT_PLAYER_PROFILE_IMAGE} alt="Default Para Pets mascot"
+                        data-testid="img-profile-default"
+                        className="w-full h-full object-cover" />
                     )}
                   </div>
                   {/* Frame in-flow — renders at natural 1115×1126 ratio, no squish, no overflow */}
