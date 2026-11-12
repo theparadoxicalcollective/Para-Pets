@@ -48,7 +48,6 @@ type Props = {
   onEnter: (id: string) => void;
   onPaint: () => void;
   groundTheme: WorldGroundTheme;
-  groundLevel: number;
   zoom: number;
   minZoom: number;
   onZoom: (value: number) => void;

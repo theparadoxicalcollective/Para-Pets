@@ -43,7 +43,7 @@ test("world camera updates are frame-batched without changing placement storage"
   const world = read("client/src/pages/WorldSceneEditorPage.tsx");
   assert.match(world, /cameraFrame = useRef<number \| null>/);
   assert.match(world, /window\.requestAnimationFrame/);
-  assert.match(world, /queueCameraUpdate\(parkClampCamera/);
+  assert.match(world, /queueCameraUpdate\(worldEditorClampCamera/);
   assert.match(world, /window\.cancelAnimationFrame/);
   assert.match(world, /\/api\/admin\/world-editor\/\$\{worldId\}\/\$\{endpoint\}\/\$\{id\}/);
 });

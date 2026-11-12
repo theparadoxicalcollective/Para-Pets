@@ -29,7 +29,7 @@ import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
 import { PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
-import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
+import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import { worldGroundPalette, worldGroundRenderTheme } from "@/lib/worldGroundPalette";
 import type { ParkEffectType } from "@shared/petParkEffects";
 
@@ -778,7 +778,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         onSelect={setSelectedId} onSelectInterior={setSelectedInteriorId}
         onEnter={id => { setActiveBuildingId(id); setSelectedInteriorId(null); setPan(null); }}
         onPaint={() => setPaintMode(true)}
-        groundTheme={groundTheme} groundLevel={groundLevel}
+        groundTheme={groundTheme}
         zoom={zoom} minZoom={minZoom}
         onZoom={value => changeZoom(value)}
         onResetZoom={() => changeZoom(1)}
