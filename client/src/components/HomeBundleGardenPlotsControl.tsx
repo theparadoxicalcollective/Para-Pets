@@ -108,9 +108,11 @@ export default function HomeBundleGardenPlotsControl({
   const onUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    // Compute before clearing the drag ref: pointer-up and capture-lost may
+    // both fire, but only the first should save one position change.
+    const next = positionFor(event.clientX, event.clientY);
     dragRef.current = null;
     event.stopPropagation();
-    const next = positionFor(event.clientX, event.clientY);
     setPreview(null);
     if (next.xPct !== drag.xPct || next.yPct !== drag.yPct)
       update.mutate({ id: drag.id, patch: next });
