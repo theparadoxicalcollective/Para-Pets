@@ -56,6 +56,9 @@ export interface OwnedAvatarClothing {
   compatible: boolean;
   free?: boolean;
   universal?: boolean;
+  /** Original published clothing base; used to preview alternate bodies. */
+  designBaseId?: string;
+  designBasePublishedAt?: string | Date;
   colorPickerEnabled?: boolean;
   segments: PlayerClothingSegment[];
   bodyVariants?: PlayerClothingBodyVariants | null;
@@ -115,6 +118,7 @@ export function wardrobeLayers(
     readonly { category: PlayerClothingCategory; inventoryId: string }[] | null,
   clearEquipped = false,
   selectedBodyName: string | null | undefined = avatar.base?.name,
+  canPreview?: (item: OwnedAvatarClothing) => boolean,
 ): AvatarClothingLayer[] {
   const unavailable = new Set(avatar.unavailableEquipmentSlots);
   const equipped: AvatarClothingLayer[] = clearEquipped ? [] : avatar.equipped
@@ -131,7 +135,8 @@ export function wardrobeLayers(
     const chosen = avatar.ownedClothing.find(item =>
       item.inventoryId === candidate.inventoryId &&
       item.category === candidate.category &&
-      item.compatible && !item.isListed && item.quantity > 0
+      (canPreview ? canPreview(item) : item.compatible) &&
+      !item.isListed && item.quantity > 0
     );
     if (!chosen) continue;
     const index = equipped.findIndex(item => item.category === chosen.category);
