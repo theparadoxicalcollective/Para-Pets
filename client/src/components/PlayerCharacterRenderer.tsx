@@ -57,8 +57,9 @@ export default function PlayerCharacterRenderer({
       segment,
       key: `${outfit.category}:${outfit.inventoryId}:${clothingSegmentKey(segment)}`,
       category: outfit.category,
-      // Legacy saved colors on non-hair garments must never tint artwork.
-      colorTint: outfit.category === "hair" ? outfit.colorTint ?? null : null,
+      // Server and wardrobe gate opt-in recoloring by catalog SKU.
+      // Non-recolorable garments never receive a tint from old saved data.
+      colorTint: outfit.colorTint ?? null,
       categoryOrder: PLAYER_CLOTHING_CATEGORIES.indexOf(outfit.category),
     }))),
   ];
