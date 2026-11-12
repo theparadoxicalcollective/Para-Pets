@@ -55,7 +55,7 @@ test("Home keeps curved level text on an artwork-relative XP bar with quantity h
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__level-curved/);
   assert.match(hudCss, /--home-xp-art-width/);
   assert.match(hud, /homeXpArcGeometry\(curveDepth\)/);
-  assert.match(hud, /aria-label=\{player && xpNeededThisLevel !== null/);
+  assert.match(hud, /role="progressbar" aria-label=\{xpProgressLabel\}/);
   assert.match(hud, /xpFillPct/); // Progression calculations are unchanged.
 });
 
