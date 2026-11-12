@@ -7,25 +7,21 @@ const hud = read("client/src/components/HomePlayerHud.tsx");
 const hudCss = read("client/src/components/HomePlayerHud.css");
 const nav = read("client/src/components/FloatingNav.tsx");
 
-test("Home player level gets its own forest-and-gold pill without changing XP math", () => {
-  assert.match(hud, /\{avatarHome && \(/);
-  assert.match(hud, /className="home-player-hud__level home-player-hud__level-pill"/);
+test("Home level lettering curves beneath the platform XP arc without changing XP math", () => {
+  assert.match(hud, /className="home-player-hud__level-curved"/);
+  assert.match(hud, /<textPath href="#home-player-level-curve" startOffset="50%">/);
   assert.match(hud, /player \? `Lvl \$\{player\.level\}`/);
-  assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__level-pill/);
-  assert.match(hudCss, /border-radius: 999px/);
-  assert.match(hudCss, /rgba\(234, 196, 109, \.82\)/);
-  assert.match(hudCss, /box-shadow: 0 2px 9px/);
+  assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__level-curved/);
+  assert.doesNotMatch(hud, /home-player-hud__level-pill/);
   assert.match(hud, /totalXpRequiredForPlayerLevel\(player\.level\)/);
   assert.match(hud, /data-testid="home-player-xp-track"/);
   assert.match(hud, /data-testid="home-player-total-xp"/);
 });
-
-test("semicircular XP, level pill and curved pets retain short-phone clearance", () => {
-  assert.match(hudCss, /height: 66px/);
-  assert.match(hudCss, /height: 62px/);
+test("deep XP curve and lower pets preserve short-phone clearance", () => {
+  assert.match(hudCss, /aspect-ratio: 320 \/ 130/);
   assert.match(hudCss, /\.home-player-hud__xp-arc-track/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel/);
-  assert.match(hudCss, /bottom: calc\(20px \+ env\(safe-area-inset-bottom/);
+  assert.match(hudCss, /bottom: calc\(12px \+ env\(safe-area-inset-bottom/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel\s*\{[^}]*pointer-events: none/s);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__slot\s*\{[^}]*pointer-events: auto/s);
 });
