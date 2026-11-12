@@ -83,7 +83,8 @@ test("creator always exposes hair color input and save/reset, also on first avat
   assert.match(server, /playerClothingCanRecolor\(slot, item\.colorPickerEnabled\)/);
   assert.doesNotMatch(admin, /data-testid="avatar-clothing-color-picker-enabled"/);
   assert.match(admin, /colorPickerEnabled: category === "hair"/);
-  assert.match(render, /layer\.colorTint && <span/);
-  assert.match(render, /maskImage: `url\("\$\{layer\.segment\.imageUrl\}"\)`/);
+  assert.match(render, /filter: tintFilter\(layer\.colorTint\)/);
+  assert.match(render, /playerCharacterColorMatrix\(color\)/);
+  assert.doesNotMatch(render, /layer\.colorTint && <span|maskImage:/);
   assert.match(render, /layer\.category === "hair" && isBackArtwork\(layer\)/);
 });
