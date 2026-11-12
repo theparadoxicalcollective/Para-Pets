@@ -53,6 +53,25 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       ADD COLUMN IF NOT EXISTS interior_night_darkness integer;
     ALTER TABLE world_scene_placements
       ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb;
+    -- Optional link to an original world-location page. No legacy data is
+    -- copied or changed; deletion of that page safely clears this link.
+    ALTER TABLE world_scene_placements
+      ADD COLUMN IF NOT EXISTS legacy_location_id varchar;
+    DO $
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'world_scene_placements_legacy_location_fk'
+      ) THEN
+        ALTER TABLE world_scene_placements
+          ADD CONSTRAINT world_scene_placements_legacy_location_fk
+          FOREIGN KEY (legacy_location_id)
+          REFERENCES world_locations(id) ON DELETE SET NULL;
+      END IF;
+    END $;
+    CREATE INDEX IF NOT EXISTS world_scene_placements_legacy_location_idx
+      ON world_scene_placements (legacy_location_id)
+      WHERE legacy_location_id IS NOT NULL;
     CREATE INDEX IF NOT EXISTS world_scene_placements_world_idx ON world_scene_placements (world_id);
     CREATE UNIQUE INDEX IF NOT EXISTS world_scene_terrain_cell_unique
       ON world_scene_placements (world_id, terrain_key) WHERE terrain_key IS NOT NULL;
