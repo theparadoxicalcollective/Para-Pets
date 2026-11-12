@@ -127,7 +127,7 @@ export default function WorldSceneControls(props: Props) {
     if (!props.selected) return;
     await mutate("PATCH", `/placements/${props.selected.id}`, values);
   };
-  const selectedLegacyPage = legacyChoice?.buildingId === props.selected?.id
+  const selectedLegacyPage = legacyChoice && legacyChoice.buildingId === props.selected?.id
     ? legacyChoice.pageId : props.selected?.legacyLocationId ?? null;
   useEffect(() => {
     if (!legacyChoice) return;
