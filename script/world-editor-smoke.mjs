@@ -61,6 +61,7 @@ const ids = {
   room: "10000000-0000-4000-8000-000000000005",
   colored: "10000000-0000-4000-8000-000000000006",
   interiorLamp: "10000000-0000-4000-8000-000000000007",
+  interiorColor: "10000000-0000-4000-8000-000000000008",
 };
 function makeScene(worldId) {
   if (worldId === "swamp") return {
@@ -105,6 +106,10 @@ function makeScene(worldId) {
       id: ids.interiorLamp, worldId, buildingId: ids.building,
       kind: "effect", assetId: null, effectType: "lamp_light",
       xPct: .72, yPct: .23, size: 40, flipped: false,
+    }, {
+      id: ids.interiorColor, worldId, buildingId: ids.building,
+      kind: "effect", assetId: null, effectType: "colored_light",
+      xPct: .34, yPct: .44, size: 34, flipped: false,
     }],
   };
 }
@@ -511,6 +516,8 @@ try {
     const interiorMask = page.getByTestId("world-editor-interior").getByTestId("home-interior-darkness-layer");
     assert.equal(await interiorMask.evaluate(element => element.tagName.toLowerCase()), "svg",
       name + ": interior uses a consistent SVG darkness mask with an active light");
+    assert.equal(await interiorMask.locator("mask circle").count(),2,
+      name+": both interior Lamp Light and Colored Light cut out illumination in one room mask");
     assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").count(), 0,
       name + ": old nighttime darkness slider is absent");
     const nightInterior = page.getByTestId("world-editor-night-interior-image");
