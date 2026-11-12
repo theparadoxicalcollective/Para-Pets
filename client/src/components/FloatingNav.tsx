@@ -193,6 +193,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const navHidden = useNavHidden();
   const isHome = location === "/";
   const [isOpen, setIsOpen]             = useState(false);
+  const [activeHomeShortcut, setActiveHomeShortcut] = useState<string | null>(null);
   useEffect(() => {
     if (!isOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
@@ -216,6 +217,10 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [showPvpNote, setShowPvpNote]   = useState(false);
   const [showAquarium, setShowAquarium] = useState(false);
   const [panelZ, setPanelZ]             = useState(300);
+  // A Home shortcut reveals its name only while its existing navigation delay runs.
+  useEffect(() => {
+    if (!isHome || isOpen || showQuest || showPvpNote || showAquarium) setActiveHomeShortcut(null);
+  }, [isHome, isOpen, showQuest, showPvpNote, showAquarium]);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const [spacing, setSpacing]   = useState(() => calcSpacing(typeof window !== "undefined" ? window.innerWidth : 390));
   const homeAnchorRef = useRef<HTMLDivElement>(null);
@@ -326,6 +331,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "badges")    { setTimeout(() => navigate("/badges"), NAV_DELAY); return; }
   };
 
+  const handleHomeShortcut = (id: string) => {
+    setActiveHomeShortcut(id);
+    handleLeft(id); // Already waits NAV_DELAY before opening the destination.
+  };
+
   const openPetPark = async () => {
     // Administrators must always be able to preview and edit a closed park.
     if (user.isAdmin) { navigate("/pet-park"); return; }
@@ -399,8 +409,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           pointerEvents: "auto",
         }}
       >
-        {/* These frequently used routes are always within one tap on Home.
-            Their actions are shared with the original menu handlers. */}
+        {/* Home shortcuts show their labels only after a tap, during the existing
+            route/panel opening delay. Non-Home navigation is unchanged. */}
         {isHome && !isOpen && !anyPanelOpen && (
           <nav className="home-realm-shortcuts" aria-label="Home quick destinations"
             data-testid="home-realm-shortcuts">
@@ -408,11 +418,13 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               <button key={item.id} type="button" aria-label={item.label}
                 data-testid={`home-shortcut-${item.id}`}
                 className="home-realm-shortcuts__tile"
-                onClick={() => handleLeft(item.id)}>
+                onClick={() => handleHomeShortcut(item.id)}>
                 <span className="home-realm-shortcuts__icon">
                   <img src={item.icon} alt="" aria-hidden="true" draggable={false} />
                 </span>
-                <span className="home-realm-shortcuts__label">{item.label}</span>
+                {activeHomeShortcut === item.id && (
+                  <span className="home-realm-shortcuts__label">{item.label}</span>
+                )}
                 {item.id === "quest" && questRewardReady && (
                   <QuestRewardBadge style={{ top: -4, right: -3 }} />
                 )}

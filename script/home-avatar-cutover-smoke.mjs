@@ -278,8 +278,8 @@ try {
     assert.ok(animBounds && slotBounds && animBounds.width<=slotBounds.width*1.5,
       sc.name+": enlarged pet art is allowed to extend beyond its shadow oval: "+
         JSON.stringify({animBounds,slotBounds}));
-    assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"static",
-      sc.name+": equipped Mini Pet is visible without introducing animations");
+    assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"animated",
+      sc.name+": equipped Mini Pet uses its current looping idle animation");
     assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
       sc.name+": avatar, player progress and party surfaces all render");
     assert.ok(Math.abs(homeLayout.stars.centerX-homeLayout.actor.centerX)<6,

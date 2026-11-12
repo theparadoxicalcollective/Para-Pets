@@ -61,8 +61,8 @@ test("pet team keeps five editable hit targets but no circular frames or helper 
 test("compact blinking pet thumbnails retain equipped adornments and mini pets", () => {
   assert.match(homeHud, /<PetAnimator petTemplateId=\{pet\.petTemplateId\}/);
   assert.match(homeHud, /petInventoryId=\{pet\.inventoryId\}/);
-  assert.match(homeHud, /mode="house" lowMemory size=\{58\}/);
-  assert.match(homeHud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated=\{false\}/);
+  assert.match(homeHud, /mode="idle" lowMemory size=\{58\}/);
+  assert.match(homeHud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated/);
   assert.match(homeHud, /home-player-hud__fallback-pet/);
   assert.match(homeCss, /home-player-hud__pet-renderer/);
   assert.match(homeCss, /home-player-hud__mini-companion/);
@@ -71,7 +71,7 @@ test("compact blinking pet thumbnails retain equipped adornments and mini pets",
   const miniCss = homeCss.split(".home-player-hud__mini-companion {")[1].split("}")[0];
   assert.doesNotMatch(miniCss, /drop-shadow\(1px 0 0|drop-shadow\(-1px 0 0/);
   assert.match(miniCss, /drop-shadow\(0 2px 2px rgba/);
-  assert.match(homeCss, /transform: scale\(1\.31\)/);
+  assert.match(homeCss, /transform: translateY\(6px\) scale\(1\.16\)/);
 });
 
 test("Home keeps username above smaller Watcher without changing its tap target or messages", () => {
@@ -118,7 +118,7 @@ test("Home promotes Map, Quest and PvP outside the reordered navigation", () => 
     assert.match(nav, new RegExp('home-shortcut-'));
   }
   assert.match(nav, /HOME_SHORTCUT_ITEMS\.map\(item =>/);
-  assert.match(nav, /onClick=\{\(\) => handleLeft\(item\.id\)\}/);
+  assert.match(nav, /onClick=\{\(\) => handleHomeShortcut\(item\.id\)\}/);
   assert.match(nav, /questRewardReady && \(/);
   assert.match(nav, /questRewardReady && !isHome && !isOpen/);
   assert.match(navCss, /\.home-realm-shortcuts \{/);

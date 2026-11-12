@@ -297,7 +297,7 @@ export default function HomePlayerHud({
             {movingXp && <button type="button" data-testid="button-home-reset-xp"
               disabled={anchorSaving} onClick={() => { setCurvePreview(null); void saveXpAnchor(null); }}>Reset</button>}
             {movingXp && <label className="home-player-hud__xp-curve-control" htmlFor="home-xp-curve">
-              Curve
+              Curve (flat to deep)
               <input id="home-xp-curve" data-testid="input-home-xp-curve" type="range"
                 min={HOME_XP_MIN_CURVE} max={HOME_XP_MAX_CURVE} step={5}
                 value={curveDepth} disabled={anchorSaving}
@@ -385,13 +385,13 @@ export default function HomePlayerHud({
                       <PetAnimator petTemplateId={pet.petTemplateId}
                         petInventoryId={pet.inventoryId}
                         artworkForm={pet.isEvolved ? "evolution" : undefined}
-                        mode="house" lowMemory size={58}
+                        mode="idle" lowMemory size={58}
                         fillContainer view="front" />
                     </span>
                   )}
                   <span className="home-player-hud__mini-companion"
                     data-testid={`home-player-team-mini-${index + 1}`}>
-                    <MiniPetRenderer petInventoryId={pet.inventoryId} animated={false} />
+                    <MiniPetRenderer petInventoryId={pet.inventoryId} animated />
                   </span>
                 </span>
               ) : (

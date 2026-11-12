@@ -950,6 +950,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           }}
         >
           <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 38%, transparent 58%, rgba(0,0,0,0.60) 100%)" }} />
+          {/* Soften all four screen edges without darkening the center artwork or intercepting taps. */}
+          <div data-testid="home-edge-vignette" aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse 74% 67% at 50% 50%, transparent 37%, rgba(1, 10, 8, 0.28) 73%, rgba(1, 8, 7, 0.68) 100%)" }} />
           {/* Background-only depth: darken busy forest edges while leaving a soft,
               diffuse clearing behind pets of every rarity. No pet-position changes. */}
           <div
