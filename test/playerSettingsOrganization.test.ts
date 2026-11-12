@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { publicAccount } from "../server/accounts/publicAccount";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -87,4 +88,17 @@ test("time zone dropdown has a short set of regions with legacy selected values 
   assert.match(source, /isValidPlayerTimeZone\(value\)/);
   assert.match(source, /value\.replaceAll\("_", " "\)/);
   assert.match(source, /min-h-11/);
+});
+
+test("pending email and recovery secrets never leave public account serialization", () => {
+  const publicUser = publicAccount({
+    id: "u1", email: "old@example.com", username: "player",
+    password: "secret", emailVerificationToken: "verify",
+    emailVerificationExpires: new Date(), passwordResetToken: "reset",
+    passwordResetExpires: new Date(),
+    pendingEmail: "new@example.com",
+    pendingEmailTokenHash: "do-not-expose",
+    pendingEmailExpires: new Date(), pendingEmailRequestedAt: new Date(),
+  });
+  assert.deepEqual(publicUser, { id: "u1", email: "old@example.com", username: "player" });
 });
