@@ -446,7 +446,7 @@ try {
     assert.equal(skinBlend.mode,"normal",name + ": no pale luminosity-preserving Color blend");
     assert.equal(Number(skinBlend.opacity),1,
       name + ": dark skin is never diluted by overlay opacity");
-    assert.match(skinBlend.filter,/url\\(/,
+    assert.match(skinBlend.filter,/url\(/,
       name + ": one alpha-preserving SVG filter recolors the complete assembled body");
     await page.getByTestId("avatar-choose-fem").tap();
     assert.equal(avatar.base.id,"base-2",
