@@ -290,7 +290,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
           <span aria-hidden="true" />
           <button type="button" className="player-avatar-page__refresh"
             aria-label="Reset character to empty base"
-            title="Reset to empty base, then save appearance"
+            title="Preview empty character, then Save Character"
             data-testid="avatar-reset-character"
             disabled={busy} onClick={resetCharacter}>
             <RefreshCw size={19} aria-hidden="true" />
@@ -348,7 +348,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     className="player-avatar-page__category-icon"
                   />
                   <span className="sr-only">{PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
-                  {avatar.equipped.some(item => item.category === slot) &&
+                  {(avatar.created ? draftOutfit[slot] : firstOutfit[slot]) &&
                     <span className="player-avatar-page__equipped-dot" aria-hidden="true" />}
                   {!avatar.created && REQUIRED_AVATAR_CREATION_CATEGORIES.some(required => required === slot) &&
                     !firstOutfit[slot] && <span className="player-avatar-page__required-dot" aria-hidden="true">!</span>}
@@ -412,18 +412,6 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
               </div>
             </section>
             )}
-            {appearanceChanged && avatar.revision !== null && (
-              <section className="player-avatar-page__change-body" data-testid="avatar-body-change">
-                <button type="button" data-testid="avatar-save-body-choice" disabled={busy}
-                  onClick={() => selectedBody && changeBody.mutate({
-                    baseId: selectedBody.id, skinTone, keepSnapshot: !switchingBody,
-                    clearClothing: resetPending, topTucked,
-                    expectedRevision: avatar.revision!, accountId: userId,
-                  })}>
-                  {changeBody.isPending ? "Saving Appearance…" : "Save Appearance"}
-                </button>
-              </section>
-            )}
             {wardrobeOpen && (
               <section className="player-avatar-page__wardrobe" id="player-avatar-clothing-panel"
                 data-testid="avatar-clothing-category-panel"
@@ -447,11 +435,6 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     onClick={() => setWardrobeOpen(false)}>×</button>
                 </div>
 
-                {avatar.created && appearanceChanged && (
-                  <p className="player-avatar-page__warning" role="status">
-                    Save Appearance before changing your outfit.
-                  </p>
-                )}
                 {unavailableEquipped && (
                   <p className="player-avatar-page__warning" role="status">
                     Your previously equipped item is no longer available. Choose another or remove it.
@@ -462,15 +445,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   <div className="player-avatar-page__inventory" data-testid="avatar-owned-inventory"
                     role="group" aria-label={`Scroll through ${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                     {owned.map(item => {
-                      const eligible = item.compatible && !item.isListed && item.quantity > 0;
+                      const eligible = canWearOnBody(item);
                       const bodyArtwork = clothingSegmentsForBody(
                         item.segments, item.bodyVariants, selectedBody?.name);
                       // Prefer the item's main catalog artwork, including older saved items.
                       // Part artwork is only a fallback for legacy items without a main image.
                       const wardrobeThumbnail = item.imageUrl || bodyArtwork[0]?.imageUrl;
-                      const worn = avatar.equipped.some(entry =>
-                        entry.category === category && entry.inventoryId === item.inventoryId
-                      );
+                      const worn = (avatar.created ? draftOutfit[category] : firstOutfit[category])
+                        ?.inventoryId === item.inventoryId;
                       return (
                         <button
                           key={item.inventoryId}
@@ -480,7 +462,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                           aria-pressed={activePreviewId === item.inventoryId}
                           aria-label={`${item.name}${worn ? ", equipped" : ""}${item.free ? ", free" : ""}${!eligible ? ", unavailable" : ""}`}
                           title={item.name}
-                          disabled={busy || !eligible || (avatar.created && appearanceChanged)}
+                          disabled={busy || !eligible}
                           onClick={() => chooseClothing(item)}
                         >
                           <span className="player-avatar-page__item-art">
@@ -514,46 +496,55 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                  )}
 
 
-                 {avatar.created && !appearanceChanged ? (
-                <div className="player-avatar-page__actions">
-                  {selectedTintChanged && selected && (
-                    <button type="button" data-testid="avatar-save-color-button"
-                      disabled={busy}
-                      onClick={() => saveEquipment(selected.inventoryId, selectedTint)}>
-                      {equipment.isPending ? "Saving…" : "Save Color"}
+                 {avatar.created && (
+                  <div className="player-avatar-page__actions">
+                    <button type="button" data-testid="avatar-unequip-button"
+                      className="player-avatar-page__remove"
+                      disabled={busy || (!draftOutfit[category] && !unavailableEquipped)}
+                      onClick={() => setPreviewSelections(current => ({
+                        ...current, [category]: null,
+                      }))}>
+                      Remove
                     </button>
-                  )}
-                  <button type="button" data-testid="avatar-unequip-button" className="player-avatar-page__remove"
-                    disabled={busy || (!equippedItem && !unavailableEquipped)}
-                    onClick={() => saveEquipment(null)}>
-                    Remove
-                  </button>
-                </div>
-                ) : null}
+                  </div>
+                 )}
               </section>
             )}
-            {!avatar.created ? (
-              <section className="player-avatar-page__create" data-testid="avatar-first-save">
+            {avatarQuery.isError && <p className="player-avatar-page__warning" role="alert">
+              Could not refresh your wardrobe. The last confirmed character is still shown.
+            </p>}
+            </div>
+            <footer className="player-avatar-page__save-footer"
+              data-testid={avatar.created ? "avatar-edit-footer" : "avatar-first-save"}>
+              {!avatar.created && (
                 <p className="player-avatar-page__required-hint" role="status"
                   data-testid="avatar-required-clothing-status">
                   {missingFirstOutfit.length
                     ? `Choose ${missingFirstOutfit.map(slot => PLAYER_CLOTHING_CATEGORY_LABELS[slot]).join(", ")} before saving.`
                     : "Top, Bottoms and Face selected. All other clothing is optional."}
                 </p>
-                <button type="button" disabled={!selectedBody || busy || missingFirstOutfit.length > 0}
-                  data-testid="avatar-create-button"
-                  onClick={() => selectedBody && missingFirstOutfit.length === 0 && creation.mutate({
-                    baseId: selectedBody.id, skinTone, topTucked,
-                    outfit: firstOutfit as AvatarCreationOutfit, accountId: userId,
-                  })}>
-                  {creation.isPending ? "Saving Character…" : "Create My Character"}
-                </button>
-              </section>
-            ) : null}
-            {avatarQuery.isError && <p className="player-avatar-page__warning" role="alert">
-              Could not refresh your wardrobe. The last confirmed character is still shown.
-            </p>}
-            </div>
+              )}
+              <button type="button"
+                data-testid={avatar.created ? "avatar-save-character-button" : "avatar-create-button"}
+                disabled={!selectedBody || busy || (!avatar.created && missingFirstOutfit.length > 0)}
+                onClick={() => {
+                  if (!selectedBody) return;
+                  if (avatar.created && avatar.revision !== null) {
+                    saveCharacter.mutate({
+                      baseId: selectedBody.id, skinTone, topTucked,
+                      expectedRevision: avatar.revision, outfit: draftOutfit,
+                      accountId: userId,
+                    });
+                  } else if (missingFirstOutfit.length === 0) {
+                    creation.mutate({
+                      baseId: selectedBody.id, skinTone, topTucked,
+                      outfit: firstOutfit as AvatarCreationOutfit, accountId: userId,
+                    });
+                  }
+                }}>
+                {busy ? "Saving Character…" : "Save Character"}
+              </button>
+            </footer>
           </>
         ) : null}
       </div>
