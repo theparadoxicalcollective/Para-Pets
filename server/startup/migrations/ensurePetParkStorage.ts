@@ -48,7 +48,7 @@ export async function ensurePetParkStorage(): Promise<void> {
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS tap_image_url text;
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS appearance_group_id varchar;
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS decor_effects jsonb NOT NULL DEFAULT '[]'::jsonb;
-    -- Per-placement walkability: prior decorations remain barriers; water-source
+    -- Shared decor-type walkability: prior decorations remain barriers; water-source
     -- boolean and its garden refill workflow stay untouched.
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS decor_surface text NOT NULL DEFAULT 'barrier'
       CHECK (decor_surface IN ('barrier', 'grass', 'ground'));
