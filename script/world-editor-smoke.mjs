@@ -36,6 +36,15 @@ const server = await createServer({
 const art = "data:image/svg+xml;base64," + Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect x="26" y="26" width="188" height="188" fill="#927a55"/></svg>',
 ).toString("base64");
+const oldPageArt = "data:image/svg+xml;base64," + Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#284967"/></svg>',
+).toString("base64");
+const legacyPages = [
+  { id:"a0000000-0000-4000-8000-000000000001", worldId:"haunted_woods",
+    worldName:"Haunted Woods", name:"Old Manor Hall", type:"scenic", isShop:false, bgUrl:oldPageArt },
+  { id:"a0000000-0000-4000-8000-000000000002", worldId:"elysian_bayou",
+    worldName:"Elysian Bayou", name:"Janson's Market", type:"shop", isShop:true, bgUrl:oldPageArt },
+];
 const interior = "data:image/svg+xml;base64," + Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#62513b"/></svg>',
 ).toString("base64");
@@ -65,7 +74,8 @@ function makeScene(worldId) {
   const common = {
     worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
     interiorDarkness: 35, size: 120, flipped: false, layer: 0, decorEffects: [],
-    isWaterSource: false, isShop: false, shopItemIds: [], shopItemPlacements: [],
+    isWaterSource: false, isShop: false, legacyLocationId: null,
+    shopItemIds: [], shopItemPlacements: [],
   };
   const placements = [
     { ...common, id: ids.decor, kind: "decor", assetId: ids.decor, xPct: .38, yPct: .43,
@@ -140,6 +150,8 @@ try {
         return route.fulfill({ json: record.draft });
       if (req.method() === "GET" && tail === "scene")
         return route.fulfill({ json: record.scene });
+      if (req.method() === "GET" && tail === "legacy-pages")
+        return route.fulfill({ json: legacyPages });
       if (req.method() === "GET" && tail === "garden")
         return route.fulfill({ json: {
           serverNow: new Date().toISOString(),
@@ -227,6 +239,14 @@ try {
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
     assert.equal(await page.getByLabel("Building starting size").inputValue(), "300");
     await page.getByLabel("Building name").fill("Enchanted Cottage");
+    const creationLegacy = page.getByTestId("world-building-legacy-picker")
+      .getByTestId("select-world-legacy-page");
+    await creationLegacy.waitFor({ state: "visible" });
+    assert.equal(await creationLegacy.locator("optgroup").count(), 2,
+      name + ": original world pages are grouped by their old world");
+    await creationLegacy.selectOption(legacyPages[0].id);
+    assert.equal(await page.getByAltText("Old Manor Hall original world page").count(), 1,
+      name + ": creator previews original old-world page art");
     await page.getByRole("switch", { name: "Is Shop building" }).check();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==", "base64");
@@ -237,7 +257,18 @@ try {
     await page.getByTestId("button-create-world-building").click();
     await createdBuilding;
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "building" &&
-      w.body.size === 300 && w.body.isShop === true), name + ": building created in one step with Pet Park shop/size settings");
+      w.body.size === 300 && w.body.isShop === true &&
+      w.body.legacyLocationId === legacyPages[0].id),
+      name + ": building created with its original old-world page link");
+    const selectedLegacy = page.getByTestId("world-scene-selected-controls")
+      .getByTestId("select-world-legacy-page");
+    assert.equal(await selectedLegacy.inputValue(), legacyPages[0].id,
+      name + ": created building keeps legacy page selection");
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    await page.getByTestId("world-editor-interior").waitFor({ state: "visible" });
+    assert.equal(await page.getByTestId("world-editor-interior").locator("img").first().getAttribute("src"),
+      oldPageArt, name + ": building reuses exact original page image, not a copied asset");
+    await page.getByRole("button", { name: "Exit Room" }).click();
     await page.getByRole("button", { name: "Deselect world object" }).click();
 
     await page.getByRole("button", { name: "+ Decor" }).click();
