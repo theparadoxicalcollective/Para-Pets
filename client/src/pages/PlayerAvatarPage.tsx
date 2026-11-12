@@ -57,6 +57,11 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
   const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
+  // Each tap remounts one short, CSS-only burst. No timers, audio or costly
+  // particle loop; the animation disappears completely for reduced motion.
+  const [sparkle, setSparkle] = useState({ token: 0, kind: "choice" as "choice" | "save" });
+  const showSparkle = (kind: "choice" | "save" = "choice") =>
+    setSparkle(current => ({ token: current.token + 1, kind }));
   // Draft clothing never crosses authentication boundaries. Null means the
   // player removed a garment locally; undefined means use the saved garment.
   const [previewState, setPreviewState] = useState<{
@@ -129,6 +134,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setWardrobeOpen(false);
       setSkinPickerOpen(false);
       setSaveConfirmationOpen(true);
+      showSparkle("save");
     },
     onError: (error: Error, input) => {
       if (input.accountId === userId) {
@@ -160,6 +166,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setSkinChoice(undefined);
       setSkinPickerOpen(false);
       setWardrobeOpen(false);
+      showSparkle("save");
       // No intermediate confirmation popup; the Save button is the commit.
     },
     onError: (error: Error, input) => {
@@ -262,19 +269,23 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const chooseClothing = (item: OwnedAvatarClothing) => {
     if (busy || !canWearOnBody(item)) return;
     setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
+    showSparkle();
   };
   const toggleTuck = (checked: boolean) => {
     if (busy) return;
     setTuckChoice({ accountId: userId, value: checked });
+    showSparkle();
   };
   const selectCategory = (next: PlayerClothingCategory) => {
     setWardrobeOpen(open => next === category ? !open : true);
     setCategory(next);
     setSkinPickerOpen(false);
+    showSparkle();
   };
   const toggleSkinPicker = () => {
     setSkinPickerOpen(open => !open);
     setWardrobeOpen(false);
+    showSparkle();
   };
   const resetCharacter = () => {
     if (busy) return;
@@ -287,6 +298,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     setWardrobeOpen(false);
     setSkinPickerOpen(false);
     setResetPending(!!avatar?.created);
+    showSparkle();
     // Preserve the chosen Fem/Masc base while resetting all appearance parts.
   };
 
@@ -320,8 +332,18 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
           </section>
         ) : avatar ? (
           <>
+            <div className={`player-avatar-page__editor-layout ${wardrobeOpen || skinPickerOpen ? "player-avatar-page__editor-layout--panel-open" : ""}`}
+              data-testid="avatar-editor-layout">
+            <div className="player-avatar-page__editor-stage" data-testid="avatar-editor-stage">
             <div className="player-avatar-page__showcase" aria-label="Character viewer and wardrobe categories">
               <div className="player-avatar-page__halo" aria-hidden="true" />
+              {sparkle.token > 0 && (
+                <div key={sparkle.token}
+                  className={`player-avatar-page__sparkle-burst player-avatar-page__sparkle-burst--${sparkle.kind}`}
+                  data-testid="avatar-sparkle-burst" aria-hidden="true">
+                  {Array.from({ length: 7 }, (_, index) => <span key={index} />)}
+                </div>
+              )}
               <div className="player-avatar-page__viewer" data-testid="avatar-character-viewer">
                 {selectedBody ? (
                   <PlayerCharacterRenderer
@@ -389,7 +411,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     <button type="button" key={kind} aria-label={`Choose ${kind} body`}
                       data-testid={`avatar-choose-${kind.toLowerCase()}`}
                       aria-pressed={selected} disabled={busy}
-                      onClick={() => setBodyChoiceId(option.id)}>
+                      onClick={() => { setBodyChoiceId(option.id); showSparkle(); }}>
                       <span aria-hidden="true" className="player-avatar-page__body-symbol">{kind === "Fem" ? "♀" : "♂"}</span>
                       <span>{kind}</span>
                     </button>
@@ -400,6 +422,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
               </div>
             )}
             <div className="player-avatar-page__body-divider" aria-hidden="true" />
+            </div>
              <div className="player-avatar-page__details" data-testid="avatar-scrollable-details">
             {skinPickerOpen && (
             <section className="player-avatar-page__skin-picker" role="group"
@@ -413,13 +436,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     data-testid={"avatar-skin-" + swatch.label.toLowerCase()}
                     aria-pressed={skinTone === swatch.value}
                     style={{ backgroundColor: swatch.value }}
-                    onClick={() => setSkinChoice(swatch.value)} />
+                    onClick={() => { setSkinChoice(swatch.value); showSparkle(); }} />
                 ))}
                 <label className="player-avatar-page__custom-skin">
                   Custom
                   <input type="color" value={skinTone ?? "#d39a71"} disabled={busy}
                     aria-label="Custom skin color" data-testid="avatar-custom-skin"
-                    onChange={event => setSkinChoice(event.target.value)} />
+                    onChange={event => setSkinChoice(event.target.value)}
+                    onPointerUp={() => showSparkle()} />
                 </label>
               </div>
             </section>
@@ -499,11 +523,12 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                        <input id="avatar-clothing-color" type="color"
                          data-testid="avatar-clothing-custom-color"
                          value={selectedTint ?? "#d39a71"} disabled={busy}
-                         onChange={event => setPreviewTint(selected.inventoryId, event.target.value)} />
+                         onChange={event => setPreviewTint(selected.inventoryId, event.target.value)}
+                         onPointerUp={() => showSparkle()} />
                      </label>
                      <button type="button" disabled={busy || selectedTint === null}
                        data-testid="avatar-clothing-reset-color"
-                       onClick={() => setPreviewTint(selected.inventoryId, null)}>Original Color</button>
+                       onClick={() => { setPreviewTint(selected.inventoryId, null); showSparkle(); }}>Original Color</button>
                    </div>
                  )}
 
@@ -515,7 +540,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                       disabled={busy || (!draftOutfit[category] && !unavailableEquipped)}
                       onClick={() => setPreviewSelections(current => ({
                         ...current, [category]: null,
-                      }))}>
+                      })); showSparkle(); }}>
                       Remove
                     </button>
                   </div>
@@ -525,6 +550,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
             {avatarQuery.isError && <p className="player-avatar-page__warning" role="alert">
               Could not refresh your wardrobe. The last confirmed character is still shown.
             </p>}
+            </div>
             </div>
             <footer className="player-avatar-page__save-footer"
               data-testid={avatar.created ? "avatar-edit-footer" : "avatar-first-save"}>
