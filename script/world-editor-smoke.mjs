@@ -498,7 +498,10 @@ try {
     await page.getByTestId("world-decoration-artwork-editor").waitFor({ state: "visible" });
     assert.equal(await page.getByTestId("world-edit-decor-effects").count(),1,
       name+": selected decor still offers all attached lights and effects");
-    await page.getByTestId("world-edit-decor-effects").locator("summary").click();
+    // An existing attached light opens its settings automatically. Empty
+    // decorations stay compact until their creator expands the section.
+    if (await page.getByTestId("world-edit-decor-effects").getAttribute("open") === null)
+      await page.getByTestId("world-edit-decor-effects").locator("summary").click();
     assert.equal(await page.getByTestId("world-decor-add-effect").isVisible(),true,
       name+": attached decor effect editor remains usable");
     await page.getByRole("button", { name: "Close editor" }).click();
