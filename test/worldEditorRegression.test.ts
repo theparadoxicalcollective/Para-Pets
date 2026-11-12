@@ -58,7 +58,7 @@ test("World Editor City constraint migration uses valid paired PostgreSQL dollar
 test("object editing defaults to compact movement controls, with details opened only on demand", () => {
   const source = readFileSync("client/src/components/world-editor/WorldSceneControls.tsx", "utf8");
   const compact = source.split('data-testid="world-scene-selected-controls"')[1]
-    ?.split("    {expanded && <div")[0];
+    ?.split("    {expanded && panel === \"settings\"")[0];
   assert.ok(compact);
   assert.match(compact, /openCreator\("selected"\)/);
   assert.doesNotMatch(compact, /<WorldDecorEffectEditor|Replace Decoration Artwork/,

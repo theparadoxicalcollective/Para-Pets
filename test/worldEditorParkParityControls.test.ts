@@ -32,7 +32,8 @@ test("Being a shop changes functionality, not an on-map badge or label", () => {
   const controls=read("client/src/components/world-editor/WorldSceneControls.tsx");
   assert.doesNotMatch(page, /<span[^>]*>Shop<\/span>/);
   assert.match(controls, /aria-label="Is Shop building"/);
-  assert.match(controls, /<WorldShopShelf/);
+  assert.match(controls, /openCreator\("shop"\)/);
+  // The shelf itself is rendered by the entered-building page, not the toolbar.
   assert.match(page, /<WorldShopShelf/);
 });
 test("Overview is viewport-relative and does not change Pet Park geometry", () => {
