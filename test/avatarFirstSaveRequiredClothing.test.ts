@@ -61,9 +61,13 @@ test("first-save validates all selected clothing inside one atomic transaction",
   assert.match(creator, /outfit: firstOutfit as AvatarCreationOutfit/);
   assert.match(creator, /requiredAvatarCreationCategoriesForBody\(selectedBody\?\.name\)/);
   assert.match(creator, /activeId === item\.inventoryId \? null : item\.inventoryId/);
-  assert.match(creator, /toast\(\{ title: "Character saved", duration: 2800 \}\)/);
-  assert.match(creator, /navigate\(fromHome \? "\/" : "\/bag"\)/);
-  assert.doesNotMatch(creator, /avatar-save-confirmation-overlay/);
+  assert.match(creator, /setSavedCelebration\(\{ accountId: input\.accountId \}\)/);
+  assert.match(creator, /data-testid="avatar-save-celebration"/);
+  assert.match(creator, /Character Saved!/);
+  assert.match(creator, /setTimeout\(\(\) => navigate\(fromHome \? "\/" : "\/bag"\), 2800\)/);
+  assert.match(creator, /clearTimeout\(timeout\)/);
+  assert.match(creator, /data-testid="avatar-save-celebration-continue"/);
+  assert.doesNotMatch(creator, /toast\(\{ title: "Character saved"/);
 });
 
 test("creator prefers saved main clothing art while retaining missing-image fallback", () => {

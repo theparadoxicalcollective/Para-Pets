@@ -301,15 +301,28 @@ try {
     await page.getByTestId("avatar-category-top").tap();
     await page.getByTestId("avatar-clothing-plain-top").tap();
     await page.getByTestId("avatar-create-button").tap();
+    const celebration=page.getByTestId("avatar-save-celebration");
+    await celebration.waitFor({ state: "visible" });
+    assert.equal(await page.getByRole("dialog",{name:"Character Saved!"}).count(),1,
+      name + ": game-style character celebration is visible after a confirmed save");
+    const look=await celebration.evaluate(el => {
+      const panel=getComputedStyle(el);
+      const rect=el.getBoundingClientRect();
+      return { border:panel.borderColor, background:panel.backgroundImage,
+        rect:{left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom} };
+    });
+    assert.ok(look.border.includes("233, 199, 125") && look.background.includes("gradient"),
+      name + ": saved card uses gold framing and forest-green painted background");
+    assert.ok(look.rect.left >= 0 && look.rect.right <= width + 1 &&
+      look.rect.top >= 0 && look.rect.bottom <= height + 1,
+      name + ": celebratory card fits phone/tablet viewport");
+    assert.equal(await page.getByTestId("return-open-editor").count(),0,
+      name + ": editor remains in place while saved celebration is visible");
+    // No second save/confirmation: Continue dismisses early; a separate
+    // case below verifies the automatic exit.
+    await page.getByTestId("avatar-save-celebration-continue").tap();
     await page.getByTestId("return-open-editor").waitFor({ state: "visible" });
-    assert.equal(new URL(page.url()).pathname, "/",name + ": successful first save closes editor to Home");
-    await page.getByText("Character saved",{exact:true}).waitFor({state:"visible"});
-    const toastTheme=await page.getByText("Character saved",{exact:true}).evaluate(el=>({
-      title:el.textContent, colors:getComputedStyle(el.closest("[data-state]")).backgroundColor,
-      border:getComputedStyle(el.closest("[data-state]")).borderColor,
-    }));
-    assert.ok(toastTheme.colors.includes("16, 39, 28") && toastTheme.border.includes("203, 163, 75"),
-      name + ": compact save notification uses existing forest-green/gold toast: "+JSON.stringify(toastTheme));
+    assert.equal(new URL(page.url()).pathname, "/",name + ": Continue closes editor to Home");
     assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(), 0,
       name + ": successful first save unmounts the wardrobe");
     assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
@@ -435,10 +448,11 @@ try {
       name + ": body, tone, clothing, hair and Tuck are all preview-only");
 
     await footer.tap();
-    await page.getByTestId("return-open-editor").waitFor({state:"visible"});
-    assert.equal(new URL(page.url()).pathname, "/",name + ": edit Save returns Home");
-    assert.equal(await page.getByText("Character saved",{exact:true}).isVisible(),true,
-      name + ": edit Save also shows the same small gold/green message");
+    await page.getByTestId("avatar-save-celebration").waitFor({state:"visible"});
+    assert.equal(await page.getByRole("dialog",{name:"Character Saved!"}).count(),1,
+      name + ": edit Save uses the same themed character celebration");
+    await page.getByTestId("return-open-editor").waitFor({state:"visible",timeout:9000});
+    assert.equal(new URL(page.url()).pathname, "/",name + ": edit Save automatically returns Home");
     await page.getByTestId("return-open-editor").tap();
     await page.getByTestId("avatar-character-viewer").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-choose-fem").getAttribute("aria-pressed"),"true",
@@ -471,6 +485,8 @@ try {
     assert.equal(await page.locator('[data-clothing-key]').count(),0,
       name + ": reset previews bare body");
     await footer.tap();
+    await page.getByTestId("avatar-save-celebration").waitFor({state:"visible"});
+    await page.getByTestId("avatar-save-celebration-continue").tap();
     await page.getByTestId("return-open-editor").waitFor({state:"visible"});
     await page.getByTestId("return-open-editor").tap();
     await page.getByTestId("avatar-character-viewer").waitFor({state:"visible"});

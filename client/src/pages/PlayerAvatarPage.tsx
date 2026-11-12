@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, playerClothingCanRecolor, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
 import { requiredAvatarCreationCategoriesForBody, type AvatarCreationOutfit,
   type AvatarCharacterOutfit } from "@shared/playerAvatarEquipment";
@@ -56,6 +57,17 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   // No wardrobe is expanded until a player taps its category icon.
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
+  // Show the finished character celebration only for the account whose save
+  // was confirmed by the server; never show it on a failed/stale mutation.
+  const [savedCelebration, setSavedCelebration] = useState<{ accountId: string } | null>(null);
+  const celebratingSave = savedCelebration?.accountId === userId;
+  useEffect(() => {
+    if (!celebratingSave) return;
+    // Players can tap Continue immediately; otherwise return automatically.
+    // Cleanup also prevents a late redirect after logout/account switch.
+    const timeout = window.setTimeout(() => navigate(fromHome ? "/" : "/bag"), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [celebratingSave, fromHome, navigate]);
   // Each tap remounts one short, CSS-only burst. No timers, audio or costly
   // particle loop; the animation disappears completely for reduced motion.
   const [sparkle, setSparkle] = useState({ token: 0, kind: "choice" as "choice" | "save" });
@@ -132,10 +144,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setSkinChoice(undefined);
       setWardrobeOpen(false);
       setSkinPickerOpen(false);
-      // The existing global toast survives route changes. Close the editor
-      // only after the server has confirmed the complete character save.
-      toast({ title: "Character saved", duration: 2800 });
-      navigate(fromHome ? "/" : "/bag");
+      // Let the player see their saved look celebrated before leaving.
+      // No extra confirmation or wardrobe write is required.
+      setSavedCelebration({ accountId: input.accountId });
     },
     onError: (error: Error, input) => {
       if (input.accountId === userId) {
@@ -167,8 +178,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setSkinChoice(undefined);
       setSkinPickerOpen(false);
       setWardrobeOpen(false);
-      toast({ title: "Character saved", duration: 2800 });
-      navigate(fromHome ? "/" : "/bag");
+      setSavedCelebration({ accountId: input.accountId });
     },
     onError: (error: Error, input) => {
       if (input.accountId === userId)
@@ -599,6 +609,31 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
           </>
         ) : null}
       </div>
+      {celebratingSave && (
+        <ViewportModalPortal>
+          <div className="player-avatar-page__saved-overlay"
+            data-testid="avatar-save-celebration-overlay">
+            <section className="player-avatar-page__saved-celebration"
+              role="dialog" aria-modal="true"
+              aria-labelledby="avatar-saved-title"
+              aria-describedby="avatar-saved-description"
+              data-testid="avatar-save-celebration">
+              <span className="player-avatar-page__saved-star player-avatar-page__saved-star--left" aria-hidden="true">✦</span>
+              <span className="player-avatar-page__saved-star player-avatar-page__saved-star--right" aria-hidden="true">✦</span>
+              <div className="player-avatar-page__saved-emblem" aria-hidden="true">
+                <Sparkles size={23} className="player-avatar-page__saved-emblem-sparkle" />
+                <Check size={42} strokeWidth={2.5} />
+              </div>
+              <h2 id="avatar-saved-title">Character Saved!</h2>
+              <p id="avatar-saved-description">Your new look is ready for the realm.</p>
+              <button type="button" autoFocus
+                data-testid="avatar-save-celebration-continue"
+                onClick={() => navigate(fromHome ? "/" : "/bag")}>Continue</button>
+              <div className="player-avatar-page__saved-timer" aria-hidden="true"><span /></div>
+            </section>
+          </div>
+        </ViewportModalPortal>
+      )}
     </main>
   );
 }
