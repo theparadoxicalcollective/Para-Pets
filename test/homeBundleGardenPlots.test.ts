@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { registerHouseBundleRoutes } from "../server/routes/houseBundle.routes";
+import { houseBundleGardenPlots, houseBundles } from "../shared/schema";
 import {
   clampHomeGardenPosition, clampHomeGardenSize,
   validHomeGardenCoordinate, validHomeGardenSize,
@@ -86,4 +88,94 @@ test("Home plot art is shown under normal buildings without altering the garden 
   assert.match(visitor, /homeBundleGardenPlots\.map\(plot =>/);
   assert.match(visitor, /<PetParkTerrainDetail type="garden_plot"/);
   assert.match(visitor, /style=\{\{ zIndex: 3 \}\}/);
+});
+
+test("admin can create, reposition and remove a plot without touching inventory", async () => {
+  const handlers = new Map<string, { auth: unknown; handler: (...args: any[]) => Promise<unknown> }>();
+  const admin = () => {};
+  const app: any = {};
+  for (const method of ["get", "post", "patch", "delete"]) {
+    app[method] = (url: string, ...args: any[]) => {
+      handlers.set(method.toUpperCase() + " " + url, {
+        auth: args.length > 1 ? args[0] : null,
+        handler: args.at(-1),
+      });
+    };
+  }
+  const plots: any[] = [];
+  let inventoryWrites = 0;
+  const db: any = {
+    select() {
+      return { from(table: unknown) {
+        return { where() {
+          return {
+            orderBy: async () => table === houseBundleGardenPlots ? [...plots] : [],
+            limit: async () => table === houseBundles ? [{ id: "bundle-1" }] : [],
+          };
+        } };
+      } };
+    },
+    insert(table: unknown) {
+      assert.equal(table, houseBundleGardenPlots);
+      return { values(data: any) {
+        return { returning: async () => {
+          const plot = { id: "plot-" + (plots.length + 1), ...data };
+          plots.push(plot);
+          return [plot];
+        } };
+      } };
+    },
+    update(table: unknown) {
+      assert.equal(table, houseBundleGardenPlots);
+      return { set(patch: any) {
+        return { where() {
+          return { returning: async () => {
+            if (!plots.length) return [];
+            Object.assign(plots[0], patch);
+            return [plots[0]];
+          } };
+        } };
+      } };
+    },
+    delete(table: unknown) {
+      if (table !== houseBundleGardenPlots) inventoryWrites++;
+      assert.equal(table, houseBundleGardenPlots);
+      return { where() {
+        return { returning: async () => plots.splice(0, plots.length).map(({ id }) => ({ id })) };
+      } };
+    },
+  };
+  registerHouseBundleRoutes(app, {
+    db, storage: {} as any, isAuthenticated: (() => {}) as any, isAdmin: admin as any,
+    processWorldImage: async () => "",
+  });
+  const invoke = async (method: string, url: string, body: any = {}) => {
+    const route = handlers.get(method + " " + url);
+    assert.ok(route, method + " " + url);
+    if (url.startsWith("/api/admin/")) assert.equal(route.auth, admin);
+    const res: any = {
+      statusCode: 200, body: null,
+      status(code: number) { this.statusCode = code; return this; },
+      json(value: any) { this.body = value; return this; },
+    };
+    await route.handler({ params: { bundleId: "bundle-1", id: plots[0]?.id }, body }, res);
+    return res;
+  };
+  const addUrl = "/api/admin/house-bundles/:bundleId/garden-plots";
+  assert.equal((await invoke("POST", addUrl, { xPct: -1, yPct: .5, size: 180 })).statusCode, 400);
+  assert.equal(plots.length, 0, "invalid placement never inserts a row");
+  const created = await invoke("POST", addUrl, { xPct: .3, yPct: .6, size: 180 });
+  assert.equal(created.statusCode, 201);
+  assert.deepEqual([created.body.xPct, created.body.yPct, created.body.size], [.3,.6,180]);
+  const changed = await invoke("PATCH", "/api/admin/house-bundle-garden-plots/:id", {
+    xPct: .5, yPct: .8, size: 220,
+  });
+  assert.equal(changed.statusCode, 200);
+  assert.deepEqual([changed.body.xPct, changed.body.yPct, changed.body.size], [.5,.8,220]);
+  const owner = await invoke("GET", "/api/house-bundles/:bundleId/garden-plots");
+  assert.equal(owner.body.length, 1);
+  const removed = await invoke("DELETE", "/api/admin/house-bundle-garden-plots/:id");
+  assert.equal(removed.statusCode, 200);
+  assert.deepEqual(plots, []);
+  assert.equal(inventoryWrites, 0);
 });
