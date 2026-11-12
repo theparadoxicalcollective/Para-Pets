@@ -308,8 +308,31 @@ try {
     const footer = page.getByTestId("avatar-save-character-button");
     await footer.waitFor({state:"visible"});
     const footerBounds = await footer.boundingBox();
+    const editorLayout = await page.evaluate(() => {
+      const rect = selector => {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        const bounds = el.getBoundingClientRect();
+        return { top: Math.round(bounds.top), bottom: Math.round(bounds.bottom),
+          height: Math.round(bounds.height) };
+      };
+      return {
+        viewportHeight: window.innerHeight,
+        content: rect(".player-avatar-page__content"),
+        stage: rect(".player-avatar-page__editor-stage"),
+        details: rect(".player-avatar-page__details"),
+        footer: rect(".player-avatar-page__save-footer"),
+        display: getComputedStyle(document.querySelector(".player-avatar-page__content")).display,
+        gridRows: getComputedStyle(document.querySelector(".player-avatar-page__content")).gridTemplateRows,
+      };
+    });
+    assert.equal(editorLayout.display, "grid",
+      name + ": loaded editor uses viewport-constrained header, content and Save rows");
     assert.ok(footerBounds && footerBounds.bottom <= height + 1,
-      name + ": Save Character stays visible above the phone bottom");
+      name + ": Save Character stays visible above the phone bottom: " +
+      JSON.stringify({ footerBounds, editorLayout }));
+    assert.ok(footerBounds && footerBounds.top >= 0,
+      name + ": Save Character stays accessible even while the wardrobe is open");
 
     // Trying items is reversible and local. Even body, tuck and hair color
     // edits must not send independent API mutations.
