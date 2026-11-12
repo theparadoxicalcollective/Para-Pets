@@ -81,10 +81,23 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       accountId: userId,
       values: { ...(current?.accountId === userId ? current.values : {}), [inventoryId]: tint },
     }));
-  const [resetPending, setResetPending] = useState(false);
-  const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
-  // undefined = untouched, null = restore original art, hex = selected tint.
-  const [skinChoice, setSkinChoice] = useState<string | null | undefined>(undefined);
+  // Body/skin/reset draft changes are also account-scoped: if the signed-in
+  // user changes, no prior account's unsaved look can flash or be saved.
+  const [resetDraft, setResetDraft] = useState({ accountId: userId, pending: false });
+  const resetPending = resetDraft.accountId === userId && resetDraft.pending;
+  const setResetPending = (pending: boolean) => setResetDraft({ accountId: userId, pending });
+  const [bodyDraft, setBodyDraft] = useState<{ accountId: string; id: string | null }>({
+    accountId: userId, id: null,
+  });
+  const bodyChoiceId = bodyDraft.accountId === userId ? bodyDraft.id : null;
+  const setBodyChoiceId = (id: string | null) => setBodyDraft({ accountId: userId, id });
+  // undefined = untouched, null = original art, hex = skin selection.
+  const [skinDraft, setSkinDraft] = useState<{
+    accountId: string; color: string | null | undefined;
+  }>({ accountId: userId, color: undefined });
+  const skinChoice = skinDraft.accountId === userId ? skinDraft.color : undefined;
+  const setSkinChoice = (color: string | null | undefined) =>
+    setSkinDraft({ accountId: userId, color });
   // Account-scoped local choice makes the render order change immediately.
   // A successful save returns to the server-confirmed profile value.
   const [tuckChoice, setTuckChoice] = useState<{ accountId: string; value: boolean } | null>(null);
