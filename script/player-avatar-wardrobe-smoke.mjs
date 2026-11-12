@@ -156,6 +156,26 @@ try {
 
     await page.goto("http://127.0.0.1:4197/avatar-wardrobe-fixture", { waitUntil: "commit" });
     await page.getByTestId("avatar-character-viewer").waitFor({ state: "visible" });
+    const opening = await page.evaluate(() => {
+      const box = selector => document.querySelector(selector)?.getBoundingClientRect();
+      const header = box(".player-avatar-page__header");
+      const ring = box(".player-avatar-page__showcase");
+      const controls = box(".player-avatar-page__body-controls");
+      const footer = box(".player-avatar-page__save-footer");
+      const details = box(".player-avatar-page__details");
+      return header && ring && controls && footer && details ? {
+        characterMidY: (ring.top + controls.bottom) / 2,
+        availableMidY: (header.bottom + footer.top) / 2,
+        detailsHeight: details.height,
+        footerBottom: footer.bottom,
+      } : null;
+    });
+    assert.ok(opening && Math.abs(opening.characterMidY-opening.availableMidY) <= 48,
+      name + ": avatar ring and body controls open vertically centered: "+JSON.stringify(opening));
+    assert.ok(opening.detailsHeight <= 4,
+      name + ": the collapsed wardrobe does not push the initial character upward");
+    assert.ok(opening.footerBottom <= height+1,
+      name + ": the pinned Save Character footer fits inside the viewport");
     assert.equal(await page.locator('[data-testid^="avatar-category-"]').count(), 8,
       name + ": eight circular categories");
     const categoriesFit = await page.locator('[data-testid^="avatar-category-"]').evaluateAll(elements =>
@@ -191,6 +211,21 @@ try {
     assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(), 0,
       name + ": clothing categories start closed");
     await page.getByTestId("avatar-category-back").tap();
+    const fx = await page.getByTestId("avatar-sparkle-burst").evaluate(el => ({
+      count:el.children.length,
+      pointerEvents:getComputedStyle(el).pointerEvents,
+      animation:getComputedStyle(el.children[0]).animationName,
+    }));
+    assert.equal(fx.count,7,name + ": category tap creates only seven lightweight sparkles");
+    assert.equal(fx.pointerEvents,"none",
+      name + ": sparkles cannot intercept category or wardrobe taps");
+    assert.ok(fx.animation.includes("avatar-choice-spark"),
+      name + ": category tap triggers a brief CSS animation");
+    await page.emulateMedia({ reducedMotion:"reduce" });
+    assert.equal(await page.getByTestId("avatar-sparkle-burst").evaluate(
+      el=>getComputedStyle(el).display),"none",
+      name + ": reduced-motion users see no particle bursts");
+    await page.emulateMedia({ reducedMotion:"no-preference" });
     await page.getByTestId("avatar-clothing-category-panel").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-clothing-free-back").count(), 1,
       name + ": universally free back clothing is available before creation");
@@ -206,6 +241,8 @@ try {
       name + ": tapping the active clothing category closes it");
     await page.getByTestId("avatar-skin-picker-toggle").tap();
     await page.getByTestId("avatar-skin-tone-picker").waitFor({ state: "visible" });
+    assert.ok(await page.getByTestId("avatar-save-character-button").count() === 0,
+      name + ": new character keeps its own single Save Character control");
     await page.getByTestId("avatar-skin-warm").tap();
     assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 8,
       name + ": color preview tints the eight body layers");
