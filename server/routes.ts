@@ -13,6 +13,7 @@ import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems, playerClothingDrafts } from "@shared/schema";
+import { isHomeXpAnchor } from "@shared/homeXpAnchor";
 import { executeRewardClaim } from "./rewardClaim";
 import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
@@ -2021,6 +2022,32 @@ export async function registerRoutes(
   // admin uploads a background against this version, that intentional override
   // is used normally on every device.
   const MAP_BACKGROUND_ASSET_VERSION = "new-map-2026-08-30";
+
+  // Home XP placement uses one existing game_settings row. Store intrinsic
+  // background fractions so tablet, phone and cropped cover art stay aligned.
+  const HOME_XP_ANCHOR_KEY = "home_xp_artwork_anchor_v1";
+  app.get("/api/settings/home-xp-anchor", async (_req, res) => {
+    try {
+      const stored = await storage.getGameSetting(HOME_XP_ANCHOR_KEY);
+      const parsed: unknown = stored ? JSON.parse(stored) : null;
+      return res.json({ anchor: isHomeXpAnchor(parsed) ? parsed : null });
+    } catch (error) {
+      console.error("Read Home XP anchor failed", error);
+      return res.json({ anchor: null });
+    }
+  });
+  app.put("/api/admin/settings/home-xp-anchor", isAdmin, async (req, res) => {
+    const anchor: unknown = req.body?.anchor;
+    if (anchor !== null && !isHomeXpAnchor(anchor))
+      return res.status(400).json({ message: "Position must be on the background artwork" });
+    try {
+      await storage.setGameSetting(HOME_XP_ANCHOR_KEY, anchor === null ? "" : JSON.stringify(anchor));
+      return res.json({ anchor });
+    } catch (error) {
+      console.error("Save Home XP anchor failed", error);
+      return res.status(500).json({ message: "Could not save Home XP position" });
+    }
+  });
 
   app.get("/api/settings/map-background", async (_req, res) => {
     try {

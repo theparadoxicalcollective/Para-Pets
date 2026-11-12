@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { totalXpRequiredForPlayerLevel, type PlayerProgressionResponse } from "@shared/playerProgression";
 import { usePlayerPetTeam } from "@/hooks/usePlayerPetTeam";
 import { cleanPetTeam, eligiblePetIds, PLAYER_PET_TEAM_MAX } from "@/lib/playerPetTeam";
@@ -10,7 +11,8 @@ import emptyPetIcon from "@assets/generated_images/nav_icon_pets.png";
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import cardStarImg from "@assets/uploads/CardStar.png";
-import type { ArtworkPoint, BackdropRect } from "@/lib/artworkCoverGeometry";
+import { coverArtworkPoint, viewportPointToCoverArtwork, type ArtworkPoint, type BackdropRect, type ArtworkSize } from "@/lib/artworkCoverGeometry";
+import type { HomeXpAnchor } from "@shared/homeXpAnchor";
 import { homeAvatarPosition } from "@/lib/homeAvatarLayout";
 import "./HomePlayerHud.css";
 
@@ -47,7 +49,7 @@ export async function fetchHomePlayerProgression(signal?: AbortSignal): Promise<
  * This component never changes pet progress; the server owns the player XP curve.
  */
 export default function HomePlayerHud({
-  userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, avatarHome = false, avatarLandmark = null, avatarBackdrop, visible = true,
+  userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, avatarHome = false, avatarLandmark = null, avatarBackdrop, avatarArtworkSize, isAdmin = false, visible = true,
 }: {
   userId: string;
   username: string;
@@ -61,9 +63,30 @@ export default function HomePlayerHud({
   /** Same world-artwork point and backdrop as HomeAvatarStage. */
   avatarLandmark?: ArtworkPoint | null;
   avatarBackdrop?: BackdropRect;
+  avatarArtworkSize?: ArtworkSize;
+  isAdmin?: boolean;
   visible?: boolean;
 }) {
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+  const cache = useQueryClient();
+  const [movingXp, setMovingXp] = useState(false);
+  const [anchorDraft, setAnchorDraft] = useState<HomeXpAnchor | null | undefined>(undefined);
+  const [anchorSaving, setAnchorSaving] = useState(false);
+  const [anchorError, setAnchorError] = useState<string | null>(null);
+  const anchorDrag = useRef<{
+    id: number; x: number; y: number; offsetX: number; offsetY: number;
+    latest: HomeXpAnchor | null; moved: boolean;
+  } | null>(null);
+  const anchorQuery = useQuery<{ anchor: HomeXpAnchor | null }>({
+    queryKey: ["/api/settings/home-xp-anchor"],
+    enabled: avatarHome,
+    queryFn: async () => {
+      const response = await fetch("/api/settings/home-xp-anchor", { credentials: "include" });
+      if (!response.ok) throw new Error("Could not load Home XP layout");
+      return response.json();
+    },
+    staleTime: 60_000,
+  });
   const progression = useQuery<PlayerProgressionResponse>({
     queryKey: ["/api/player/progression", userId],
     queryFn: ({ signal }) => fetchHomePlayerProgression(signal),
@@ -83,7 +106,13 @@ export default function HomePlayerHud({
 
   // A profile change or a navigation opening must never leave a picker over
   // another account's Home or the main navigation.
-  useEffect(() => { setPickerSlot(null); }, [userId]);
+  useEffect(() => {
+    setPickerSlot(null);
+    setMovingXp(false);
+    setAnchorDraft(undefined);
+    setAnchorError(null);
+    anchorDrag.current = null;
+  }, [userId]);
   useEffect(() => { if (!inventoryReady) setPickerSlot(null); }, [inventoryReady]);
   useEffect(() => {
     const dismiss = () => setPickerSlot(null);
@@ -95,11 +124,95 @@ export default function HomePlayerHud({
 
   const avatarPosition = avatarHome && avatarBackdrop
     ? homeAvatarPosition(avatarLandmark, avatarBackdrop) : null;
+  const effectiveAnchor = anchorDraft === undefined ? anchorQuery.data?.anchor ?? null : anchorDraft;
+  // Project a saved admin position from the background's intrinsic image,
+  // using the SAME cover geometry as the Home avatar's stone platform.
+  const projectedAnchor = effectiveAnchor && avatarBackdrop && avatarArtworkSize
+    ? coverArtworkPoint(avatarArtworkSize, avatarBackdrop, {
+        x: avatarArtworkSize.width * effectiveAnchor.xPct,
+        y: avatarArtworkSize.height * effectiveAnchor.yPct,
+      }) : null;
+  const artworkScale = avatarBackdrop && avatarArtworkSize?.width && avatarArtworkSize.height
+    ? Math.max(avatarBackdrop.width / avatarArtworkSize.width,
+      avatarBackdrop.height / avatarArtworkSize.height) : null;
   const avatarLayoutStyle = avatarPosition ? {
     "--home-avatar-x": avatarPosition.x !== null ? `${avatarPosition.x}px` : "50%",
     "--home-avatar-standing-y": avatarPosition.standingY !== null
       ? `${avatarPosition.standingY}px` : "min(68dvh, calc(100dvh - 228px))",
+    "--home-xp-art-width": artworkScale ? `${Math.round(560 * artworkScale)}px` : "220px",
+    ...(projectedAnchor && avatarBackdrop ? {
+      "--home-xp-x": `${projectedAnchor.x - avatarBackdrop.left}px`,
+      "--home-xp-y": `${projectedAnchor.y - avatarBackdrop.top}px`,
+    } : {}),
   } as CSSProperties : undefined;
+
+  // Admin-only direct manipulation; a tap never writes and non-admin players
+  // cannot drag the bar. Releasing a real drag saves one artwork-relative anchor.
+  const saveXpAnchor = async (next: HomeXpAnchor | null) => {
+    if (!isAdmin || anchorSaving) return;
+    setAnchorSaving(true);
+    setAnchorError(null);
+    try {
+      const response = await apiRequest("PUT", "/api/admin/settings/home-xp-anchor", { anchor: next });
+      const saved = await response.json() as { anchor: HomeXpAnchor | null };
+      cache.setQueryData(["/api/settings/home-xp-anchor"], saved);
+      setAnchorDraft(undefined);
+    } catch {
+      setAnchorDraft(undefined);
+      setAnchorError("Position not saved. Try again.");
+    } finally {
+      setAnchorSaving(false);
+    }
+  };
+  const startXpDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!avatarHome || !isAdmin || !movingXp || anchorSaving ||
+        !avatarBackdrop || !avatarArtworkSize?.width || !avatarArtworkSize.height ||
+        (event.pointerType === "mouse" && event.button !== 0)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    anchorDrag.current = {
+      id: event.pointerId, x: event.clientX, y: event.clientY,
+      offsetX: event.clientX - (rect.left + rect.width / 2),
+      offsetY: event.clientY - rect.top,
+      latest: null, moved: false,
+    };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+  };
+  const moveXpDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = anchorDrag.current;
+    if (!drag || drag.id !== event.pointerId || !avatarBackdrop || !avatarArtworkSize) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5 && !drag.moved) return;
+    const art = viewportPointToCoverArtwork(avatarArtworkSize, avatarBackdrop, {
+      x: event.clientX - drag.offsetX,
+      y: event.clientY - drag.offsetY,
+    });
+    if (!art || !avatarArtworkSize.width || !avatarArtworkSize.height) return;
+    const next = {
+      xPct: Math.max(0, Math.min(1, art.x / avatarArtworkSize.width)),
+      yPct: Math.max(0, Math.min(1, art.y / avatarArtworkSize.height)),
+    };
+    drag.latest = next;
+    drag.moved = true;
+    setAnchorDraft(next);
+  };
+  const finishXpDrag = (event: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
+    const drag = anchorDrag.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    event.stopPropagation();
+    anchorDrag.current = null;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId))
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {}
+    if (cancelled) {
+      setAnchorDraft(undefined);
+    } else if (drag.moved && drag.latest) {
+      void saveXpAnchor(drag.latest);
+    }
+  };
 
   const changePet = (inventoryId: string | null) => {
     if (pickerSlot === null || !isReady || isSaving || inventoryLoading || !inventoryReady) return;
@@ -141,7 +254,25 @@ export default function HomePlayerHud({
             style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * (avatarHome ? 31 : 14)}px) rotate(${(i - 2) * 9}deg)` }} />
         ))}
       </div>
-      <div className="home-player-hud__progress" aria-label="Player level and experience">
+      <div className={`home-player-hud__progress${movingXp ? " home-player-hud__progress--moving" : ""}`}
+        aria-label="Player level and experience"
+        onPointerDown={startXpDrag}
+        onPointerMove={moveXpDrag}
+        onPointerUp={event => finishXpDrag(event)}
+        onPointerCancel={event => finishXpDrag(event, true)}>
+        {avatarHome && isAdmin && (
+          <div className="home-player-hud__xp-admin-tools" data-testid="home-xp-admin-tools"
+            onPointerDown={event => event.stopPropagation()}>
+            <button type="button" data-testid="button-home-adjust-xp"
+              aria-pressed={movingXp} disabled={anchorSaving}
+              onClick={() => { setMovingXp(!movingXp); setAnchorError(null); }}>
+              {movingXp ? "Done" : "Move XP"}
+            </button>
+            {movingXp && <button type="button" data-testid="button-home-reset-xp"
+              disabled={anchorSaving} onClick={() => void saveXpAnchor(null)}>Reset</button>}
+            {movingXp && <span>{anchorSaving ? "Saving…" : anchorError ?? "Drag curve to move"}</span>}
+          </div>
+        )}
         {!avatarHome && (
           <div className="home-player-hud__progress-heading">
             <span data-testid="home-player-name" className="home-player-hud__name" title={username}>{username}</span>
@@ -157,43 +288,49 @@ export default function HomePlayerHud({
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpFillPct === null ? undefined : Math.round(xpFillPct)}
             title={xpProgressLabel}>
             {avatarHome ? (
-              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 66"
-                preserveAspectRatio="none" aria-hidden="true">
-                {/* An empty, recessed channel stays visible at 0 XP. The gold
-                    rim is an outline, never a filled progression indicator. */}
+              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 130"
+                preserveAspectRatio="xMidYMin meet" aria-hidden="true">
+                <defs>
+                  <path id="home-player-level-curve" d="M 102 98 Q 160 118 218 98" />
+                </defs>
+                {/* Match the platform rim: a deep, faintly glowing groove,
+                    with NO earned fill at zero XP. */}
                 <path className="home-player-hud__xp-arc-shadow"
-                  d="M 22 8 Q 160 112 298 8" />
+                  d="M 10 10 Q 160 154 310 10" />
                 <path className="home-player-hud__xp-arc-rim"
-                  d="M 22 8 Q 160 112 298 8" />
+                  d="M 10 10 Q 160 154 310 10" />
                 <path className="home-player-hud__xp-arc-track"
-                  d="M 22 8 Q 160 112 298 8" />
+                  d="M 10 10 Q 160 154 310 10" />
                 {xpFillPct !== null && xpFillPct > 0 && (
                   <path className="home-player-hud__xp-arc-fill"
                     data-testid="home-player-xp-fill"
-                    d="M 22 8 Q 160 112 298 8"
+                    d="M 10 10 Q 160 154 310 10"
                     pathLength={100}
                     strokeDasharray="100 100"
                     strokeDashoffset={100 - xpFillPct} />
                 )}
+                <text data-testid="home-player-total-xp" className="home-player-hud__xp-text"
+                  x="37" y="39" textAnchor="middle">
+                  {player && xpNeededThisLevel !== null
+                    ? `${xpEarnedThisLevel.toLocaleString()}/${xpNeededThisLevel.toLocaleString()}`
+                    : player ? `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP`
+                    : progression.isError ? "XP unavailable" : "XP…"}
+                </text>
+                <text data-testid="home-player-level" className="home-player-hud__level-curved"
+                  textAnchor="middle">
+                  <textPath href="#home-player-level-curve" startOffset="50%">
+                    {player ? `Lvl ${player.level}` : progression.isError ? "Level unavailable" : "Lvl …"}
+                  </textPath>
+                </text>
               </svg>
             ) : <span aria-hidden="true" style={xpFillPct === null ? undefined : { width: `${xpFillPct}%` }} />}
           </div>
-          <span data-testid="home-player-total-xp" className="home-player-hud__xp-text"
+          {!avatarHome && <span data-testid="home-player-total-xp" className="home-player-hud__xp-text"
             title={player ? `${player.totalXp.toLocaleString()} lifetime player XP` : undefined}>
-            {player
-              ? avatarHome && xpNeededThisLevel !== null
-                ? `${xpEarnedThisLevel.toLocaleString()} / ${xpNeededThisLevel.toLocaleString()} XP`
-                : `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP`
+            {player ? `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP`
               : progression.isError ? "XP unavailable" : "Loading XP"}
-          </span>
+          </span>}
         </div>
-        {avatarHome && (
-          <div className="home-player-hud__level-below">
-            <span data-testid="home-player-level" className="home-player-hud__level home-player-hud__level-pill">
-              {player ? `Lvl ${player.level}` : progression.isError ? "Level unavailable" : "Lvl …"}
-            </span>
-          </div>
-        )}
       </div>
 
       <div className="home-player-hud__party-panel">

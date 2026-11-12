@@ -1011,6 +1011,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             avatarHome={AVATAR_10_HOME_CUTOVER}
             avatarLandmark={activePetGroundViewport}
             avatarBackdrop={activePetBackdropRect}
+            avatarArtworkSize={activePetArtworkSize}
+            isAdmin={currentUser.isAdmin === true}
             visible={!isOverlayActive && !showPetStats && !showProfile &&
               !showSupportModal && !showWorldChat && activePetModal === null &&
               !showSpeedUp && !hatchRevealing && !showActionMenu && !questGuideMode}

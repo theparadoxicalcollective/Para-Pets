@@ -294,49 +294,18 @@
 }
 .home-player-hud--avatar-home .home-player-hud__progress {
   position: absolute;
-  left: var(--home-avatar-x, 50%);
-  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 32px);
+  left: var(--home-xp-x, var(--home-avatar-x, 50%));
+  top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px));
   transform: translateX(-50%);
   box-sizing: border-box;
-  width: min(calc(100vw - 42px), 400px);
+  width: min(calc(100vw - 28px), clamp(185px, var(--home-xp-art-width, 220px), 330px));
   max-width: none;
   margin: 0;
   color: #f4dfa6;
   text-align: center;
   pointer-events: none;
 }
-.home-player-hud--avatar-home .home-player-hud__level-below {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 8px;
-  min-height: 25px;
-  font-family: Georgia, serif;
-  color: #f5dfa5;
-  text-shadow: 0 2px 5px #041009, 0 0 10px #041009;
-}
-.home-player-hud--avatar-home .home-player-hud__level {
-  font-size: clamp(13px, 3.5vw, 16px);
-}
-.home-player-hud--avatar-home .home-player-hud__level-pill {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 78px;
-  min-height: 25px;
-  padding: 3px 15px;
-  border: 1px solid rgba(234, 196, 109, .82);
-  border-radius: 999px;
-  background: linear-gradient(155deg, rgba(28, 62, 42, .96), rgba(9, 31, 22, .96));
-  box-shadow: 0 2px 9px rgba(0, 0, 0, .65), inset 0 1px 0 rgba(255, 227, 152, .13);
-  color: #ffe7ac;
-  font-weight: 700;
-  letter-spacing: .025em;
-  line-height: 1.05;
-  white-space: nowrap;
-  box-sizing: border-box;
-}
+/* The Home level number follows the SVG curve, not a straight pill. */
 .home-player-hud--avatar-home .home-player-hud__xp-row {
   position: relative;
   display: block;
@@ -347,20 +316,19 @@
   border: 1.5px solid rgba(234, 199, 119, .72);
   box-shadow: 0 2px 7px rgba(0, 0, 0, .7);
 }
-.home-player-hud--avatar-home .home-player-hud__xp-text {
-  position: absolute;
-  top: calc(100% + 14px);
-  left: 0;
-  min-width: 0;
-  font-size: clamp(10px, 2.8vw, 13px);
-  color: #f2e1b7;
-  text-align: left;
-  text-shadow: 0 2px 4px #03110b;
-}
-.home-player-hud--avatar-home .home-player-hud__party-panel {
+/* Home XP numbers are drawn inside the left side of the SVG groove. */
+.home-player-hud--avatar-home svg .home-player-hud__xp-text {
+  fill: rgba(240, 222, 167, .84);
+  stroke: rgba(3, 23, 13, .92);
+  stroke-width: 2px;
+  paint-order: stroke fill;
+  font: 600 15px Georgia, serif;
+  letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}.home-player-hud--avatar-home .home-player-hud__party-panel {
   position: absolute;
   left: 50%;
-  bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   box-sizing: border-box;
   width: min(calc(100vw - 16px), 490px);
@@ -424,7 +392,7 @@
 }
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__party-panel {
-    bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
   }
   .home-player-hud--avatar-home .home-player-hud__progress {
     top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 28px);
@@ -450,22 +418,26 @@
   height: clamp(37px, 10vw, 51px);
 }
 .home-player-hud--avatar-home .home-player-hud__progress {
-  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px);
-  width: min(calc(100vw - 108px), 265px);
+  top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px));
+  width: min(calc(100vw - 28px), clamp(185px, var(--home-xp-art-width, 220px), 330px));
 }
-.home-player-hud--avatar-home .home-player-hud__xp-row {
-  height: 66px;
-}
+.home-player-hud--avatar-home .home-player-hud__xp-row { height: auto; }
 .home-player-hud--avatar-home .home-player-hud__xp-track {
   width: 100%;
-  height: 66px;
+  height: auto;
   overflow: visible;
   border: 0;
   border-radius: 0;
   background: none;
   box-shadow: none;
 }
-.home-player-hud__xp-arc { display: block; width: 100%; height: 66px; overflow: visible; }
+.home-player-hud__xp-arc {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 320 / 130;
+  overflow: visible;
+}
 .home-player-hud__xp-arc path {
   fill: none;
   stroke-linecap: round;
@@ -478,8 +450,9 @@
   stroke-width: 8px;
 }
 .home-player-hud__xp-arc-rim {
-  stroke: rgba(210, 181, 113, .6);
+  stroke: rgba(210, 181, 113, .72);
   stroke-width: 5px;
+  filter: drop-shadow(0 0 3px rgba(238, 198, 101, .48));
 }
 .home-player-hud__xp-arc-track {
   stroke: #122b1d;
@@ -491,28 +464,50 @@
   filter: drop-shadow(0 0 2px rgba(137, 209, 118, .45));
   transition: stroke-dashoffset .3s ease-out;
 }
-.home-player-hud--avatar-home .home-player-hud__xp-text {
-  top: 43px;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 0;
-  width: max-content;
-  font-size: clamp(9px, 2.7vw, 11px);
-  text-align: center;
-  color: #f2dfb1;
-  z-index: 2;
+.home-player-hud--avatar-home .home-player-hud__level-curved {
+  fill: #ffe9af;
+  stroke: rgba(4, 22, 14, .95);
+  stroke-width: 2.8px;
+  paint-order: stroke fill;
+  font: 700 24px Georgia, serif;
+  letter-spacing: .035em;
+  filter: drop-shadow(0 0 3px rgba(243, 201, 108, .58));
 }
-.home-player-hud--avatar-home .home-player-hud__level-below {
+.home-player-hud--avatar-home .home-player-hud__progress--moving {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+.home-player-hud--avatar-home .home-player-hud__progress--moving:active { cursor: grabbing; }
+.home-player-hud--avatar-home .home-player-hud__progress--moving .home-player-hud__xp-arc {
+  filter: drop-shadow(0 0 5px rgba(251, 219, 132, .72));
+}
+.home-player-hud--avatar-home .home-player-hud__xp-admin-tools {
   position: absolute;
-  left: 0;
-  top: 13px;
-  width: 100%;
-  margin: 0;
-  pointer-events: none;
+  right: -8px;
+  top: -37px;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: auto;
+  touch-action: manipulation;
+  color: #f8e1a6;
+  font-size: 10px;
+  white-space: nowrap;
 }
-.home-player-hud--avatar-home .home-player-hud__level-pill {
-  min-width: 78px;
-  min-height: 24px;
+.home-player-hud__xp-admin-tools button {
+  padding: 5px 8px;
+  border: 1px solid rgba(224, 185, 108, .65);
+  border-radius: 16px;
+  background: rgba(10, 42, 28, .88);
+  color: #f8e1a6;
+}
+.home-player-hud__xp-admin-tools button:disabled { opacity: .5; }
+.home-player-hud__xp-admin-tools span {
+  border-radius: 6px;
+  padding: 4px;
+  background: rgba(6, 28, 18, .87);
 }
 /* Five larger companions sit on small shadow ovals rather than circles.
    Higher outer positions make a shallow curve around the main avatar. */
@@ -526,7 +521,7 @@
   align-items: end;
 }
 .home-player-hud--avatar-home .home-player-hud__slot {
-  width: min(100%, clamp(56px, 15.2vw, 73px));
+  width: min(100%, clamp(59px, 16.5vw, 78px));
   aspect-ratio: 1 / 1.08;
   padding: 0;
   overflow: visible;
@@ -556,7 +551,7 @@
   pointer-events: none;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-portrait {
-  inset: -2px 2px 8px;
+  inset: -2px 2px 5px;
   display: block;
   overflow: visible;
   border: 0;
@@ -587,10 +582,8 @@
   aspect-ratio: 1;
   z-index: 3;
   pointer-events: none;
-  filter: drop-shadow(1px 0 0 #f0d69f)
-    drop-shadow(-1px 0 0 #f0d69f)
-    drop-shadow(0 -1px 0 #f0d69f)
-    drop-shadow(0 2px 2px #000c);
+  /* Mini Pet PNG edges are already authored: no hard gold outline. */
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
 }
 .home-player-hud__slot-placeholder {
   position: absolute;
@@ -645,7 +638,7 @@
 /* Pet size and ornament positions stay tied to their own slot, not to
    the overall page height. Preserve the animator's House-mode blink. */
 .home-player-hud--avatar-home .home-player-hud__pet-renderer {
-  transform: scale(.94);
+  transform: scale(1.02);
   transform-origin: center bottom;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-placeholder img {
@@ -654,19 +647,17 @@
 }
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__party-panel {
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
   /* Compress the visual arc on short phones, without shortening XP math
      or taking touch area from the five pets. */
   .home-player-hud--avatar-home .home-player-hud__progress {
-    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 2px);
-    width: min(calc(100vw - 96px), 235px);
+    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 2px));
+    width: min(calc(100vw - 28px), clamp(170px, var(--home-xp-art-width, 220px), 330px));
   }
   .home-player-hud--avatar-home .home-player-hud__xp-row,
   .home-player-hud--avatar-home .home-player-hud__xp-track,
-  .home-player-hud--avatar-home .home-player-hud__xp-arc { height: 62px; }
-  .home-player-hud--avatar-home .home-player-hud__level-below { top: 10px; }
-  .home-player-hud--avatar-home .home-player-hud__xp-text { top: 39px; }
+  .home-player-hud--avatar-home .home-player-hud__xp-arc { height: auto; }
   .home-player-hud--avatar-home .home-player-hud__slot:nth-child(1),
   .home-player-hud--avatar-home .home-player-hud__slot:nth-child(5) { transform: translateY(-17px); }
   .home-player-hud--avatar-home .home-player-hud__slot:nth-child(2),

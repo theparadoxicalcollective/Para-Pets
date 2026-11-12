@@ -46,15 +46,15 @@ test("coin and essence balance artwork is read-only; only shop icon navigates", 
   assert.match(topBar, /onClick=\{\(\) => navigate\("\/coins"\)\}/);
 });
 
-test("Home moves XP beneath bar and places level centered with XP to its left", () => {
+test("Home keeps curved level text beneath a left-labeled artwork-relative XP bar", () => {
   assert.match(hud, /\{!avatarHome && \(/);
-  assert.match(hud, /className="home-player-hud__level-below"/);
+  assert.match(hud, /className="home-player-hud__level-curved"/);
+  assert.match(hud, /<textPath href="#home-player-level-curve" startOffset="50%">/);
   assert.match(hud, /data-testid="home-player-level"/);
   assert.match(hud, /data-testid="home-player-total-xp"/);
-  assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__level-below/);
-  assert.match(hudCss, /justify-content: center/);
-  assert.match(hudCss, /top: calc\(100% \+ 14px\)/);
-  assert.match(hudCss, /text-align: left/);
+  assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__level-curved/);
+  assert.match(hudCss, /--home-xp-art-width/);
+  assert.match(hud, /x="37" y="39" textAnchor="middle"/);
   assert.match(hud, /xpFillPct/); // Progression calculations are unchanged.
 });
 
