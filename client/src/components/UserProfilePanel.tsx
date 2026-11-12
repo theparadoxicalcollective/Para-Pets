@@ -564,7 +564,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 Changes your local day/night artwork. Reward and cooldown durations remain unchanged.
               </p>
               <button type="button" data-testid="button-save-time-zone"
-                disabled={isPending || timeZone === (user.timeZone ?? detectedPlayerTimeZone())}
+                disabled={isPending || (user.timeZone != null && timeZone === user.timeZone)}
                 onClick={() => updateTimeZoneMutation.mutate()}
                 className="w-full min-h-10 rounded-lg border border-[#d2ad63] bg-[#285438] px-3 py-2 font-fantasy text-sm text-[#f8e5b1] disabled:opacity-45">
                 {updateTimeZoneMutation.isPending ? "Saving…" : "Save Time Zone"}
