@@ -624,7 +624,7 @@
     top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 3px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot {
-    width: min(100%, clamp(43px, 14.5vw, 63px));
+    width: min(100%, clamp(48px, 14.5vw, 63px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
