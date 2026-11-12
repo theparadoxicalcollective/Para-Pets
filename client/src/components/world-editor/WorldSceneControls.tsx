@@ -130,8 +130,9 @@ export default function WorldSceneControls(props: Props) {
   const selectedLegacyPage = legacyChoice?.buildingId === props.selected?.id
     ? legacyChoice.pageId : props.selected?.legacyLocationId ?? null;
   useEffect(() => {
-    if (!legacyChoice || props.selected?.id !== legacyChoice.buildingId ||
-        props.selected.legacyLocationId === legacyChoice.pageId)
+    if (!legacyChoice) return;
+    if (props.selected?.id !== legacyChoice.buildingId ||
+        props.selected?.legacyLocationId === legacyChoice.pageId)
       setLegacyChoice(null);
   }, [props.selected?.id, props.selected?.legacyLocationId, legacyChoice]);
   const patchLegacyPage = async (id: string | null) => {
