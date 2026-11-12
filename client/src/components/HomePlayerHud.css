@@ -496,7 +496,8 @@
   height: clamp(169px, 23dvh, 232px);
   margin-inline: auto;
   overflow: visible;
-  pointer-events: auto;
+  /* Only actual pet artwork takes a pointer; gaps remain tappable scenery. */
+  pointer-events: none;
   touch-action: pan-y;
   outline-offset: 2px;
 }
