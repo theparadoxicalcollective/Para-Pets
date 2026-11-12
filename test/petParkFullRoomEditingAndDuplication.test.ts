@@ -51,6 +51,20 @@ function setup(known: any) {
     },
   };
   const db = {
+    // The copy action is atomic: when an older original lacks a group ID,
+    // it joins its new copy to the shared decor type in the same transaction.
+    async transaction<T>(callback: (tx: any) => Promise<T>): Promise<T> {
+      return callback(db);
+    },
+    update(table: unknown) {
+      assert.equal(table, petParkSceneItems);
+      return { set(values: any) {
+        return { async where() {
+          if (known) Object.assign(known, values);
+          return [{ ...known }];
+        } };
+      } };
+    },
     select() {
       return { from(table: unknown) {
         assert.equal(table, petParkSceneItems);
@@ -89,7 +103,8 @@ test("duplicating decor creates a new row with unchanged art, size, flip and lay
   const original = { id: "original", kind: "decor", imageUrl: "/uploads/tree.png",
     tapImageUrl: "/uploads/open-gate.png", appearanceGroupId: "linked-tree",
     decorEffects: [{ id: "glow-1", type: "warm_glow", x: 0.25, y: 0.6, size: 48 }],
-    size: 480, flipped: true, layer: 42, xPct: 0.2, yPct: 0.4, effectType: null, isWaterSource: true };
+    size: 480, flipped: true, layer: 42, xPct: 0.2, yPct: 0.4, effectType: null,
+    isWaterSource: true, decorSurface: "barrier" };
   const route = setup(original);
   const res = await route.invoke(0.33, 0.56);
   assert.equal(res.statusCode, 201);
@@ -98,7 +113,8 @@ test("duplicating decor creates a new row with unchanged art, size, flip and lay
     kind: "decor", imageUrl: "/uploads/tree.png", tapImageUrl: "/uploads/open-gate.png", effectType: null,
     appearanceGroupId: "linked-tree",
     decorEffects: [{ id: "glow-1", type: "warm_glow", x: 0.25, y: 0.6, size: 48 }],
-    size: 480, flipped: true, layer: 42, xPct: 0.33, yPct: 0.56, isWaterSource: true,
+    size: 480, flipped: true, layer: 42, xPct: 0.33, yPct: 0.56,
+    isWaterSource: true, decorSurface: "barrier",
   });
   assert.equal(route.imageProcessingCalls(), 0, "duplication must never require another image upload");
 });
@@ -113,4 +129,19 @@ test("invalid positions, missing objects and non-decor items cannot be copied", 
   assert.equal((await setup(null).invoke(0.5,0.5)).statusCode, 404);
   assert.equal((await setup({ ...original, kind: "effect" }).invoke(0.5,0.5)).statusCode, 422);
   assert.equal((await setup({ ...original, imageUrl: null }).invoke(0.5,0.5)).statusCode, 422);
+});
+
+test("copying a legacy ungrouped Grass decoration gives both copies one shared type", async () => {
+  const legacy = { id: "original", kind: "decor", imageUrl: "/uploads/grass.png",
+    appearanceGroupId: null, decorEffects: [], tapImageUrl: null, size: 120,
+    flipped: false, layer: 0, xPct: .2, yPct: .4,
+    decorSurface: "grass", isWaterSource: false };
+  const route = setup(legacy);
+  const res = await route.invoke(.5, .6);
+  assert.equal(res.statusCode, 201);
+  assert.equal(legacy.appearanceGroupId, "original",
+    "legacy type is linked before its new copy is inserted");
+  assert.equal(route.getSaved().appearanceGroupId, "original");
+  assert.equal(route.getSaved().decorSurface, "grass");
+  assert.deepEqual([route.getSaved().xPct, route.getSaved().yPct],[.5,.6]);
 });
