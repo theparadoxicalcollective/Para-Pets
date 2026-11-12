@@ -51,10 +51,11 @@ test("Home keeps curved level text on an artwork-relative XP bar with quantity h
   assert.match(hud, /className="home-player-hud__level-curved"/);
   assert.match(hud, /<textPath href="#home-player-level-curve" startOffset="50%">/);
   assert.match(hud, /data-testid="home-player-level"/);
-  assert.match(hud, /data-testid="home-player-total-xp"/);
+  assert.doesNotMatch(hud, /<text data-testid="home-player-total-xp"/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__level-curved/);
   assert.match(hudCss, /--home-xp-art-width/);
-  assert.match(hud, /x="37" y="39" textAnchor="middle"/);
+  assert.match(hud, /homeXpArcGeometry\(curveDepth\)/);
+  assert.match(hud, /aria-label=\{player && xpNeededThisLevel !== null/);
   assert.match(hud, /xpFillPct/); // Progression calculations are unchanged.
 });
 

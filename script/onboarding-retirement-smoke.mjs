@@ -109,8 +109,9 @@ try {
   assert.equal(await page.getByTestId("button-begin-journey").count(),0);
   assert.equal(await page.getByTestId("begin-journey-forwarder").count(),0);
   assert.equal(await page.getByText("Begin Here",{exact:true}).count(),0);
-  await page.getByTestId("button-floating-nav").tap();
-  await page.getByTestId("nav-item-quest").tap();
+  // Quest is a persistent Home shortcut now; retired onboarding must remain
+  // absent and the original quest-log dialog must still open directly.
+  await page.getByTestId("home-shortcut-quest").tap();
   const questLog=page.getByTestId("quest-log-viewport-overlay");
   await questLog.waitFor({state:"visible"});
   assert.equal(await questLog.getByText("Begin Journey",{exact:true}).count(),0);

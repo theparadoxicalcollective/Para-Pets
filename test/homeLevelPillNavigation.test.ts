@@ -26,7 +26,7 @@ test("deep XP curve and lower pets preserve short-phone clearance", () => {
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__slot\s*\{[^}]*pointer-events: auto/s);
 });
 
-test("Home navigation spans five left-to-right columns and three rows without changing non-Home anchors", () => {
+test("Home navigation spans five columns and two rows without changing non-Home anchors", () => {
   assert.match(nav, /const \[location, navigate\] = useLocation\(\)/);
   assert.match(nav, /const isHome = location === "\/"/);
   assert.match(nav, /top: isHome \? "clamp\(108px/);
@@ -34,7 +34,7 @@ test("Home navigation spans five left-to-right columns and three rows without ch
   assert.match(nav, /right: 12/);
   assert.match(nav, /data-testid="home-realm-nav-panel"/);
   assert.match(nav, /const HOME_NAV_COLUMNS = 5/);
-  assert.match(nav, /const HOME_NAV_ROWS = 3/);
+  assert.match(nav, /const HOME_NAV_ROWS = 2/);
   assert.match(nav, /gridTemplateColumns: \x60repeat\(\$\{HOME_NAV_COLUMNS\}, minmax\(0, 1fr\)\)\x60/);
   assert.match(nav, /homeNavPosition\(index\)/);
   assert.match(nav, /aria-controls=\{isHome \? "home-realm-nav-panel" : undefined\}/);
@@ -46,12 +46,15 @@ test("Home navigation spans five left-to-right columns and three rows without ch
 test("Main is first and Support stays last in the horizontal Home menu", () => {
   const css = read("client/src/components/FloatingNavHome.css");
   assert.match(nav, /const HOME_NAV_ORDER = \[/);
-  assert.match(nav, /"home", "inventory", "map", "pethouse", "quest", "keepers"/);
-  assert.match(nav, /"bag", "market", "aquarium", "cards", "pvp", "badges", "support"/);
+  assert.match(nav, /"home", "inventory", "bag", "keepers", "pethouse"/);
+  assert.match(nav, /"market", "aquarium", "cards", "badges", "support"/);
+  assert.match(nav, /HOME_SHORTCUT_ITEMS\.map\(item =>/);
+  assert.match(nav, /data-testid=\{\x60home-shortcut-\$\{item\.id\}\x60\}/);
   assert.match(nav, /HOME_NAV_ORDER\.map\(\(id, index\) =>/);
   assert.match(nav, /gridColumn: HOME_NAV_COLUMNS, gridRow: HOME_NAV_ROWS/);
   assert.match(nav, /gridColumn: index % HOME_NAV_COLUMNS \+ 1/);
-  assert.match(nav, /showQuestReward=\{id === "quest" && questRewardReady\}/);
+  assert.match(nav, /item\.id === "quest" && questRewardReady/);
+  assert.match(nav, /showQuestReward=\{false\}/);
   assert.match(nav, /isSupport \? handleRight\("support"\)/);
   assert.match(nav, /if \(id === "support"\)/);
   assert.match(nav, /para-pets:open-support/);

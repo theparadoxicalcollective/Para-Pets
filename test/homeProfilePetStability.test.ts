@@ -8,7 +8,7 @@ test("Home player slots remain fixed when a pet swap starts or finishes saving",
   const hud=read("client/src/components/HomePlayerHud.tsx");
   assert.match(css,/grid-auto-rows: clamp\(68px, 19vw, 95px\)/);
   assert.match(css,/\.home-player-hud--avatar-home \.home-player-hud__status \{\s*position: absolute/);
-  assert.match(css,/\.home-player-hud--avatar-home \.home-player-hud__slot:disabled \{\s*\/\* Retain/);
+  assert.match(css,/\.home-player-hud--avatar-home \.home-player-hud__slot:disabled \{\s*opacity: 1/);
   assert.match(hud,/key=\{index\}/);
   assert.match(hud,/saveTeam\(next\)/);
 });
