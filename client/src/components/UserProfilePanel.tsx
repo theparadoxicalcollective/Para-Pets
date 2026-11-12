@@ -613,7 +613,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               <p className="text-[11px] text-[#ceb98d]">A confirmation link will be sent to your new address. Your current email remains active until confirmed.</p>
               <button type="button" data-testid="button-request-email-change"
                 onClick={() => requestEmailChangeMutation.mutate()}
-                disabled={isPending || !emailPassword || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(newEmail.trim()) || newEmail.trim().toLowerCase() === user.email.toLowerCase()}
+                disabled={isPending || !emailPassword || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim()) || newEmail.trim().toLowerCase() === user.email.toLowerCase()}
                 className="w-full min-h-10 rounded-lg border border-[#d2ad63] bg-[#285438] px-3 py-2 font-fantasy text-sm text-[#f8e5b1] disabled:opacity-45">
                 {requestEmailChangeMutation.isPending ? "Sending…" : "Verify New Email"}
               </button>
@@ -861,7 +861,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             <div>
               <button
                 data-testid="button-toggle-feedback"
-                onClick={() => { setShowFeedback(!showFeedback); setFeedbackSent(false); setFeedbackMessage(""); }}
+                onClick={() => { setShowFeedback(!showFeedback); setShowAccountSettings(false); setFeedbackSent(false); setFeedbackMessage(""); }}
                 disabled={isPending}
                 className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
                 style={{
