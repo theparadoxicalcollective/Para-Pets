@@ -46,6 +46,9 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       )
     );
     ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS effect_color text;
+    -- Additive per-instance decoration role; existing world drafts remain barriers.
+    ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS decor_surface text NOT NULL DEFAULT 'barrier'
+      CHECK (decor_surface IN ('barrier', 'grass', 'ground'));
     -- Existing saved buildings retain their positions and receive the prior 35% appearance.
     ALTER TABLE world_scene_placements
       ADD COLUMN IF NOT EXISTS interior_darkness integer NOT NULL DEFAULT 35;
