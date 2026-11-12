@@ -288,12 +288,7 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={quickAccent}
           aria-label="Edit selected object details" onClick={() => openCreator("selected")}>Edit</button>
       </div>
-      {!props.activeBuilding && props.selected?.kind === "building" &&
-        <WorldLegacyPagePicker worldId={props.worldId}
-          value={selectedLegacyPage}
-          onChange={id => { void patchLegacyPage(id); }}
-          disabled={busy} />}
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         {!props.activeBuilding && props.selected?.kind === "decor" &&
           <button type="button" aria-label="Duplicate world decoration"
             className={control} disabled={busy}
@@ -303,10 +298,15 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-        <span className="ml-auto self-center text-[10px] text-amber-100/65">
+        {!props.activeBuilding && props.selected?.kind === "building" &&
+          <WorldLegacyPagePicker compact worldId={props.worldId}
+            value={selectedLegacyPage}
+            onChange={id => { void patchLegacyPage(id); }}
+            disabled={busy} />}
+        {props.selected?.kind !== "building" && <span className="ml-auto self-center text-[10px] text-amber-100/65">
           {props.activeBuilding ? "Drag selected artwork to move"
             : "Drag selected artwork to move · swipe background to pan"}
-        </span>
+        </span>}
       </div>
     </section>}
     {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
