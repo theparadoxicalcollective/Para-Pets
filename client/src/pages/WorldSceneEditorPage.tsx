@@ -7,6 +7,7 @@ import PetParkTerrain from "@/components/PetParkTerrain";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
+import { useWorldLegacyPages } from "@/components/world-editor/WorldLegacyPagePicker";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
@@ -109,6 +110,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
 
   const known = isEditableWorldSceneId(worldId);
   const world = getWorldDefinition(worldId);
+  const legacyPages = useWorldLegacyPages(worldId, known && !!activeBuildingId);
   const queryKey = ["/api/admin/world-editor", worldId, "draft"];
   const sceneQueryKey = ["/api/admin/world-editor", worldId, "scene"];
 
@@ -244,6 +246,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const selected = content.placements.find(p => p.id === selectedId) ?? null;
   const selectedInterior = content.interiorItems.find(i => i.id === selectedInteriorId && i.buildingId === activeBuildingId) ?? null;
   const interiorAsset = activeBuilding ? assetFor(activeBuilding.assetId) : null;
+  const linkedLegacyPage = legacyPages.data?.find(page =>
+    page.id === activeBuilding?.legacyLocationId);
+  // A linked legacy page takes priority as this new building's interior
+  // preview. The original legacy page assets are never copied or edited.
+  const interiorImageUrl = linkedLegacyPage?.bgUrl ?? interiorAsset?.interiorImageUrl;
   const interiorW = Math.min(size.width, size.height * interiorRatio);
   const interiorH = interiorW / interiorRatio;
   const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
@@ -251,7 +258,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     .map(item => ({ id: item.id, type: item.effectType as HouseInteriorEffect["type"],
       x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
 
-  useEffect(() => { setInteriorRatio(4 / 3); }, [activeBuildingId, interiorAsset?.interiorImageUrl]);
+  useEffect(() => { setInteriorRatio(4 / 3); }, [activeBuildingId, interiorImageUrl]);
 
   const saveDraft = useMutation({
     mutationFn: async (payload: WorldSceneDraftSettings) => {
@@ -620,21 +627,21 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
             transitionMs={worldLighting.transitionMs} zIndex={2}/>
         </div>
-      </> : interiorAsset?.interiorImageUrl ? <div
+      </> : interiorImageUrl ? <div
         ref={interiorRef} data-testid="world-editor-interior"
         className="absolute overflow-hidden border border-[#9d8651]/60"
         style={{
           left: (size.width - interiorW) / 2, top: (size.height - interiorH) / 2,
           width: interiorW, height: interiorH,
         }}>
-        <img src={interiorAsset.interiorImageUrl} alt={interiorAsset.name + " interior"}
+        <img src={interiorImageUrl} alt={(linkedLegacyPage?.name ?? interiorAsset?.name ?? "World building") + " interior"}
           className="absolute inset-0 h-full w-full object-fill" draggable={false}
           onLoad={event => {
             const img = event.currentTarget;
             if (img.naturalWidth > 0 && img.naturalHeight > 0)
               setInteriorRatio(img.naturalWidth / img.naturalHeight);
           }} />
-        {interiorAsset.nightInteriorImageUrl && <img
+        {!linkedLegacyPage && interiorAsset?.nightInteriorImageUrl && <img
           src={interiorAsset.nightInteriorImageUrl} alt="" aria-hidden="true" draggable={false}
           data-testid="world-editor-night-interior-image"
           className="absolute inset-0 h-full w-full object-fill pointer-events-none"
@@ -683,7 +690,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           roomWidth={interiorW} roomHeight={interiorH}
           onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })} />}
       </div> : <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-[#decba0]">
-        This building has no interior artwork yet. Edit its asset to upload a room image.
+        This building has no interior artwork yet. Choose Add Old World Page or upload a room image.
       </div>}
 
       {paintMode && !activeBuilding && <WorldTerrainBrush
