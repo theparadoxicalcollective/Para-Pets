@@ -231,6 +231,9 @@ test("one tap selects only visible world artwork; dragging the scene never moves
   assert.match(editor, /startCamera\(event\)/);
   assert.match(editor, /Math\.hypot\(event\.clientX - drag\.clientX, event\.clientY - drag\.clientY\) < 7/);
   assert.match(editor, /if \(pinch\.current\) return/);
+  assert.match(editor, /onPointerUpCapture=\{event => \{[\s\S]*?if \(paintMode \|\| activeBuilding\) return/);
+  assert.match(editor, /onPointerCancelCapture=\{event => \{[\s\S]*?if \(paintMode \|\| activeBuilding\) return/);
+  assert.match(editor, /onPointerMoveCapture=\{event => \{[\s\S]*?if \(paintMode \|\| activeBuilding\) return/);
   assert.doesNotMatch(editor, /doubleTap|lastObjectTap|moveArmedId/);
   assert.match(controls, /Drag selected artwork to move · swipe background to pan/);
   assert.doesNotMatch(controls, /Double-tap artwork to move/);
