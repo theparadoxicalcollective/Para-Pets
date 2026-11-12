@@ -11,12 +11,15 @@ test("World building and decor forms keep every tool but fold optional sections"
   const c=src("client/src/components/world-editor/WorldSceneCreateForm.tsx");
   for(const key of ["world-create-legacy-options","world-create-shop-options","world-create-building-effects",
     "world-create-interior-artwork","world-create-decor-tap-image","world-create-decor-effects",
-    "world-create-water-source"]) assert.match(c,new RegExp(key));
+    "world-create-decor-behavior"]) assert.match(c,new RegExp(key));
   for(const field of ["Building Name","Building starting size","Building interior image",
-    "New world nighttime interior image","Decoration Tap Image","Water Source",
+    "New world nighttime interior image","Decoration Tap Image",
     "WorldDecorEffectEditor","button-create-world-building","button-create-world-decoration"])
     assert.ok(c.includes(field),field+" is still available");
   assert.match(c,/onCreated\(placed, inside\)/);
+  const roles = src("client/src/components/DecorSurfaceSelector.tsx");
+  for(const label of ["Barrier","Grass","Ground","Water Source"])
+    assert.match(roles,new RegExp(`label: "${label}"`));
 });
 test("building/decor editing keeps placement, stock, page and lighting actions",()=>{
   const c=src("client/src/components/world-editor/WorldSceneControls.tsx");
