@@ -40,6 +40,7 @@ import { purchaseInventoryItem } from "./inventoryPurchase";
 import { baseGardenToolKind } from "@shared/garden";
 import { tryConsumeOneFromInventory } from "./inventoryConsumption";
 import { registerAccountRoutes } from "./routes/account.routes";
+import { registerEmailChangeRoutes } from "./routes/emailChange.routes";
 import { registerSupportRoutes } from "./routes/support.routes";
 import { registerHubNoticeRoutes } from "./routes/hubNotice.routes";
 import { registerAvatarRoutes } from "./routes/avatar.routes";
@@ -874,6 +875,7 @@ export async function registerRoutes(
   registerPlayerCharacterRoutes(app, { db, isAdmin, isAuthenticated, processImage: processWorldImage });
   registerPlayerClothingAdminRoutes(app, { db, isAdmin, processImage: processWorldImage });
   registerPlayerAvatarRoutes(app, { db, isAuthenticated });
+  registerEmailChangeRoutes(app, { db, isAuthenticated });
   registerRedeemCodeRoutes(app);
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
@@ -1162,8 +1164,14 @@ export async function registerRoutes(
       const user = req.user as any;
       const { profileImageData } = req.body;
 
-      if (!profileImageData) {
-        return res.status(400).json({ message: "No image provided" });
+      // Explicit null removes only the custom photo; clients use the shared
+      // Para Pets mascot fallback everywhere. Missing/empty values are invalid.
+      if (profileImageData === null) {
+        const updated = await storage.updateProfileImage(user.id, null);
+        return res.json(publicAccount(updated));
+      }
+      if (typeof profileImageData !== "string" || !/^data:image\/(jpeg|jpg|png|webp);base64,/.test(profileImageData) || profileImageData.length > 4_000_000) {
+        return res.status(400).json({ message: "Provide an image or choose Remove Picture." });
       }
 
       const base64Data = profileImageData.replace(/^data:image\/\w+;base64,/, "");
