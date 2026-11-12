@@ -22,7 +22,8 @@ export type WorldScenePlacement = {
   interiorNightDarkness: number | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
   decorEffects: ParkDecorEffect[]; isWaterSource: boolean;
-  isShop: boolean; shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
+  isShop: boolean; legacyLocationId: string | null;
+  shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
 };
 
 export type WorldSceneInteriorItem = {
