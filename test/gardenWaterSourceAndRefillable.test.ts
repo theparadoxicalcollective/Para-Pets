@@ -18,6 +18,15 @@ function stubRoutes(register: (app: any, args: any) => void) {
   for (const method of methods) app[method] = (url: string, ...handlers: any[]) =>
     routes.set(`${method.toUpperCase()} ${url}`, handlers);
   const db = {
+    // Decor role/water updates first read the source artwork group so every
+    // linked copy can receive the same behavior. Preserve this real route flow.
+    select() { return { from(table: unknown) {
+      return { async where() {
+        return table === petParkSceneItems
+          ? [{ id: "existing-item", kind: "decor", appearanceGroupId: "linked-decor",
+            isWaterSource: false, decorSurface: "barrier" }] : [];
+      } };
+    } }; },
     insert(table: unknown) { return { values(data: any) {
       writes.push({ table, data, mode: "insert" });
       return { returning: async () => [{ id: "new-item", kind: data.kind, ...data }] };
