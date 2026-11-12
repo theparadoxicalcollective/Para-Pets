@@ -526,7 +526,7 @@
   align-items: end;
 }
 .home-player-hud--avatar-home .home-player-hud__slot {
-  width: min(100%, clamp(48px, 15.2vw, 73px));
+  width: min(100%, clamp(56px, 15.2vw, 73px));
   aspect-ratio: 1 / 1.08;
   padding: 0;
   overflow: visible;
