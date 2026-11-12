@@ -74,7 +74,8 @@ test("creator always exposes hair color input and save/reset, also on first avat
   assert.match(creator, /playerClothingCanRecolor\(garment\.category, garment\.colorPickerEnabled\)/);
   assert.match(creator, /data-testid="avatar-clothing-custom-color"/);
   assert.match(creator, /data-testid="avatar-clothing-reset-color"/);
-  assert.match(creator, /data-testid="avatar-save-color-button"/);
+  assert.match(creator, /data-testid="avatar-clothing-color-controls"/);
+  assert.match(creator, /"avatar-save-character-button"/);
   assert.match(creator, /chooseClothing\(item\)/);
   assert.match(server, /colorPickerEnabled: playerClothingCanRecolor\(parsed\.data\.category, item\.colorPickerEnabled\)/);
   assert.match(server, /colorTint: playerClothingCanRecolor\(item\.category, item\.colorPickerEnabled\) \? entry\.colorTint : null/);
