@@ -474,7 +474,7 @@ export default function WorldSceneControls(props: Props) {
           </label>}
         </div>
         {currentAsset && <details key={props.selected.id + ":effects"}
-          className={disclosure} defaultOpen={props.selected.decorEffects.length > 0}
+          className={disclosure} open={props.selected.decorEffects.length > 0}
           data-testid="world-edit-decor-effects">
           <summary>Attached lights &amp; effects ({props.selected.decorEffects.length})</summary>
           <div className="pt-2"><WorldDecorEffectEditor
@@ -482,7 +482,7 @@ export default function WorldSceneControls(props: Props) {
             onChange={effects => void patchSelected({ decorEffects: effects })}/></div>
         </details>}
         {currentAsset && <details className={disclosure}
-          defaultOpen={Boolean(currentAsset.tapImageUrl)} data-testid="world-decoration-tap-image-editor">
+          open={Boolean(currentAsset.tapImageUrl)} data-testid="world-decoration-tap-image-editor">
           <summary>Alternate Tap Image {currentAsset.tapImageUrl ? "(set)" : "(optional)"}</summary>
           <div className="space-y-2 pt-2">
           <div className="flex items-center justify-between gap-2">
@@ -517,7 +517,7 @@ export default function WorldSceneControls(props: Props) {
             disabled={busy} preview /></div>
         </details>
         {currentAsset && <details className={disclosure}
-          defaultOpen={props.selected.decorEffects.length > 0} data-testid="world-edit-building-effects">
+          open={props.selected.decorEffects.length > 0} data-testid="world-edit-building-effects">
           <summary>{"Exterior building lights & effects"} ({props.selected.decorEffects.length})</summary>
           <p className="text-[11px] text-amber-100/65">Facade lamps follow the outdoor day/night cycle and move with the building.</p>
           <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
