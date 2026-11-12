@@ -37,6 +37,7 @@ type Props = {
   selected: WorldScenePlacement | null;
   selectedInterior: WorldSceneInteriorItem | null;
   activeBuilding: WorldScenePlacement | null;
+  shopItemEditing?: boolean;
   placementPoint: { xPct: number; yPct: number };
   interiorDarkness: number;
   interiorPreviewClock: "live" | "day" | "night";
@@ -268,7 +269,7 @@ export default function WorldSceneControls(props: Props) {
   const quickDanger = "min-h-12 rounded-xl border border-[#be8d62]/65 bg-[#463028]/95 px-2 py-2 text-xs font-semibold text-[#f9d6a6] shadow-lg disabled:opacity-40";
 
   return <>
-    {!expanded && !selectedItem && <div
+    {!expanded && !selectedItem && !props.shopItemEditing && <div
       data-testid="world-scene-controls" aria-label="World editing toolbar"
       className={`pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg gap-1.5 ${props.activeBuilding && !props.activeBuilding.isShop ? "grid-cols-2" : "grid-cols-3"}`}
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}

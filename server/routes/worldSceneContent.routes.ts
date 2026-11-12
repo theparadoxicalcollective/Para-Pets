@@ -229,6 +229,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     try {
       const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 60) : "";
+      const type = typeof req.query.type === "string" ? req.query.type.trim().slice(0, 40) : "";
       const items = await db.select({
         id: shopItems.id, name: shopItems.name, type: shopItems.type,
         price: shopItems.price, imageUrl: shopItems.imageUrl,
@@ -236,6 +237,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       }).from(shopItems).where(and(
         ne(shopItems.type, "garden_fruit"),
         q ? ilike(shopItems.name, "%" + q + "%") : undefined,
+        type && type !== "all" ? eq(shopItems.type, type) : undefined,
       )).orderBy(asc(shopItems.name)).limit(100);
       return res.json(items);
     } catch (error) {

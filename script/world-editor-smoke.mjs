@@ -50,6 +50,10 @@ const savedNpcs = [{
   type: "npc", worldId: "__npc_catalog__", name: "Wisp Keeper",
   imageUrl: art, specialSkill: '{"animation":"float","messages":["Hello"]}',
 }];
+const shopMerchandise = {
+  id: "70000000-0000-4000-8000-000000000042", name: "Blue Lantern", type: "item",
+  price: 150, imageUrl: art, eggImageUrl: null, hatchedImageUrl: null,
+};
 const interior = "data:image/svg+xml;base64," + Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#62513b"/></svg>',
 ).toString("base64");
@@ -163,6 +167,20 @@ try {
         return route.fulfill({ json: record.scene });
       if (req.method() === "GET" && tail === "legacy-pages")
         return route.fulfill({ json: legacyPages });
+      if (req.method() === "GET" && tail === "shop-catalog") {
+        const type = u.searchParams.get("type") ?? "all";
+        const search = (u.searchParams.get("q") ?? "").toLowerCase();
+        return route.fulfill({ json: (
+          (type === "all" || type === shopMerchandise.type) &&
+          shopMerchandise.name.toLowerCase().includes(search)
+        ) ? [shopMerchandise] : [] });
+      }
+      if (req.method() === "GET" && /^buildings\/[^/]+\/shop-stock$/.test(tail)) {
+        const buildingId = tail.split("/")[1];
+        const building = record.scene.placements.find(p => p.id === buildingId);
+        return route.fulfill({ json: building?.shopItemIds?.includes(shopMerchandise.id)
+          ? [shopMerchandise] : [] });
+      }
       if (req.method() === "GET" && tail === "garden")
         return route.fulfill({ json: {
           serverNow: new Date().toISOString(),
@@ -299,7 +317,7 @@ try {
     });
     const createdBuilding = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
     await page.getByTestId("button-create-world-building").click();
-    await createdBuilding;
+    const savedShopBuilding = await (await createdBuilding).json();
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "building" &&
       w.body.size === 300 && w.body.isShop === true &&
       w.body.legacyLocationId === legacyPages[0].id),
@@ -347,6 +365,51 @@ try {
     }
     assert.equal(await page.getByTestId("world-editor-interior").locator("img").first().getAttribute("src"),
       oldPageArt, name + ": building reuses exact original page image, not a copied asset");
+
+    // World shops share Pet Park's image-based stock picker and tag editing,
+    // but every write stays in the World editor, never a player buy endpoint.
+    const addShop = page.getByTestId("world-shop-add-item");
+    await addShop.waitFor({ state: "visible" });
+    assert.equal(await page.getByTestId("world-shop-shelf").count(), 1,
+      name + ": an empty shop remains editable");
+    await addShop.click();
+    await page.getByTestId("world-shop-picker").waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Items", exact: true }).click();
+    await page.getByRole("option", { name: /Blue Lantern/ }).waitFor({ state: "visible" });
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes("/placements/" + savedShopBuilding.id) &&
+        r.request().method() === "PATCH"),
+      page.getByRole("option", { name: /Blue Lantern/ }).click(),
+    ]);
+    await page.getByRole("button", { name: "Close shop item picker" }).click();
+    const merchandise = page.getByTestId("world-shop-merchandise-" + shopMerchandise.id);
+    await merchandise.waitFor({ state: "visible" });
+    assert.equal(await page.getByTestId("world-shop-tag-coin").count() > 0, true,
+      name + ": World and Pet Park use coin-only price tags");
+    await merchandise.click();
+    const preview = page.getByTestId("world-shop-price-preview");
+    await preview.waitFor({ state: "visible" });
+    assert.equal(await page.getByTestId("world-scene-controls").count(), 0,
+      name + ": selecting merchandise hides overlapping World bottom controls");
+    const beforeTag = worlds.haunted_woods.scene.placements.find(p =>
+      p.id === savedShopBuilding.id).shopItemPlacements[0];
+    const marker = await page.getByTestId("world-shop-price-drag-handle").boundingBox();
+    const artBox = await page.getByTestId("world-shop-price-preview-art").boundingBox();
+    assert.ok(marker && artBox, name + ": preview and price-tag drag handle are visible");
+    const tagSaved = page.waitForResponse(r => r.url().includes("/placements/" + savedShopBuilding.id) &&
+      r.request().method() === "PATCH" && r.request().postDataJSON().shopItemPlacements);
+    await page.mouse.move(marker.x + marker.width / 2, marker.y + marker.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(artBox.x + artBox.width * .32, artBox.y + artBox.height * .3, { steps: 4 });
+    await page.mouse.up();
+    await tagSaved;
+    const afterTag = worlds.haunted_woods.scene.placements.find(p =>
+      p.id === savedShopBuilding.id).shopItemPlacements[0];
+    assert.notDeepEqual([afterTag.priceTagXPct, afterTag.priceTagYPct],
+      [beforeTag.priceTagXPct, beforeTag.priceTagYPct],
+      name + ": dragging the preview tag persists image-local coordinates");
+    await page.getByRole("button", { name: "Done editing item" }).click();
+    await page.getByTestId("world-scene-controls").waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Exit Room" }).click();
     await page.getByRole("button", { name: "Deselect world object" }).click();
 

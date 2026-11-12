@@ -99,6 +99,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
+  const [editingShopItem, setEditingShopItem] = useState(false);
   // The slider previews locally without refetching or repainting another scene.
   type DarknessDraft = { buildingId: string; value: number };
   const [interiorDarknessDraft, setInteriorDarknessDraft] = useState<DarknessDraft | null>(null);
@@ -154,6 +155,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   useEffect(() => {
     setEdited(null); setPan(null); setZoom(1); setPaintMode(false);
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
+    setEditingShopItem(false);
     interiorDarknessDraftRef.current = null; setInteriorDarknessDraft(null);
     cameraDrag.current = null; objectDrag.current = null;
     if (cameraFrame.current !== null) {
@@ -168,6 +170,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     interiorDarknessDraftRef.current = null;
     setInteriorDarknessDraft(null);
     setInteriorPreviewClock("live");
+    setEditingShopItem(false);
   }, [activeBuildingId]);
   useEffect(() => {
     pendingObjectTap.current = null;
@@ -719,7 +722,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         })}
         {activeBuilding.isShop && <WorldShopShelf worldId={worldId} building={activeBuilding}
           roomWidth={interiorW} roomHeight={interiorH}
-          onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })} />}
+          onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
+          onSelectionChange={setEditingShopItem} />}
       </div> : <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-[#decba0]">
         This building has no interior artwork yet. Choose Add Old World Page or upload a room image.
       </div>}
@@ -771,7 +775,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
       </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
-        activeBuilding={activeBuilding} placementPoint={createPoint}
+        activeBuilding={activeBuilding} shopItemEditing={editingShopItem} placementPoint={createPoint}
         interiorDarkness={interiorDarkness}
         interiorPreviewClock={interiorPreviewClock} onInteriorPreviewClockChange={setInteriorPreviewClock}
         darknessSaving={darknessSaving}
