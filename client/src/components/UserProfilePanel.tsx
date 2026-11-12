@@ -389,15 +389,16 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
         <div
           className="relative w-full rounded-t-3xl animate-slide-up overflow-y-auto"
+          data-testid="player-settings-panel"
           style={{
-            background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 60%, #1a0e05 100%)",
-            border: "1px solid rgba(212,160,23,0.4)",
+            background: "radial-gradient(ellipse at 50% 0%, rgba(106,146,81,.32), transparent 52%), linear-gradient(180deg, #28513a 0%, #153625 55%, #0b241b 100%)",
+            border: "2px solid rgba(235,203,125,0.77)",
             borderBottom: "none",
-            boxShadow: "0 -8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.3)",
+            boxShadow: "0 -8px 48px rgba(0,0,0,0.76), inset 0 0 28px rgba(236,203,126,0.13), 0 0 20px rgba(238,196,99,0.16)",
             maxHeight: "calc(85*var(--vh))",
           }}
         >
-          <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.6), transparent)" }} />
+          <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, #f2d78c 50%, transparent)" }} />
 
           <button
             data-testid="button-close-profile"
@@ -442,7 +443,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
+                    style={{ background: "linear-gradient(135deg, #153523 0%, #345e40 100%)" }}
                   >
                     <span className="font-fantasy text-[#d4a017] text-3xl font-bold">
                       {(user.username ?? "?").charAt(0).toUpperCase()}
@@ -475,7 +476,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                     style={{
                       background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
                       border: "1px solid rgba(45,154,100,0.6)",
-                      color: "#7fffd4",
+                      color: "#ffe2a0",
                       boxShadow: "0 0 12px rgba(127,255,212,0.2)",
                       cursor: "pointer",
                     }}
@@ -486,7 +487,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 {!profileImageData && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="font-fantasy text-xs text-[#a89878] tracking-wider hover:text-[#d4a017] transition-colors"
+                    className="font-fantasy text-xs text-[#dec9a1] tracking-wider hover:text-[#d4a017] transition-colors"
                     style={{ background: "none", border: "none", cursor: "pointer" }}
                   >
                     Tap portrait to change photo
@@ -499,7 +500,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
             {/* Username Section */}
             <div className="space-y-2">
-              <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block">
+              <label className="font-fantasy text-[#efdbb3] text-xs tracking-wider block">
                 USERNAME
               </label>
               <div className="flex gap-2">
@@ -510,10 +511,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   onChange={e => setNewUsername(e.target.value)}
                   disabled={isPending}
                   placeholder={user.username}
-                  className="flex-1 px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-md font-sans text-sm text-[#f7e9c1] placeholder-[#c4b68e] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50"
                   style={{
-                    background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                    border: "2px solid #8b5e3c",
+                    background: "linear-gradient(135deg, #153e2b 0%, #102d20 100%)",
+                    border: "2px solid #b99458",
                     boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
                   }}
                 />
@@ -523,7 +524,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   disabled={isPending || !newUsername.trim()}
                   className="px-4 py-3 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
                   style={{
-                    background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
+                    background: "linear-gradient(135deg, #285438 0%, #b99458 100%)",
                     border: "1px solid rgba(212,160,23,0.5)",
                     color: "#f0c040",
                     cursor: "pointer",
@@ -546,8 +547,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 border: "1px solid rgba(139,94,60,0.3)",
               }}
             >
-              <p className="font-fantasy text-[#6a5840] text-xs tracking-widest">ACCOUNT INFO</p>
-              <p className="font-sans text-[#a89878] text-xs">{user.email}</p>
+              <p className="font-fantasy text-[#ac996a] text-xs tracking-widest">ACCOUNT INFO</p>
+              <p className="font-sans text-[#dec9a1] text-xs">{user.email}</p>
               {user.isAdmin && (
                 <div className="flex items-center gap-1">
                   <span className="text-yellow-400 text-xs">&#9733;</span>
@@ -576,7 +577,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 onClick={() => setShowChangePassword(!showChangePassword)}
                 className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all"
                 style={{
-                  background: "linear-gradient(135deg, rgba(92,58,30,0.6) 0%, rgba(58,32,16,0.6) 100%)",
+                  background: "linear-gradient(135deg, rgba(40,88,56,0.6) 0%, rgba(16,54,36,0.6) 100%)",
                   border: "1px solid rgba(212,160,23,0.3)",
                   color: "#d4a017",
                   cursor: "pointer",
@@ -595,7 +596,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     className="w-full px-3 py-2 rounded font-sans text-xs"
                     style={{
-                      background: "rgba(255,255,255,0.08)",
+                      background: "rgba(20,62,40,0.76)",
                       border: "1px solid rgba(212,160,23,0.3)",
                       color: "#e8d8b0",
                       outline: "none",
@@ -640,7 +641,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                     style={{
                       background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
                       border: "1px solid rgba(127,255,212,0.4)",
-                      color: "#7fffd4",
+                      color: "#ffe2a0",
                       cursor: "pointer",
                     }}
                   >
@@ -658,9 +659,9 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 disabled={isPending}
                 className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
                 style={{
-                  background: "linear-gradient(135deg, rgba(42,58,92,0.6) 0%, rgba(25,38,70,0.6) 100%)",
-                  border: "1px solid rgba(100,140,212,0.4)",
-                  color: "#8ab4f8",
+                  background: "linear-gradient(135deg, rgba(38,86,55,0.6) 0%, rgba(17,55,37,0.6) 100%)",
+                  border: "1px solid rgba(217,184,108,0.4)",
+                  color: "#f0d391",
                   cursor: "pointer",
                 }}
               >
@@ -670,18 +671,18 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               {showFeedback && (
                 <div
                   className="mt-2 rounded-lg overflow-hidden"
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(100,140,212,0.2)" }}
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(217,184,108,0.2)" }}
                 >
                   {/* Tabs */}
-                  <div className="flex border-b" style={{ borderColor: "rgba(100,140,212,0.2)" }}>
+                  <div className="flex border-b" style={{ borderColor: "rgba(217,184,108,0.2)" }}>
                     <button
                       onClick={() => { setShowSupportHistory(false); setFeedbackSent(false); }}
                       className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
                       style={{
-                        background: !showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent",
-                        color: !showSupportHistory ? "#8ab4f8" : "#6a7a9a",
+                        background: !showSupportHistory ? "rgba(217,184,108,0.15)" : "transparent",
+                        color: !showSupportHistory ? "#f0d391" : "#bdae8c",
                         border: "none",
-                        borderBottom: !showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent",
+                        borderBottom: !showSupportHistory ? "2px solid #f0d391" : "2px solid transparent",
                         cursor: "pointer",
                       }}
                     >
@@ -691,10 +692,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                       onClick={() => setShowSupportHistory(true)}
                       className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
                       style={{
-                        background: showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent",
-                        color: showSupportHistory ? "#8ab4f8" : "#6a7a9a",
+                        background: showSupportHistory ? "rgba(217,184,108,0.15)" : "transparent",
+                        color: showSupportHistory ? "#f0d391" : "#bdae8c",
                         border: "none",
-                        borderBottom: showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent",
+                        borderBottom: showSupportHistory ? "2px solid #f0d391" : "2px solid transparent",
                         cursor: "pointer",
                       }}
                     >
@@ -707,15 +708,15 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                       /* New message form */
                       feedbackSent ? (
                         <div className="text-center py-2 space-y-2">
-                          <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-feedback-sent">
+                          <p className="font-fantasy text-[#ffe2a0] text-sm tracking-wider" data-testid="text-feedback-sent">
                             Message sent!
                           </p>
-                          <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                          <p className="font-fantasy text-[#dec9a1] text-xs tracking-wider">
                             Our support team will review your message and get back to you.
                           </p>
                           <button
                             onClick={() => { setShowFeedback(false); setFeedbackSent(false); }}
-                            className="font-fantasy text-[#8ab4f8] text-xs tracking-wider hover:text-[#aaccff] transition-colors"
+                            className="font-fantasy text-[#f0d391] text-xs tracking-wider hover:text-[#fff0c6] transition-colors"
                             style={{ background: "none", border: "none", cursor: "pointer" }}
                           >
                             Close
@@ -723,7 +724,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                         </div>
                       ) : (
                         <>
-                          <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-wider">
+                          <p className="font-fantasy text-[#f0d391] text-[10px] tracking-wider">
                             Share a bug, idea, or anything — it goes straight to the admin inbox.
                           </p>
                           <input
@@ -735,8 +736,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                             maxLength={200}
                             className="w-full px-3 py-2 rounded font-sans text-xs outline-none disabled:opacity-60"
                             style={{
-                              background: "rgba(255,255,255,0.06)",
-                              border: "1px solid rgba(100,140,212,0.3)",
+                              background: "rgba(20,62,40,0.76)",
+                              border: "1px solid rgba(217,184,108,0.3)",
                               color: "#e8d8b0",
                             }}
                           />
@@ -750,13 +751,13 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                             maxLength={2000}
                             className="w-full px-3 py-2 rounded font-sans text-xs resize-none outline-none disabled:opacity-60"
                             style={{
-                              background: "rgba(255,255,255,0.06)",
-                              border: "1px solid rgba(100,140,212,0.3)",
+                              background: "rgba(20,62,40,0.76)",
+                              border: "1px solid rgba(217,184,108,0.3)",
                               color: "#e8d8b0",
                             }}
                           />
                           <div className="flex items-center justify-between">
-                            <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">
+                            <span className="font-fantasy text-[#ac996a] text-[9px] tracking-wider">
                               {feedbackMessage.length}/2000
                             </span>
                             <button
@@ -765,9 +766,9 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                               disabled={feedbackMutation.isPending || !feedbackMessage.trim()}
                               className="px-4 py-1.5 rounded font-fantasy text-xs tracking-wider transition-all disabled:opacity-50"
                               style={{
-                                background: "linear-gradient(135deg, #1a2d5a 0%, #0d1a3a 100%)",
-                                border: "1px solid rgba(100,140,212,0.5)",
-                                color: "#8ab4f8",
+                                background: "linear-gradient(135deg, #1b5134 0%, #113522 100%)",
+                                border: "1px solid rgba(217,184,108,0.5)",
+                                color: "#f0d391",
                                 cursor: "pointer",
                               }}
                             >
@@ -781,29 +782,29 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                       <div className="space-y-4">
                         {/* Sent Messages */}
                         <div>
-                          <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-widest mb-2">Sent Messages</p>
+                          <p className="font-fantasy text-[#f0d391] text-[10px] tracking-widest mb-2">Sent Messages</p>
                           {mySupportMessages.length === 0 ? (
-                            <p className="font-sans text-[#6a7a9a] text-xs italic">No messages sent yet.</p>
+                            <p className="font-sans text-[#bdae8c] text-xs italic">No messages sent yet.</p>
                           ) : (
                             <div className="space-y-2">
                               {mySupportMessages.map((msg: any) => (
                                 <div
                                   key={msg.id}
                                   className="rounded p-2.5"
-                                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(100,140,212,0.15)" }}
+                                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(217,184,108,0.15)" }}
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
-                                      <p className="font-fantasy text-[#c0d0f0] text-[11px] tracking-wider truncate">{msg.subject || "Player Feedback"}</p>
-                                      <p className="font-sans text-[#8a9ab8] text-[10px] mt-0.5 line-clamp-2">{msg.message}</p>
-                                      <p className="font-sans text-[#4a5870] text-[9px] mt-1">
+                                      <p className="font-fantasy text-[#f1ddb4] text-[11px] tracking-wider truncate">{msg.subject || "Player Feedback"}</p>
+                                      <p className="font-sans text-[#e0caa1] text-[10px] mt-0.5 line-clamp-2">{msg.message}</p>
+                                      <p className="font-sans text-[#b7a47a] text-[9px] mt-1">
                                         {msg.is_read ? "✓ Read" : "Pending"} · {new Date(msg.created_at).toLocaleDateString()}
                                       </p>
                                     </div>
                                     <button
                                       onClick={() => deleteSentMessage.mutate(String(msg.id))}
                                       disabled={deleteSentMessage.isPending}
-                                      className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40"
+                                      className="shrink-0 text-[#ac996a] hover:text-red-400 transition-colors disabled:opacity-40"
                                       style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }}
                                       title="Delete"
                                     >
@@ -820,7 +821,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                         <div>
                           <p className="font-fantasy text-[#f0c040] text-[10px] tracking-widest mb-2">Admin Replies</p>
                           {adminReplies.length === 0 ? (
-                            <p className="font-sans text-[#6a7a9a] text-xs italic">No replies yet.</p>
+                            <p className="font-sans text-[#bdae8c] text-xs italic">No replies yet.</p>
                           ) : (
                             <div className="space-y-2">
                               {adminReplies.map((reply: any) => (
@@ -840,7 +841,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                                     <button
                                       onClick={() => deleteAdminReply.mutate(String(reply.id))}
                                       disabled={deleteAdminReply.isPending}
-                                      className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40"
+                                      className="shrink-0 text-[#ac996a] hover:text-red-400 transition-colors disabled:opacity-40"
                                       style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }}
                                       title="Delete"
                                     >
@@ -866,12 +867,12 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               onClick={() => { onClose(); navigate("/hub"); }}
               className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-widest transition-all"
               style={{
-                background: "linear-gradient(135deg, rgba(0,80,65,0.55) 0%, rgba(0,50,42,0.55) 100%)",
-                border: "1px solid rgba(0,200,160,0.45)",
-                color: "#7fffd4",
+                background: "linear-gradient(135deg, rgba(35,95,58,0.85) 0%, rgba(16,58,36,0.87) 100%)",
+                border: "1px solid rgba(231,195,109,0.64)",
+                color: "#ffe2a0",
                 cursor: "pointer",
-                boxShadow: "0 0 14px rgba(0,180,140,0.18), 0 2px 8px rgba(0,0,0,0.35)",
-                textShadow: "0 0 12px rgba(0,220,170,0.5)",
+                boxShadow: "0 0 14px rgba(224,190,102,0.17), 0 2px 8px rgba(0,0,0,0.35)",
+                textShadow: "0 0 12px rgba(233,203,121,0.45)",
               }}
             >
               ✦ Para Pets Hub ✦
@@ -1046,8 +1047,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
           <div
             className="flex flex-col items-center gap-4 p-6 rounded-2xl mx-4"
             style={{
-              background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 100%)",
-              border: "1px solid rgba(212,160,23,0.4)",
+              background: "linear-gradient(180deg, #28533a 0%, #102d20 100%)",
+              border: "2px solid rgba(235,203,125,0.76)",
               boxShadow: "0 0 40px rgba(0,0,0,0.8)",
               width: "100%",
               maxWidth: "300px",
@@ -1116,9 +1117,9 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 onClick={handleApplyCrop}
                 className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
                 style={{
-                  background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                  border: "1px solid rgba(45,154,100,0.6)",
-                  color: "#7fffd4",
+                  background: "linear-gradient(135deg, #356c45 0%, #1a4a2e 100%)",
+                  border: "1px solid rgba(233,201,120,0.6)",
+                  color: "#ffe2a0",
                   cursor: "pointer",
                 }}
               >
