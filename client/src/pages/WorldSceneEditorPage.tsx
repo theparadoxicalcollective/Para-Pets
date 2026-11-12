@@ -490,6 +490,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         event.stopPropagation();
       }}
       onPointerMoveCapture={event => {
+        if (paintMode || activeBuilding) return;
         const pending = pendingObjectTap.current;
         if (pending?.pointerId === event.pointerId &&
             Math.hypot(event.clientX - pending.x, event.clientY - pending.y) >= 7)
@@ -497,6 +498,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         if (objectDrag.current?.id === event.pointerId) moveObject(event);
       }}
       onPointerUpCapture={event => {
+        // Interior objects and the terrain brush own their pointer events.
+        // Only intercept ordinary outdoor placement gestures here.
+        if (paintMode || activeBuilding) return;
         if (objectDrag.current?.id === event.pointerId) {
           finishObject(event);
           endTouch(event);
@@ -513,6 +517,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         event.stopPropagation();
       }}
       onPointerCancelCapture={event => {
+        if (paintMode || activeBuilding) return;
         if (pendingObjectTap.current?.pointerId === event.pointerId)
           pendingObjectTap.current = null;
         if (objectDrag.current?.id === event.pointerId) cancelObject();
