@@ -15,14 +15,15 @@ import {
 const local = (hour: number, minute = 0, seconds = 0) =>
   new Date(2026, 10, 8, hour, minute, seconds);
 
-test("night interior image switches instantly at 19:00 and daytime image at 06:30", () => {
+test("night interior image switches instantly at 19:00 and daytime image at 06:00", () => {
   assert.equal(HOME_OUTDOOR_DUSK_START_MINUTE, 18 * 60);
   assert.equal(PARK_NIGHT_INTERIOR_START_MINUTE, 19 * 60);
-  assert.equal(PARK_DAY_INTERIOR_START_MINUTE, 6 * 60 + 30);
+  assert.equal(PARK_DAY_INTERIOR_START_MINUTE, 6 * 60);
   assert.equal(isNightInteriorArtworkActive("auto", local(18, 59, 59)), false);
   assert.equal(isNightInteriorArtworkActive("auto", local(19)), true);
   assert.equal(isNightInteriorArtworkActive("auto", local(23)), true);
-  assert.equal(isNightInteriorArtworkActive("auto", local(6, 29, 59)), true);
+  assert.equal(isNightInteriorArtworkActive("auto", local(5, 59, 59)), true);
+  assert.equal(isNightInteriorArtworkActive("auto", local(6)), false);
   assert.equal(isNightInteriorArtworkActive("auto", local(6, 30)), false);
   assert.equal(isNightInteriorArtworkActive("auto", local(12)), false);
   assert.equal(isNightInteriorArtworkActive("day", local(23)), false);

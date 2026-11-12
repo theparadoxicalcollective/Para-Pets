@@ -106,8 +106,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [objectPreview, setObjectPreview] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const [interiorRatio, setInteriorRatio] = useState(4 / 3);
   const [busyPlacement, setBusyPlacement] = useState(false);
-  // World drafts preview the same automatic outdoor and sunlight clock as Pet Park.
-  const worldLighting = useHomeOutdoorLighting("auto");
+  // Preview the same viewer-local visual clock as Pet Park.
+  const { data: clockAccount } = useQuery<{ timeZone?: string | null }>({
+    queryKey: ["/api/auth/me"], staleTime: 60_000,
+  });
+  const worldLighting = useHomeOutdoorLighting("auto", clockAccount?.timeZone);
 
   const known = isEditableWorldSceneId(worldId);
   const world = getWorldDefinition(worldId);

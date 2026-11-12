@@ -72,8 +72,11 @@ export default function PetParkPage() {
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(1);
-  // Automatic clock only. Park visitors have no day/night override control.
-  const parkLighting = useHomeOutdoorLighting("auto");
+  // The saved player zone changes only presentation, never reward accrual.
+  const { data: clockAccount } = useQuery<{ timeZone?: string | null }>({
+    queryKey: ["/api/auth/me"], staleTime: 60_000,
+  });
+  const parkLighting = useHomeOutdoorLighting("auto", clockAccount?.timeZone);
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
   const [imageContacts, setImageContacts] = useState<Record<string, number>>({});
