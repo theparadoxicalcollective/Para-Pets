@@ -49,11 +49,15 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const interiorRef = useRef<HTMLDivElement>(null);
   const cameraDrag = useRef<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
-  const [moveArmedId, setMoveArmedId] = useState<string | null>(null);
-  const lastObjectTap = useRef<{ id: string; at: number; x: number; y: number } | null>(null);
+  // A tap selects only when the finger lifts without panning. The next
+  // gesture can move the selected object if it STARTS on opaque art.
+  const pendingObjectTap = useRef<{
+    pointerId: number; id: string; x: number; y: number;
+  } | null>(null);
   const objectDrag = useRef<{
     id: number; itemId: string; kind: "outdoor" | "interior";
-    startX: number; startY: number; xPct: number; yPct: number;
+    startX: number; startY: number; clientX: number; clientY: number;
+    xPct: number; yPct: number;
     latest: { xPct: number; yPct: number }; moved: boolean;
   } | null>(null);
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
@@ -148,7 +152,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       cameraFrame.current = null;
       queuedCamera.current = null;
     }
-    setMoveArmedId(null); lastObjectTap.current = null;
+    pendingObjectTap.current = null;
     touchPoints.current.clear(); pinch.current = null;
   }, [worldId]);
   useEffect(() => {
@@ -157,7 +161,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     setInteriorPreviewClock("live");
   }, [activeBuildingId]);
   useEffect(() => {
-    setMoveArmedId(null);
+
     lastObjectTap.current = null;
   }, [activeBuildingId]);
   useEffect(() => {
@@ -299,8 +303,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       setBusyPlacement(false);
     }
   };
-  // Pet Park behavior: tap visible art to select, then double-tap the same
-  // object to arm a move. A first-finger swipe remains a camera pan.
+  // Selection and movement are separate gestures. A first tap on real art
+  // selects it; a subsequent drag starting on that same selected art moves it.
+  // Empty/transparent pixels always go to the camera instead.
   const startObject = (event: ReactPointerEvent<HTMLElement>,
     item: WorldScenePlacement | WorldSceneInteriorItem,
     kind: "outdoor" | "interior", selectedImage?: HTMLImageElement | null): boolean => {
@@ -308,22 +313,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         busyPlacement || paintMode || objectDrag.current) return false;
     const image = selectedImage === undefined ? event.currentTarget.querySelector("img") : selectedImage;
     if (image && !parkImageHitAt(image, event.clientX, event.clientY, item.flipped)) return false;
-    if (kind === "outdoor") {
-      setSelectedId(item.id);
-      const previous = lastObjectTap.current;
-      const doubleTap = !!previous && previous.id === item.id &&
-        Date.now() - previous.at < 400 &&
-        Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 22;
-      lastObjectTap.current = doubleTap ? null :
-        { id: item.id, at: Date.now(), x: event.clientX, y: event.clientY };
-      if (!doubleTap && moveArmedId !== item.id) {
-        setMoveArmedId(null);
-        return false;
-      }
-      setMoveArmedId(item.id);
-    } else {
+    if (kind === "outdoor" && selectedId !== item.id) return false;
+    if (kind === "interior" && selectedInteriorId !== item.id) {
       setSelectedInteriorId(item.id);
+      return false;
     }
+
     event.stopPropagation();
     const start = kind === "outdoor" ? viewportPoint(event.clientX, event.clientY) : {
       xPct: event.clientX, yPct: event.clientY,
@@ -331,8 +326,14 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     objectDrag.current = {
       kind, id: event.pointerId, itemId: item.id,
       startX: start.xPct, startY: start.yPct,
+      clientX: event.clientX, clientY: event.clientY,
       xPct: item.xPct, yPct: item.yPct, latest: { xPct: item.xPct, yPct: item.yPct }, moved: false,
     };
+    if (kind === "outdoor") {
+      // Remember the first finger so a second finger can cancel movement
+      // and initiate the existing pinch-to-zoom instead of moving scenery.
+      touchPoints.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
     safeSetPointerCapture(event.currentTarget, event.pointerId);
     return true;
   };
@@ -340,6 +341,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     const drag = objectDrag.current;
     if (!drag || drag.id !== event.pointerId) return;
     event.stopPropagation();
+    if (pinch.current) return;
+    if (drag.kind === "outdoor")
+      touchPoints.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // Tapping/slightly shifting an object must not save a new placement.
+    if (Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) < 7) return;
     const relative = drag.kind === "outdoor" ? viewportPoint(event.clientX, event.clientY) : {
       xPct: drag.startX + (event.clientX - drag.startX) / Math.max(1, interiorW),
       yPct: drag.startY + (event.clientY - drag.startY) / Math.max(1, interiorH),
@@ -349,7 +355,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       yPct: Math.max(0, Math.min(1, drag.yPct + relative.yPct - drag.startY)),
     };
     drag.latest = next;
-    if (Math.abs(next.xPct - drag.xPct) > 0.001 || Math.abs(next.yPct - drag.yPct) > 0.001)
+    if (Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) >= 7)
       drag.moved = true;
     setObjectPreview({ id: drag.itemId, ...next });
   };
@@ -365,7 +371,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       // Safari may implicitly release capture before pointerup arrives.
     }
     if (drag.moved) {
-      setMoveArmedId(null);
       void updatePosition(drag.kind, drag.itemId, drag.latest);
     } else setObjectPreview(null);
   };
@@ -373,6 +378,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
 
   const endTouch = (event: ReactPointerEvent<HTMLDivElement>) => {
     touchPoints.current.delete(event.pointerId);
+    if (pendingObjectTap.current?.pointerId === event.pointerId)
+      pendingObjectTap.current = null;
     if (cameraDrag.current?.id === event.pointerId) cameraDrag.current = null;
     if (objectDrag.current?.id === event.pointerId) cancelObject();
     if (touchPoints.current.size < 2) {
@@ -390,6 +397,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const startCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (paintMode || activeBuilding || (event.button !== 0 && event.pointerType === "mouse")) return;
+    if (objectDrag.current && objectDrag.current.id !== event.pointerId) {
+      // Starting a second finger means pinch/pan, never an object movement.
+      cancelObject();
+    }
     touchPoints.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (touchPoints.current.size === 2) {
       const [a, b] = [...touchPoints.current.values()];
