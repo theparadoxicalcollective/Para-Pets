@@ -71,6 +71,8 @@ test("editor centers the entire character stage on entry, then reveals only the 
   assert.match(source, /data-testid="avatar-editor-stage"/);
   assert.match(source, /data-testid="avatar-editor-layout"/);
   assert.match(source, /player-avatar-page__editor-layout--panel-open/);
+  assert.match(css, /player-avatar-page__content--editor \{\s*display: grid;\s*grid-template-rows: auto minmax\(0, 1fr\) auto/);
+  assert.match(source, /avatar \? "player-avatar-page__content--editor" : ""/);
   assert.match(css, /player-avatar-page__editor-stage \{[\s\S]*?justify-content: center/);
   assert.match(css, /player-avatar-page__editor-layout:not\(\.player-avatar-page__editor-layout--panel-open\)/);
   assert.match(css, /player-avatar-page__editor-layout--panel-open > \.player-avatar-page__details/);
