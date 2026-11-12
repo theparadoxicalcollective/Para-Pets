@@ -106,8 +106,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [objectPreview, setObjectPreview] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const [interiorRatio, setInteriorRatio] = useState(4 / 3);
   const [busyPlacement, setBusyPlacement] = useState(false);
-  // World drafts preview the same automatic outdoor and sunlight clock as Pet Park.
-  const worldLighting = useHomeOutdoorLighting("auto");
+  // Preview the same viewer-local visual clock as Pet Park.
+  const { data: clockAccount } = useQuery<{ timeZone?: string | null }>({
+    queryKey: ["/api/auth/me"], staleTime: 60_000,
+  });
+  const worldLighting = useHomeOutdoorLighting("auto", clockAccount?.timeZone);
 
   const known = isEditableWorldSceneId(worldId);
   const world = getWorldDefinition(worldId);
@@ -257,8 +260,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorW = Math.min(size.width, size.height * interiorRatio);
   const interiorH = interiorW / interiorRatio;
   const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
-    .filter(item => item.buildingId === activeBuilding.id && isHouseInteriorEffectType(item.effectType))
-    .map(item => ({ id: item.id, type: item.effectType as HouseInteriorEffect["type"],
+    .filter(item => item.buildingId === activeBuilding.id &&
+      (isHouseInteriorEffectType(item.effectType) || item.effectType === "colored_light"))
+    // Colored Light is the customizable outdoor form of lamp_light. Even
+    // when saved inside an older building, its visible orb must cut a real
+    // light pool out of the room's existing darkness mask.
+    .map(item => ({ id: item.id,
+      type: (item.effectType === "colored_light" ? "lamp_light" : item.effectType) as HouseInteriorEffect["type"],
       x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
 
   useEffect(() => { setInteriorRatio(4 / 3); }, [activeBuildingId, interiorImageUrl]);

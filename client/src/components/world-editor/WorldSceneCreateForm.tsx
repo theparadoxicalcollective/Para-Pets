@@ -43,6 +43,7 @@ export default function WorldSceneCreateForm({
   const border = "border-[#b99a4c]/50";
   const card = "space-y-2 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3";
   const picker = "block cursor-pointer rounded-xl border border-dashed border-[#b99a4c]/60 bg-[#1a4029]/85 px-4 py-4 text-center text-sm";
+  const optionGroup = "rounded-xl border border-[#b99a4c]/55 bg-[#173b2a]/85 p-3 [&>summary]:cursor-pointer [&>summary]:select-none [&>summary]:font-semibold [&>summary]:text-[#f5d98e] [&>summary]:text-sm [&>summary]:min-h-9 [&>summary]:flex [&>summary]:items-center";
   const safeFileName = (file: File) =>
     file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 80) || "Decoration";
 
@@ -124,10 +125,13 @@ export default function WorldSceneCreateForm({
           maxLength={80} value={name} onChange={event => setName(event.target.value)}
           className={`w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45 ${border}`}/>
       </label>
-      <div className={card} data-testid="world-building-legacy-picker">
-        <WorldLegacyPagePicker worldId={worldId} value={legacyLocationId}
-          onChange={setLegacyLocationId} disabled={saving} preview />
-      </div>
+      <details className={optionGroup} data-testid="world-create-legacy-options">
+        <summary>Link existing world page (optional)</summary>
+        <div className="pt-2" data-testid="world-building-legacy-picker">
+          <WorldLegacyPagePicker worldId={worldId} value={legacyLocationId}
+            onChange={setLegacyLocationId} disabled={saving} preview />
+        </div>
+      </details>
       <div className={card}>
         <label htmlFor="world-building-starting-size" className="flex justify-between gap-2 text-sm">
           <span>Starting building size</span><strong>{size} world units</strong>
@@ -140,7 +144,9 @@ export default function WorldSceneCreateForm({
           Larger starting size helps the artwork match the world. Adjust individual sizes after placing.
         </p>
       </div>
-      <label className={`flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 text-sm ${isShop ? "border-[#e0bf76] bg-[#28543a]" : "border-[#b99a4c]/50 bg-[#173b2a]/85"}`}>
+      <details className={optionGroup} data-testid="world-create-shop-options">
+        <summary>Shop setup (optional)</summary>
+      <label className={`mt-2 flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 text-sm ${isShop ? "border-[#e0bf76] bg-[#28543a]" : "border-[#b99a4c]/50 bg-[#173b2a]/85"}`}>
         <span className="flex flex-col gap-1"><strong>Is Shop</strong>
           <span className="text-xs text-[#f3dbad]" role="status">
             {isShop ? "ON · New building will be a shop" : "OFF · Regular building"}
@@ -156,9 +162,16 @@ export default function WorldSceneCreateForm({
       <p className="text-[11px] text-amber-100/70">
         After creating a shop, enter its interior to choose merchandise.
       </p>
-      <div className="space-y-2"><p className="text-sm text-[#f5d98e]">Exterior building lights & effects</p>
-        <WorldDecorEffectEditor imageUrl={pendingImage} effects={effects} onChange={setEffects} disabled={saving} />
-      </div>
+      </details>
+      <details className={optionGroup} data-testid="world-create-building-effects">
+        <summary>Exterior lights &amp; effects {effects.length ? `(${effects.length})` : "(optional)"}</summary>
+        <div className="pt-2">
+          <WorldDecorEffectEditor imageUrl={pendingImage} effects={effects} onChange={setEffects} disabled={saving} />
+        </div>
+      </details>
+      <details className={optionGroup} data-testid="world-create-interior-artwork">
+        <summary>Inside building: day &amp; night backgrounds (optional)</summary>
+        <div className="space-y-3 pt-2">
       <label className={picker}>
         {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
         <input aria-label="Building interior image" type="file" accept="image/png,image/jpeg"
@@ -176,10 +189,14 @@ export default function WorldSceneCreateForm({
       </label>
       {nightInteriorImage && <img src={nightInteriorImage} alt="Nighttime interior preview"
         className="mx-auto h-28 max-w-full object-contain"/>}
+        </div>
+      </details>
     </>}
 
     {!isBuilding && <>
-      <div className={card}>
+      <details className={optionGroup} data-testid="world-create-decor-tap-image">
+        <summary>Alternate tap artwork (optional)</summary>
+      <div className="space-y-2 pt-2">
         <strong className="block text-sm text-[#f5d98e]">Tap Image
           <span className="ml-1 text-[11px] font-normal text-amber-100/70">(optional)</span>
         </strong>
@@ -200,8 +217,12 @@ export default function WorldSceneCreateForm({
             className="sr-only" onChange={event => { void choose(event.target.files?.[0], setTapImage); event.target.value = ""; }}/>
         </label>
       </div>
-      {!inside && <WorldDecorEffectEditor imageUrl={pendingImage} effects={effects}
-        onChange={setEffects} disabled={saving}/>}
+      </details>
+      {!inside && <details className={optionGroup} data-testid="world-create-decor-effects">
+        <summary>Attached lights &amp; effects {effects.length ? `(${effects.length})` : "(optional)"}</summary>
+        <div className="pt-2"><WorldDecorEffectEditor imageUrl={pendingImage} effects={effects}
+          onChange={setEffects} disabled={saving}/></div>
+      </details>}
       <div className="space-y-2 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3">
         <div className="flex items-center justify-between text-sm">
           <label htmlFor="world-decor-starting-size">Starting size</label>
@@ -223,7 +244,9 @@ export default function WorldSceneCreateForm({
           Size is saved when the object is placed. Depth follows ground position automatically.
         </p>
       </div>
-      {!inside && <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3 text-xs text-[#f4d795]">
+      {!inside && <details className={optionGroup} data-testid="world-create-water-source">
+        <summary>Garden water refill source (optional)</summary>
+      <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3 text-xs text-[#f4d795]">
         <input aria-label="Water Source" type="checkbox" checked={waterSource}
           onChange={event => setWaterSource(event.target.checked)}
           className="mt-0.5 h-4 w-4 accent-[#d8bc67]"/>
@@ -232,7 +255,8 @@ export default function WorldSceneCreateForm({
             Allow refillable garden tools to collect water from this decoration.
           </span>
         </span>
-      </label>}
+      </label>
+      </details>}
     </>}
 
     <button type="button" disabled={saving || !pendingImage || (isBuilding && !name.trim())}

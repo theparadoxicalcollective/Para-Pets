@@ -14,6 +14,7 @@ import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems, playerClothingDrafts } from "@shared/schema";
 import { isHomeXpAnchor } from "@shared/homeXpAnchor";
+import { playerTimeZoneSchema } from "@shared/accountValidation";
 import { executeRewardClaim } from "./rewardClaim";
 import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
@@ -1106,6 +1107,21 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Delete account error:", err);
       return res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
+  app.patch("/api/user/time-zone", isAuthenticated, async (req, res) => {
+    const parsed = playerTimeZoneSchema.safeParse(req.body?.timeZone);
+    if (!parsed.success) return res.status(400).json({ message: "Choose a valid time zone" });
+    try {
+      const userId = (req.user as { id: string }).id;
+      const [updated] = await db.update(usersTable).set({ timeZone: parsed.data })
+        .where(eq(usersTable.id, userId)).returning();
+      if (!updated) return res.status(404).json({ message: "Account not found" });
+      return res.json(publicAccount(updated));
+    } catch (error) {
+      console.error("Update player time zone failed", error);
+      return res.status(500).json({ message: "Unable to save time zone" });
     }
   });
 

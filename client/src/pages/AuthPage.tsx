@@ -1,5 +1,7 @@
 import { replaceAuthSession } from "@/lib/authSession";
 import { registrationSchema } from "@shared/accountValidation";
+import { detectedPlayerTimeZone } from "@shared/playerTimeZone";
+import PlayerTimeZoneSelect from "@/components/PlayerTimeZoneSelect";
 import { useState, useRef, useCallback, type CSSProperties } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
@@ -107,6 +109,7 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [timeZone, setTimeZone] = useState(detectedPlayerTimeZone);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [adminBypass, setAdminBypass] = useState(false);
 
@@ -129,7 +132,7 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ username?: string; email?: string; password?: string; general?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ username?: string; email?: string; password?: string; timeZone?: string; general?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -205,7 +208,7 @@ export default function AuthPage() {
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const input = registrationSchema.parse({ username, email, password, profileImageData, referrer: document.referrer.slice(0, 2048) });
+      const input = registrationSchema.parse({ username, email, password, timeZone, profileImageData, referrer: document.referrer.slice(0, 2048) });
       const [res] = await Promise.all([apiRequest("POST", "/api/auth/register", input), animateProgress()]);
       return res.json();
     },
@@ -284,11 +287,11 @@ export default function AuthPage() {
       setLoginError(null);
       loginMutation.mutate();
     } else {
-      const parsed = registrationSchema.safeParse({ username, email, password });
+      const parsed = registrationSchema.safeParse({ username, email, password, timeZone });
       if (!parsed.success) {
         const errs: typeof fieldErrors = {};
         for (const issue of parsed.error.issues) {
-          const field = issue.path[0] as "username" | "email" | "password";
+          const field = issue.path[0] as "username" | "email" | "password" | "timeZone";
           if (!errs[field]) errs[field] = issue.message;
         }
         setFieldErrors(errs); return;
@@ -466,6 +469,18 @@ export default function AuthPage() {
                       )}
                     </div>
 
+                    <div>
+                      <PlayerTimeZoneSelect id="register-time-zone" testId="register-time-zone"
+                        value={timeZone} disabled={isPending}
+                        onChange={next => {
+                          setTimeZone(next);
+                          setFieldErrors(old => ({ ...old, timeZone: undefined }));
+                        }} />
+                      <p className="mt-1 text-[10px] text-[#c4b286]">
+                        Your local day and night in Para Pets. Change this later in your Profile.
+                      </p>
+                      {fieldErrors.timeZone && <p className="text-xs text-red-300">{fieldErrors.timeZone}</p>}
+                    </div>
                     <div>
                       <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">Profile Picture</label>
                       <div className="flex items-center gap-3">

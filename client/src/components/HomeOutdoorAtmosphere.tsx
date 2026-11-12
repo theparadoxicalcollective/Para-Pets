@@ -16,7 +16,7 @@ import {
   isNightInteriorArtworkActive,
 } from "@/lib/homeOutdoorLighting";
 
-export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
+export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode, timeZone?: string | null) {
   const [now, setNow] = useState(() => new Date());
   const [autoTransitionMs, setAutoTransitionMs] = useState(HOME_OUTDOOR_RESUME_TRANSITION_MS);
 
@@ -76,11 +76,11 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
     };
   }, [mode]);
 
-  const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
-  const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
-  const fireflyStrength = useMemo(() => getParkFireflyStrength(mode, now), [mode, now]);
-  const lampStrength = useMemo(() => getParkLampStrength(mode, now), [mode, now]);
-  const nightInteriorArtworkActive = useMemo(() => isNightInteriorArtworkActive(mode, now), [mode, now]);
+  const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now, timeZone), [mode, now, timeZone]);
+  const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now, timeZone), [mode, now, timeZone]);
+  const fireflyStrength = useMemo(() => getParkFireflyStrength(mode, now, timeZone), [mode, now, timeZone]);
+  const lampStrength = useMemo(() => getParkLampStrength(mode, now, timeZone), [mode, now, timeZone]);
+  const nightInteriorArtworkActive = useMemo(() => isNightInteriorArtworkActive(mode, now, timeZone), [mode, now, timeZone]);
 
   const transitionMs = mode === "auto"
     ? autoTransitionMs
