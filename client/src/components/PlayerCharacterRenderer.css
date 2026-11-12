@@ -20,31 +20,34 @@
   pointer-events: none;
 }
 
+/* The renderer stays the 1000×1000 coordinate owner. Compositing all
+   eight parts into ONE body surface before applying the SVG color matrix
+   prevents stacked translucent masks from emphasizing shoulder/hip seams.
+   Garment planes remain sibling layers: back hair below, clothing above. */
+.player-character-renderer__body {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.player-character-renderer__tint-definitions {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 .player-character-renderer__motion {
   position: relative;
-  /* Blend skin hue with each source sprite, not the scene behind it. */
   isolation: isolate;
 }
 .player-character-renderer__skin-tint {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
-  pointer-events: none;
-  /* A gentle hue overlay preserves the original painted highlights and
-     avoids turning all skin parts muddy/dark with full-strength multiply. */
-  mix-blend-mode: color;
-  opacity: .78;
-  mask-size: 100% 100%;
-  -webkit-mask-size: 100% 100%;
-  mask-position: center;
-  -webkit-mask-position: center;
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
+  /* Applied to the flattened body, NOT to any individual artwork sprite.
+     Original RGB shading drives the filter, and source alpha is unchanged. */
+  will-change: filter;
 }
-
 .player-character-renderer__motion,
 .player-character-renderer__image {
   display: block;
@@ -55,8 +58,8 @@
 }
 
 
-/* Clothing tints reuse the skin recoloring approach. Per-item isolation keeps
-   multiply blending off the character, scene, and neighboring garments. */
+/* Hair/opt-in garment tints use the same alpha-preserving color matrix
+   on their image surface. Do not draw a second copy of the alpha as a mask. */
 .player-character-renderer__clothing,
 .player-character-renderer__canvas-motion {
   isolation: isolate;
@@ -66,22 +69,6 @@
   width: 100%;
   height: auto;
   max-width: none;
-}
-.player-character-renderer__legacy-tint,
-.player-character-renderer__canvas-tint {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  mix-blend-mode: multiply;
-  mask-size: contain;
-  -webkit-mask-size: contain;
-  mask-position: center;
-  -webkit-mask-position: center;
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
 }
 
 /* Each garment segment is part-local, never screen-relative. The base
