@@ -1,5 +1,5 @@
 /**
- * A decoration's per-placement traversal and rendering role.
+ * A decoration type's traversal and rendering role, shared across linked copies.
  *
  * Existing unclassified decor is a barrier. Water source remains the existing
  * independent persisted boolean to preserve garden-refill behavior and data.
