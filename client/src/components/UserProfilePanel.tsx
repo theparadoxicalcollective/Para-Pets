@@ -9,12 +9,15 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerTimeZoneSelect from "@/components/PlayerTimeZoneSelect";
+import { detectedPlayerTimeZone } from "@shared/playerTimeZone";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 interface User {
   id: string;
   username: string;
   email: string;
+  timeZone?: string | null;
   profileImage: string | null;
   coins: number;
   isAdmin: boolean;
@@ -67,6 +70,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     return () => setNavHidden(false);
   }, []);
   const [newUsername, setNewUsername] = useState("");
+  const [timeZone, setTimeZone] = useState(user.timeZone ?? detectedPlayerTimeZone);
+  useEffect(() => {
+    setTimeZone(user.timeZone ?? detectedPlayerTimeZone());
+  }, [user.id, user.timeZone]);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -220,6 +227,21 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
   });
 
+  const updateTimeZoneMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PATCH", "/api/user/time-zone", { timeZone });
+      return response.json();
+    },
+    onSuccess: async (data: User) => {
+      queryClient.setQueryData(["/api/auth/me"], data);
+      onUserUpdate(data);
+      toast({ title: "Time Zone Saved", description: "Your local scene clock has been updated." });
+    },
+    onError: () => {
+      toast({ title: "Time Zone Not Saved", description: "Choose a valid zone and try again.", variant: "destructive" });
+    },
+  });
+
   const updateProfilePicMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("PATCH", "/api/user/profile-image", { profileImageData });
@@ -355,7 +377,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     onError: () => toast({ title: "Error", description: "Failed to delete reply.", variant: "destructive" }),
   });
 
-  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
+  const isPending = updateUsernameMutation.isPending || updateTimeZoneMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
 
   return (
     <ViewportModalPortal>
@@ -534,6 +556,20 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               )}
             </div>
 
+            <div className="space-y-2 rounded-lg border border-[#a98c4c]/50 bg-[#10291b]/70 p-3"
+              data-testid="profile-time-zone-settings">
+              <PlayerTimeZoneSelect id="profile-time-zone" testId="profile-time-zone"
+                value={timeZone} onChange={setTimeZone} disabled={isPending} />
+              <p className="text-[11px] text-[#ceb98d]">
+                Changes your local day/night artwork. Reward and cooldown durations remain unchanged.
+              </p>
+              <button type="button" data-testid="button-save-time-zone"
+                disabled={isPending || timeZone === (user.timeZone ?? detectedPlayerTimeZone())}
+                onClick={() => updateTimeZoneMutation.mutate()}
+                className="w-full min-h-10 rounded-lg border border-[#d2ad63] bg-[#285438] px-3 py-2 font-fantasy text-sm text-[#f8e5b1] disabled:opacity-45">
+                {updateTimeZoneMutation.isPending ? "Saving…" : "Save Time Zone"}
+              </button>
+            </div>
             <div>
               <button
                 data-testid="button-toggle-change-password"
