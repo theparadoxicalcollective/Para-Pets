@@ -321,24 +321,12 @@ try {
     assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-42,
       sc.name+": the deeper curved rim stays near the pet row without covering its controls");
     if(sc.name==="saved character phone"){
-      const adjust=page.getByTestId("button-home-adjust-xp");
-      await adjust.click();
+      assert.equal(await page.getByTestId("button-home-adjust-xp").count(), 0,
+        sc.name+": XP cannot be moved by dragging after anchoring to the artwork");
       const bar=page.locator(".home-player-hud__progress");
       const before=await bar.boundingBox();
       assert.ok(before);
-      const saved=page.waitForResponse(r=>
-        r.url().endsWith("/api/admin/settings/home-xp-anchor") &&
-        r.request().method()==="PUT");
-      await page.mouse.move(before.x+before.width/2,before.y+Math.min(36,before.height/2));
-      await page.mouse.down();
-      await page.mouse.move(before.x+before.width/2+16,before.y+Math.min(36,before.height/2)+7,{steps:5});
-      await page.mouse.up();
-      await saved;
-      assert.ok(xpAnchorWrites.length===1 && savedXpAnchor,
-        sc.name+": admin drag saves one background-relative XP anchor");
-      await page.waitForFunction(previous=>
-        Math.abs(document.querySelector(".home-player-hud__progress").getBoundingClientRect().left-previous)>5,
-        before.x);
+      await page.getByTestId("button-home-edit-xp-curve").click();
       const curve=page.getByTestId("input-home-xp-curve");
       const originalShape=await page.locator(".home-player-hud__xp-arc-rim").getAttribute("d");
       const depthSaved=page.waitForResponse(r=>
@@ -348,16 +336,24 @@ try {
       await curve.press("End");
       await depthSaved;
       assert.ok(savedXpAnchor && savedXpAnchor.curveDepth===220,
-        sc.name+": admin curve slider persists with the existing artwork anchor");
+        sc.name+": admin can still adjust curvature without dragging the bar");
+      const fixedAnchor={xPct:savedXpAnchor.xPct,yPct:savedXpAnchor.yPct};
       const adjustedShape=await page.locator(".home-player-hud__xp-arc-rim").getAttribute("d");
-      assert.notEqual(adjustedShape,originalShape,sc.name+": curve control changes the actual glowing SVG path");
-      const reset=page.waitForResponse(r=>
+      assert.notEqual(adjustedShape,originalShape,
+        sc.name+": curvature changes the actual XP path");
+      const flatSaved=page.waitForResponse(r=>
         r.url().endsWith("/api/admin/settings/home-xp-anchor") &&
         r.request().method()==="PUT");
-      await page.getByTestId("button-home-reset-xp").click();
-      await reset;
-      assert.equal(savedXpAnchor,null,sc.name+": reset restores both curve and position");
-      await page.getByTestId("button-home-adjust-xp").click();
+      await curve.press("Home");
+      await flatSaved;
+      assert.equal(savedXpAnchor.curveDepth,20);
+      assert.deepEqual({xPct:savedXpAnchor.xPct,yPct:savedXpAnchor.yPct},fixedAnchor,
+        sc.name+": changing curve preserves the exact saved background-relative placement");
+      const after=await bar.boundingBox();
+      assert.ok(after && Math.abs(after.x-before.x)<2 && Math.abs(after.y-before.y)<2,
+        sc.name+": level bar stays at the same background point");
+      assert.equal(xpAnchorWrites.length,2,sc.name+": only explicit curve changes save XP settings");
+      await page.getByTestId("button-home-edit-xp-curve").click();
     }
     assert.ok(homeLayout.profile && homeLayout.headerName &&
       homeLayout.coins && homeLayout.essence && homeLayout.playerLevel,
@@ -411,10 +407,42 @@ try {
       sc.name+": Home mini pet no longer has extra hard gold outlines");
     const teamSlot = await page.getByTestId("home-player-team-slot-1").boundingBox();
     const centerSlot = await page.getByTestId("home-player-team-slot-3").boundingBox();
-    assert.ok(teamSlot && centerSlot && teamSlot.width >= (sc.height <= 690 ? 54 : 62),
-      sc.name+": larger companions retain all five independent touch targets");
-    assert.ok(teamSlot.y < centerSlot.y - (sc.height<=690?9:18),
-      sc.name+": occupied and empty slots arc noticeably around the player");
+    assert.ok(teamSlot && centerSlot && teamSlot.width >= 83,
+      sc.name+": outer companions are substantially larger than the old thumbnails");
+    const nearLeft = await page.getByTestId("home-player-team-slot-2").boundingBox();
+    const nearRight = await page.getByTestId("home-player-team-slot-4").boundingBox();
+    const farRight = await page.getByTestId("home-player-team-slot-5").boundingBox();
+    assert.ok(nearLeft && nearRight && farRight && centerSlot.width > nearLeft.width + 22 &&
+      nearLeft.width > teamSlot.width + 12 && Math.abs(nearRight.width - nearLeft.width) <= 1 &&
+      Math.abs(farRight.width - teamSlot.width) <= 1,
+      sc.name+": center > near pair > outer pair: "+
+      JSON.stringify({center:centerSlot.width,near:nearLeft.width,outer:teamSlot.width}));
+    assert.ok(centerSlot.bottom > nearLeft.bottom + 16 && nearLeft.bottom > teamSlot.bottom + 13,
+      sc.name+": center oval is closest to the bottom; side pets ascend in layers");
+    assert.ok(teamSlot.y < centerSlot.y,
+      sc.name+": pet silhouettes form a descending arc around the center");
+
+    if(sc.name==="saved character phone"){
+      const beforeTeam=[...currentTeamIds];
+      const center=await page.getByTestId("home-player-team-slot-3").boundingBox();
+      assert.ok(center);
+      await page.mouse.move(center.x+center.width/2,center.y+center.height/2);
+      await page.mouse.down();
+      await page.mouse.move(center.x+center.width/2-76,center.y+center.height/2,{steps:6});
+      await page.mouse.up();
+      await page.waitForFunction(() =>
+        document.querySelector('[data-testid="home-player-team-slot-3"]')
+          ?.getAttribute("data-visual-position")==="1");
+      assert.equal(await page.getByTestId("home-player-team-picker").count(),0,
+        sc.name+": swiping pets does not accidentally open the team editor");
+      assert.deepEqual(currentTeamIds,beforeTeam,
+        sc.name+": circular swipes never overwrite PvP/Raid team roster");
+      await page.getByTestId("home-player-team-slots").press("ArrowLeft");
+      await page.waitForFunction(() =>
+        document.querySelector('[data-testid="home-player-team-slot-3"]')
+          ?.getAttribute("data-visual-position")==="2");
+      assert.deepEqual(currentTeamIds,beforeTeam);
+    }
     const slotChrome = await page.getByTestId("home-player-team-slot-1").evaluate(el=>({
       border:getComputedStyle(el).borderStyle,
       oval:getComputedStyle(el,"::before").borderRadius,
