@@ -638,6 +638,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
   profileImage: true,
+  timeZone: true,
   isAdmin: true,
   coins: true,
 });
