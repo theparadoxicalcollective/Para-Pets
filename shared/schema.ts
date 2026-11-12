@@ -7,6 +7,7 @@ import { isAdornmentItemEffect } from "./adornmentAnimation";
 import type { HouseInteriorEffect } from "./housing";
 import type { ParkInteriorEffect } from "./petParkRooms";
 import type { ParkDecorEffect } from "./petParkDecorEffects";
+import type { DecorSurface } from "./decorSurface";
 import type { GardenStagePlacements } from "./garden";
 import type { StoredPlayerCharacterPart } from "./playerCharacter";
 import type { PlayerClothingSegment, PlayerClothingCategory } from "./playerCharacterClothing";
@@ -1508,6 +1509,7 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
   // Tagged decor is a refill station; visual depth and placement are unchanged.
   isWaterSource: boolean("is_water_source").notNull().default(false),
+  decorSurface: text("decor_surface").$type<DecorSurface>().notNull().default("barrier"),
   imageUrl: text("image_url"),
   // Optional player-tappable alternate artwork for gates and similar decor.
   tapImageUrl: text("tap_image_url"),
@@ -1687,6 +1689,7 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   layer: integer("layer").notNull().default(0),
   decorEffects: jsonb("decor_effects").$type<ParkDecorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   isWaterSource: boolean("is_water_source").notNull().default(false),
+  decorSurface: text("decor_surface").$type<DecorSurface>().notNull().default("barrier"),
   isShop: boolean("is_shop").notNull().default(false),
   // Optional original world page reuse; never changes the original location.
   legacyLocationId: varchar("legacy_location_id").references(() => worldLocations.id, { onDelete: "set null" }),
