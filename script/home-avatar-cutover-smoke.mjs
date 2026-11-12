@@ -107,7 +107,8 @@ try {
       viewport:{width:sc.width,height:sc.height},isMobile:true,hasTouch:true,
     });
     const page=await context.newPage();
-    const errors=[],writes=[];
+    const errors=[],writes=[],xpAnchorWrites=[];
+    let savedXpAnchor=null;
     page.on("pageerror",e=>errors.push(e.message));
     page.setDefaultTimeout(18000);
     const user={id:"home-avatar-fixture",username:"QA",email:"qa@example.invalid",
@@ -122,6 +123,17 @@ try {
       const path=new URL(route.request().url()).pathname;
       const method=route.request().method();
       if(path==="/api/auth/me")return fulfill(route,user);
+      if(path==="/api/settings/home-xp-anchor" && method==="GET")
+        return fulfill(route,{anchor:savedXpAnchor});
+      if(path==="/api/admin/settings/home-xp-anchor" && method==="PUT"){
+        const anchor=route.request().postDataJSON().anchor;
+        if(anchor!==null)
+          assert.ok(anchor.xPct>=0 && anchor.xPct<=1 && anchor.yPct>=0 && anchor.yPct<=1,
+            sc.name+": XP admin position stored relative to background artwork");
+        xpAnchorWrites.push(anchor);
+        savedXpAnchor=anchor;
+        return fulfill(route,{anchor});
+      }
       if(path==="/api/inventory")return fulfill(route,[playerPet]);
       if(path==="/api/player/progression")
         return fulfill(route,sc.zeroXp
@@ -226,7 +238,7 @@ try {
         watcherDock: rect('[data-testid="viewport-hud-watcher-dock"]'),
         xpText: rect('[data-testid="home-player-total-xp"]'),
         playerLevel: rect('[data-testid="home-player-level"]'),
-        levelPill: rect('.home-player-hud__level-pill'),
+        levelCurve: rect('.home-player-hud__level-curved'),
         navButton: rect('[data-testid="button-floating-nav"]'),
         avatarStarSize: rect('.home-player-hud__stars img')?.height,
         equippedDots: document.querySelectorAll('.home-player-hud__slot-dot').length,
@@ -266,8 +278,8 @@ try {
       sc.name+": player XP centered below actor");
     assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-24,
       sc.name+": semicircular XP stays near the avatar's feet");
-    assert.ok(homeLayout.xp.height>=60 && homeLayout.xp.height<=95 &&
-      homeLayout.xp.width<=290,
+    assert.ok(homeLayout.xp.height>=52 && homeLayout.xp.height<=139 &&
+      homeLayout.xp.width<=Math.min(350,sc.width-24),
       sc.name+": semicircular XP arc fits the mobile viewport");
     const xpArc=await page.getByTestId("home-player-xp-track").evaluate(el=>({
       paths:el.querySelectorAll("svg path").length,
@@ -278,7 +290,7 @@ try {
       value:Number(el.getAttribute("aria-valuenow")),
       text:document.querySelector('[data-testid="home-player-total-xp"]')?.textContent,
     }));
-    assert.ok(xpArc.paths>=(sc.zeroXp?3:4) && xpArc.curve?.includes(" Q "),
+    assert.ok(xpArc.paths>=(sc.zeroXp?4:5) && xpArc.curve?.includes(" Q "),
       sc.name+": XP follows the outlined SVG arc below the avatar");
     assert.ok(xpArc.innerTrack.includes("18, 43, 29") && xpArc.rimWidth<=5,
       sc.name+": XP is a dark empty groove with a slim gold outline: "+JSON.stringify(xpArc));
@@ -286,12 +298,39 @@ try {
       sc.name+": 0 XP has NO painted fill; earned XP paints the proportional fill");
     if(sc.zeroXp){
       assert.equal(xpArc.value,0,sc.name+": empty XP progress has zero value");
-      assert.match(xpArc.text,/0 \/ 80 XP/,sc.name+": empty track labels the next level requirement");
+      assert.match(xpArc.text,/0\/80/,sc.name+": empty track labels next level at the left");
     } else {
       assert.ok(xpArc.value>0 && xpArc.value<100,sc.name+": partial XP stays partially filled");
     }
     assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
       sc.name+": team panel not overlapping player XP");
+    if(sc.name==="saved character phone"){
+      const adjust=page.getByTestId("button-home-adjust-xp");
+      await adjust.click();
+      const bar=page.locator(".home-player-hud__progress");
+      const before=await bar.boundingBox();
+      assert.ok(before);
+      const saved=page.waitForResponse(r=>
+        r.url().endsWith("/api/admin/settings/home-xp-anchor") &&
+        r.request().method()==="PUT");
+      await page.mouse.move(before.x+before.width/2,before.y+Math.min(36,before.height/2));
+      await page.mouse.down();
+      await page.mouse.move(before.x+before.width/2+16,before.y+Math.min(36,before.height/2)+7,{steps:5});
+      await page.mouse.up();
+      await saved;
+      assert.ok(xpAnchorWrites.length===1 && savedXpAnchor,
+        sc.name+": admin drag saves one background-relative XP anchor");
+      await page.waitForFunction(previous=>
+        Math.abs(document.querySelector(".home-player-hud__progress").getBoundingClientRect().left-previous)>5,
+        before.x);
+      const reset=page.waitForResponse(r=>
+        r.url().endsWith("/api/admin/settings/home-xp-anchor") &&
+        r.request().method()==="PUT");
+      await page.getByTestId("button-home-reset-xp").click();
+      await reset;
+      assert.equal(savedXpAnchor,null,sc.name+": reset restores the platform default");
+      await page.getByTestId("button-home-adjust-xp").click();
+    }
     assert.ok(homeLayout.profile && homeLayout.headerName &&
       homeLayout.coins && homeLayout.essence && homeLayout.xpText && homeLayout.playerLevel,
       sc.name+": top profile/resources and level labels all render");
@@ -338,6 +377,10 @@ try {
       sc.name+": companion portraits no longer live in a rectangle");
     assert.equal(partyChrome.pointerEvents, "none",
       sc.name+": empty space between pets does not block scene taps");
+    const miniOutline=await page.getByTestId("home-player-team-mini-1").evaluate(el=>
+      getComputedStyle(el).filter);
+    assert.ok(!miniOutline.includes("1px 0px 0px") && !miniOutline.includes("-1px 0px 0px"),
+      sc.name+": Home mini pet no longer has extra hard gold outlines");
     const teamSlot = await page.getByTestId("home-player-team-slot-1").boundingBox();
     const centerSlot = await page.getByTestId("home-player-team-slot-3").boundingBox();
     assert.ok(teamSlot && centerSlot && teamSlot.width >= (sc.height <= 690 ? 48 : 56),
@@ -359,18 +402,18 @@ try {
       sc.name+": empty slot only shows a plus");
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
-    assert.ok(homeLayout.xpText.top >= homeLayout.xp.top + 30 &&
-      homeLayout.xpText.bottom <= homeLayout.xp.bottom+2,
-      sc.name+": XP amount stays readable inside the curve");
-    assert.ok(Math.abs(homeLayout.xpText.centerX-homeLayout.xp.centerX)<8,
-      sc.name+": current-level XP is centered under the level pill");
-    assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 7,
-      sc.name+": player level centered directly below the progress bar");
-    assert.ok(homeLayout.levelPill &&
-      homeLayout.levelPill.width >= 77 && homeLayout.levelPill.height >= 24,
-      sc.name+": centered player level is readable inside a compact pill "+JSON.stringify(homeLayout.levelPill));
-    assert.ok(homeLayout.levelPill.bottom <= homeLayout.party.top + 8,
-      sc.name+": lowered XP and level pill do not block pet selection");
+    assert.ok(homeLayout.xpText.top >= homeLayout.xp.top+4 &&
+      homeLayout.xpText.bottom <= homeLayout.xp.bottom-15,
+      sc.name+": XP amount is inside the left portion of the groove");
+    assert.ok(homeLayout.xpText.centerX < homeLayout.xp.centerX-homeLayout.xp.width*.2,
+      sc.name+": XP count is left-aligned in the arc, not centered below it");
+    assert.ok(homeLayout.levelCurve &&
+      homeLayout.levelCurve.width >= 24 && homeLayout.levelCurve.height >= 10,
+      sc.name+": level label is curved, not inside an old rectangular pill");
+    assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 12,
+      sc.name+": player level follows the center under the arc");
+    assert.ok(homeLayout.levelCurve.bottom <= homeLayout.party.top + 8,
+      sc.name+": player level stays above the editable pet team");
     assert.ok(homeLayout.navButton && homeLayout.navButton.width === 52,
       sc.name+": Home navigation launcher maintains its tap area");
     const navStyle = await page.getByTestId("button-floating-nav").evaluate(el => ({

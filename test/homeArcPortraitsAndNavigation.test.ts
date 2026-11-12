@@ -20,19 +20,25 @@ test("Home enlarges and raises the avatar's five Elevation stars, not the pet ra
 
 test("Home XP forms a more semicircular arc with accessible proportional progress", () => {
   assert.match(homeHud, /className="home-player-hud__xp-arc"/);
-  assert.match(homeHud, /d="M 22 8 Q 160 112 298 8"/);
+  assert.match(homeHud, /d="M 10 10 Q 160 154 310 10"/);
+  assert.match(homeHud, /viewBox="0 0 320 130"/);
+  assert.match(homeHud, /className="home-player-hud__level-curved"/);
+  assert.match(homeHud, /<textPath href="#home-player-level-curve" startOffset="50%">/);
+  assert.match(homeHud, /x="37" y="39" textAnchor="middle"/);
+  assert.doesNotMatch(homeHud, /home-player-hud__level-pill/);
   assert.match(homeHud, /strokeDashoffset=\{100 - xpFillPct\}/);
   assert.match(homeHud, /xpFillPct !== null && xpFillPct > 0/);
   assert.match(homeHud, /className="home-player-hud__xp-arc-rim"/);
   assert.match(homeCss, /\.home-player-hud__xp-arc-track \{\s*stroke: #122b1d/);
-  assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: rgba\(210, 181, 113, \.6\)/);
+  assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: rgba\(210, 181, 113, \.72\)/);
   assert.match(homeHud, /xpEarnedThisLevel\.toLocaleString\(\)/);
   assert.match(homeHud, /pathLength=\{100\}/);
   assert.match(homeHud, /role="progressbar"/);
   assert.match(homeHud, /aria-valuenow=\{xpFillPct === null/);
   assert.match(homeHud, /totalXpRequiredForPlayerLevel\(player\.level\)/);
   assert.match(homeHud, /: <span aria-hidden="true" style=\{xpFillPct === null/);
-  assert.match(homeCss, /width: min\(calc\(100vw - 108px\), 265px\)/);
+  assert.match(homeCss, /--home-xp-art-width, 220px/);
+  assert.match(homeCss, /drop-shadow\(0 0 3px rgba\(238, 198, 101, \.48\)\)/);
 });
 
 test("pet team keeps five editable hit targets but no circular frames or helper copy", () => {
@@ -62,6 +68,10 @@ test("compact blinking pet thumbnails retain equipped adornments and mini pets",
   assert.match(homeCss, /home-player-hud__mini-companion/);
   assert.match(homeCss, /:has\(\.home-player-hud__pet-renderer \[data-testid="pet-animator"\] img\)/);
   assert.match(homeCss, /drop-shadow\(1px 0 0/);
+  const miniCss = homeCss.split(".home-player-hud__mini-companion {")[1].split("}")[0];
+  assert.doesNotMatch(miniCss, /drop-shadow\(1px 0 0|drop-shadow\(-1px 0 0/);
+  assert.match(miniCss, /drop-shadow\(0 2px 2px rgba/);
+  assert.match(homeCss, /transform: scale\(1\.02\)/);
 });
 
 test("Home keeps username above smaller Watcher without changing its tap target or messages", () => {
