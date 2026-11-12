@@ -119,6 +119,8 @@ export default function PlayerClothingAdminPanel({
   const [price, setPrice] = useState(0);
   const [shopImageData, setShopImageData] = useState<string | null>(null);
   const [category, setCategory] = useState<PlayerClothingCategory>("top");
+  const [colorPickerEnabled, setColorPickerEnabled] = useState(false);
+  const [previewTint, setPreviewTint] = useState<string | null>(null);
   const [partsByBody, setPartsByBody] = useState<Record<PlayerClothingBodyType, ClothingPart[]>>({
     fem: [], masc: [],
   });
@@ -212,8 +214,10 @@ export default function PlayerClothingAdminPanel({
     mutationFn: () => requestJson<ClothingDraft>("POST", "/api/admin/player-character/clothing/item", {
       ...(editingId ? { id: editingId, expectedRevision: activeDraft!.revision } : {}),
       name: name.trim(), category, price,
-      // Only hair supports recoloring; other clothing uses uploaded colors.
-      colorPickerEnabled: category === "hair",
+      // The flag belongs to the saved clothing item, not an individual
+      // upload/variant; both Fem and Masc versions share the same setting.
+      colorPickerEnabled: category === "hair" ||
+        ((category === "top" || category === "bottom") && colorPickerEnabled),
       ...(shopImageData ? { shopImageData } : {}),
       // Shared categories save just one set, not duplicated Fem/Masc uploads.
       ...(universalArtwork ? partUploads("fem") : {
@@ -231,6 +235,8 @@ export default function PlayerClothingAdminPanel({
       setPrice(0);
       setShopImageData(null);
       setCategory("top");
+      setColorPickerEnabled(false);
+      setPreviewTint(null);
       setPartsByBody({ fem: [], masc: [] });
       setScreen("view");
       toast({ title: "Clothing saved", description: "One universal clothing item was added to the clothing item list." });
@@ -275,7 +281,8 @@ export default function PlayerClothingAdminPanel({
     if (busy) return;
     setConfirmDelete(false);
     setEditingId(null); setName(""); setPrice(0); setShopImageData(null);
-    setCategory("top"); setPartsByBody({ fem: [], masc: [] });
+    setCategory("top"); setColorPickerEnabled(false); setPreviewTint(null);
+    setPartsByBody({ fem: [], masc: [] });
     setShoesLayer("under"); setClosedEyes(false); setChanged(false);
     setScreen("create");
   };
@@ -284,6 +291,10 @@ export default function PlayerClothingAdminPanel({
     setConfirmDelete(false);
     setEditingId(draft.id); setName(draft.name); setPrice(draft.price ?? 0);
     setShopImageData(null); setCategory(draft.category);
+    setColorPickerEnabled(draft.category === "hair" ||
+      ((draft.category === "top" || draft.category === "bottom") &&
+        draft.colorPickerEnabled === true));
+    setPreviewTint(null);
     const variants = draft.draftBodyVariants ?? draft.publishedBodyVariants;
     const shared = draft.draftSegments.length ? draft.draftSegments : draft.publishedSegments ?? [];
     setPartsByBody({
@@ -296,7 +307,9 @@ export default function PlayerClothingAdminPanel({
   };
   const selectCategory = (next: PlayerClothingCategory) => {
     if (busy || category === next) return;
-    setCategory(next); setPartsByBody({
+    setCategory(next);
+    setColorPickerEnabled(false); setPreviewTint(null);
+    setPartsByBody({
       fem: next === "face" ? faceParts() : [],
       masc: [],
     });
@@ -463,6 +476,48 @@ export default function PlayerClothingAdminPanel({
                 ))}
               </select>
             </label>
+            {(category === "top" || category === "bottom") && (
+              <div className="rounded-xl border border-[#c9ab6a] bg-[#102e20] p-3 space-y-2"
+                data-testid="avatar-clothing-color-option">
+                <label htmlFor="avatar-clothing-color-picker-enabled"
+                  className="flex min-h-[48px] items-center gap-3 cursor-pointer text-[#ffe3a2]">
+                  <input id="avatar-clothing-color-picker-enabled" type="checkbox"
+                    data-testid="avatar-clothing-color-picker-enabled"
+                    checked={colorPickerEnabled} disabled={busy}
+                    onChange={event => {
+                      setColorPickerEnabled(event.target.checked);
+                      if (!event.target.checked) setPreviewTint(null);
+                      setChanged(true);
+                    }}
+                    className="h-6 w-6 shrink-0 accent-[#cfb16b]" />
+                  <span className="font-fantasy text-sm font-bold">Allow players to change this item's color</span>
+                </label>
+                <p className="text-xs leading-relaxed text-[#dac99e]">
+                  Applies only to this saved {category === "top" ? "top" : "bottom"} item, including
+                  both Fem and Masc artwork. Disabled items keep their original colors.
+                </p>
+                {colorPickerEnabled && (
+                  <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[#a58d57] bg-[#163c2a] p-2"
+                    data-testid="avatar-clothing-color-preview-controls">
+                    <label htmlFor="avatar-clothing-preview-color"
+                      className="flex items-center gap-2 text-sm text-[#f7dca5]">
+                      Preview color
+                      <input id="avatar-clothing-preview-color" type="color" value={previewTint ?? "#775544"}
+                        data-testid="avatar-clothing-preview-color"
+                        disabled={busy}
+                        onChange={event => setPreviewTint(event.target.value)}
+                        className="h-11 w-12 cursor-pointer rounded border border-[#d6b870] bg-transparent" />
+                    </label>
+                    <button type="button" className={buttonClass} disabled={busy || !previewTint}
+                      data-testid="avatar-clothing-reset-preview-color"
+                      onClick={() => setPreviewTint(null)}>Original Artwork</button>
+                    <p className="basis-full text-xs text-[#ddc998]">
+                      Preview only. Players choose their own color after equipping.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className={cardClass + " space-y-2"}>
@@ -490,7 +545,9 @@ export default function PlayerClothingAdminPanel({
               style={{ background: "radial-gradient(circle,#35573c,#091910)" }}>
               {chosenBody ? (
                 <PlayerCharacterRenderer parts={bodyParts} clothingSegments={previewSegments}
-                  previewClothingCategory={category} previewEyesClosed={closedEyes}
+                  previewClothingCategory={category}
+                  previewClothingTint={category === "hair" || colorPickerEnabled ? previewTint : null}
+                  previewEyesClosed={closedEyes}
                   motion="static" ariaLabel="Universal clothing layered over chosen preview body" />
               ) : (
                 <p className="p-5 text-center text-sm">Save a complete Fem or Masc body to preview clothing.</p>
