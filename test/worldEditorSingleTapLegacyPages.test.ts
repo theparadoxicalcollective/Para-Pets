@@ -30,7 +30,7 @@ test("admin-only old-world page catalog lists actual legacy location backgrounds
   assert.match(server, /isNotNull\(worldLocations\.bgUrl\)/);
   assert.match(server, /validLegacyLocationPage\(db, legacyLocationId\)/);
   assert.match(server, /saved\.kind !== "building"/);
-  assert.match(server, /legacyLocationId: body\.legacyLocationId/);
+  assert.match(server, /changes\.legacyLocationId = body\.legacyLocationId/);
   assert.match(picker, /Add Old World Page/);
   assert.match(picker, /<optgroup key=\{name\} label=\{name\}>/);
   assert.match(picker, /<option value="">No old page linked<\/option>/);
