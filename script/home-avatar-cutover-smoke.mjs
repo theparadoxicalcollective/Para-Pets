@@ -500,10 +500,45 @@ try {
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // Main opens five alpha-outlined icons across each of three translucent rows.
+    // The three moved routes are persistent, one-tap Home shortcuts beside
+    // the main emblem, outside the account/resource and companion areas.
+    const quickIds=["map","quest","pvp"];
+    assert.equal(await page.getByTestId("home-realm-shortcuts").isVisible(),true,
+      sc.name+": Home shows the relocated quick destinations");
+    const quickButtons=await page.evaluate(()=>{
+      return Array.from(document.querySelectorAll('[data-testid^="home-shortcut-"]'))
+        .map(el=>{
+          const r=el.getBoundingClientRect();
+          const front=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+          return {name:el.getAttribute("data-testid"),left:r.left,right:r.right,
+            top:r.top,bottom:r.bottom,hit:front===el||el.contains(front)};
+        });
+    });
+    assert.deepEqual(quickButtons.map(q=>q.name),quickIds.map(id=>"home-shortcut-"+id),
+      sc.name+": Map, Quest and PvP appear in shortcut order");
+    for(const q of quickButtons){
+      assert.ok(q.left>=sc.width-100 && q.right<=sc.width+1 &&
+        q.top>=homeLayout.navButton.bottom+5 && q.bottom<=sc.height-6,
+        sc.name+": Home shortcut stays in the right-hand free space: "+JSON.stringify(q));
+      assert.ok(q.hit,sc.name+": shortcut is actually tappable: "+q.name);
+    }
+    for(let i=1;i<quickButtons.length;i++)
+      assert.ok(quickButtons[i].top>=quickButtons[i-1].bottom-1,
+        sc.name+": vertical shortcuts don't cover one another");
+    await page.getByTestId("home-shortcut-quest").tap();
+    await page.getByTestId("quest-log-viewport-overlay").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("home-realm-shortcuts").count(),0,
+      sc.name+": shortcuts disappear while Quest is open");
+    await page.getByTestId("quest-log-viewport-backdrop").tap({position:{x:4,y:4}});
+    await page.getByTestId("home-realm-shortcuts").waitFor({state:"visible"});
+
+    // Main now shows the ten remaining routes in frequency-first order,
+    // five columns over two rows. Support is still the very last tile.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
     await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("home-realm-shortcuts").count(),0,
+      sc.name+": relocated shortcut buttons are not duplicated inside open menu");
     await page.waitForTimeout(240);
     const panelGeometry = await page.getByTestId("home-realm-nav-panel").evaluate(el => {
       const r = el.getBoundingClientRect(), style=getComputedStyle(el);
@@ -537,16 +572,20 @@ try {
           top:r.top,bottom:r.bottom,hit:el===atCenter||el.contains(atCenter)};
       });
     });
-    assert.equal(navigation.length,13,sc.name+": twelve original routes and Support remain");
-    assert.equal(new Set(navigation.map(item=>item.id)).size,13,
+    assert.equal(navigation.length,10,sc.name+": nine common destinations plus Support remain");
+    assert.equal(new Set(navigation.map(item=>item.id)).size,10,
       sc.name+": no duplicated destinations");
-    assert.equal(navigation[0].id,"nav-item-home",sc.name+": Main is first priority");
+    assert.deepEqual(navigation.map(item=>item.id),[
+      "nav-item-home","nav-item-inventory","nav-item-bag","nav-item-keepers",
+      "nav-item-pethouse","nav-item-market","nav-item-aquarium",
+      "nav-item-cards","nav-item-badges","nav-item-support",
+    ],sc.name+": frequently used actions lead and Support remains last");
     assert.equal(navigation[navigation.length-1].id,"nav-item-support",
       sc.name+": Support is always the last navigation action");
     const columns=[...new Set(navigation.map(item=>Math.round(item.left)))].sort((x,y)=>x-y);
     const rows=[...new Set(navigation.map(item=>Math.round(item.top)))].sort((x,y)=>x-y);
     assert.equal(columns.length,5,sc.name+": five horizontal icon columns");
-    assert.equal(rows.length,3,sc.name+": three compact rows");
+    assert.equal(rows.length,2,sc.name+": two compact rows");
     assert.ok(Math.abs(navigation[0].left - panelGeometry.left)<=19,
       sc.name+": first navigation icon starts on the left");
     for(const item of navigation){
@@ -571,6 +610,18 @@ try {
     await page.getByTestId("button-close-support-modal").tap();
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="button-floating-nav"]')?.getAttribute("aria-expanded") === "false");
+    await page.getByTestId("home-realm-shortcuts").waitFor({state:"visible"});
+    // Map and PvP use the original navigation handlers without adding duplicate
+    // dialogs or new route logic. The isolated fixture exposes their path changes.
+    for(const id of ["map","pvp"]){
+      await page.getByTestId("home-shortcut-"+id).tap();
+      await page.waitForURL("**/"+id,{timeout:9000});
+      assert.equal(new URL(page.url()).pathname,"/"+id,
+        sc.name+": relocated "+id+" shortcut opens the original route");
+      await page.goBack({waitUntil:"domcontentloaded"});
+      await page.waitForURL(url=>url.pathname==="/",{timeout:9000});
+      await page.getByTestId("home-realm-shortcuts").waitFor({state:"visible"});
+    }
     assert.equal(homeLayout.equippedDots,0,
       sc.name+": selected party pets have no duplicate dot indicators");
     await page.getByTestId("display-coin-balance").tap();

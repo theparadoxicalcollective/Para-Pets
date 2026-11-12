@@ -98,6 +98,41 @@ test("only Home navigation uses a translucent forest panel with outlined icon si
   assert.match(navCss, /border: 0;\s*border-radius: 0;\s*background: transparent/);
   assert.match(navCss, /filter: drop-shadow\(1px 0 0/);
   assert.match(navCss, /\.home-realm-nav__tile:focus-visible/);
-  assert.match(nav, /const HOME_NAV_ROWS = 3/);
+  assert.match(nav, /const HOME_NAV_ROWS = 2/);
   assert.match(nav, /const HOME_NAV_COLUMNS = 5/);
+});
+
+
+test("Home promotes Map, Quest and PvP outside the reordered navigation", () => {
+  const menu = nav.match(/const HOME_NAV_ORDER = \[([\s\S]*?)\] as const;/)?.[1];
+  assert.ok(menu, "Home menu order is defined");
+  const order = [...menu.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(order, [
+    "home", "inventory", "bag", "keepers", "pethouse",
+    "market", "aquarium", "cards", "badges", "support",
+  ]);
+  assert.equal(order.at(-1), "support");
+  for (const route of ["map", "quest", "pvp"]) {
+    assert.ok(!order.includes(route), route + " no longer clutters Main Navigation");
+    assert.match(nav, new RegExp('id: "' + route + '"'));
+    assert.match(nav, new RegExp('home-shortcut-'));
+  }
+  assert.match(nav, /HOME_SHORTCUT_ITEMS\.map\(item =>/);
+  assert.match(nav, /onClick=\{\(\) => handleLeft\(item\.id\)\}/);
+  assert.match(nav, /questRewardReady && \(/);
+  assert.match(nav, /questRewardReady && !isHome && !isOpen/);
+  assert.match(navCss, /\.home-realm-shortcuts \{/);
+  assert.match(navCss, /\.home-realm-shortcuts__tile:focus-visible/);
+  assert.match(navCss, /min-height: 44px/);
+});
+
+test("subpage navigation no longer duplicates Map, Quest or PvP shortcuts", () => {
+  const left = nav.split("const LEFT_ITEMS = [")[1].split("];")[0];
+  const right = nav.split("const RIGHT_ITEMS = [")[1].split("];")[0];
+  for (const id of ["map", "quest", "pvp"]) {
+    assert.doesNotMatch(left + right, new RegExp('id: "' + id + '"'));
+  }
+  assert.match(nav, /if \(id === "map"\)/);
+  assert.match(nav, /if \(id === "quest"\)/);
+  assert.match(nav, /if \(id === "pvp"\)/);
 });

@@ -513,7 +513,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             }}
           />
           {/* Quest notification badge — visible on main button when nav is closed */}
-          {questRewardReady && !isOpen && (
+          {questRewardReady && !isHome && !isOpen && (
             <QuestRewardBadge
               testId="badge-quest-notification"
               style={{ top: -5, right: -5, zIndex: 100 }}
