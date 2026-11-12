@@ -251,11 +251,11 @@ export default function WorldSceneControls(props: Props) {
   return <>
     {!expanded && !selectedItem && <div
       data-testid="world-scene-controls" aria-label="World editing toolbar"
-      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg grid-cols-3 gap-1.5"
+      className={`pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg gap-1.5 ${props.activeBuilding && !props.activeBuilding.isShop ? "grid-cols-2" : "grid-cols-3"}`}
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
       {props.activeBuilding ? <>
-        <div className="col-span-3 flex flex-col gap-1 rounded-lg border border-[#b99a4c]/45 bg-[#153523] px-3 py-2 text-xs sm:col-span-5">
+        <div className="col-span-full flex flex-col gap-1 rounded-lg border border-[#b99a4c]/45 bg-[#153523] px-3 py-2 text-xs">
           <span className="flex justify-between text-[#f0d69d]">
             <span>Interior darkness</span><span className="tabular-nums">{props.interiorDarkness}%</span>
           </span>
