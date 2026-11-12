@@ -23,6 +23,7 @@ import {
 } from "@/lib/worldEditorCamera";
 import { PARK_GROUND_PALETTES } from "@/lib/petParkGroundPalette";
 import { parkDepthIndex } from "@/lib/petParkDepth";
+import { decorDrawDepth, decorRole } from "@shared/decorSurface";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
 import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
@@ -601,17 +602,18 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             return <button key={p.id} type="button"
               data-testid={`world-scene-placement-${p.id}`}
               data-world-editor-placement={p.id}
+              data-decor-role={p.kind === "decor" ? decorRole(p) : undefined}
               data-park-draggable data-park-object-kind={p.kind === "building" ? "building" : "item"}
               data-park-object-id={p.id}
               className="pointer-events-auto absolute touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
               style={{
                 left: position.xPct * camera.sceneWidth, top: position.yPct * camera.sceneHeight,
                 width: p.size * camera.scale, height,
-                zIndex: p.kind === "effect" ? 12_000_000 : p.kind === "terrain" ? 1 : parkDepthIndex({
+                zIndex: p.kind === "effect" ? 12_000_000 : p.kind === "terrain" ? 1 : decorDrawDepth(p, parkDepthIndex({
                   kind: p.kind === "building" ? "building" : "item",
                   yPct: position.yPct, worldHeight: camera.worldHeight, size: p.size,
                   contact: 0.9,
-                }),
+                }), 2),
                 pointerEvents: p.kind === "terrain" ? "none" : undefined,
                 transform: "translate(-50%, -50%)",
 
