@@ -514,13 +514,22 @@ export function registerPetParkAdminRoutes(
       if (!original) return res.status(404).json({ message: "Decoration not found" });
       if (original.kind !== "decor" || !original.imageUrl)
         return res.status(422).json({ message: "Only uploaded decor objects can be duplicated" });
-      const [item] = await db.insert(petParkSceneItems)
-        .values({ kind: "decor", imageUrl: original.imageUrl, tapImageUrl: original.tapImageUrl, effectType: null,
-          appearanceGroupId: original.appearanceGroupId ?? original.id,
-          decorEffects: original.decorEffects,
-          isWaterSource: original.isWaterSource, decorSurface: original.decorSurface,
-          xPct, yPct, size: original.size, flipped: original.flipped, layer: original.layer })
-        .returning();
+      const [item] = await db.transaction(async tx => {
+        // Older standalone rows may lack a group ID. Give the original and
+        // its new copy one shared identity before saving the copy; behavior,
+        // artwork and effects can then be edited once for the entire type.
+        const groupId = original.appearanceGroupId ?? original.id;
+        if (!original.appearanceGroupId) {
+          await tx.update(petParkSceneItems).set({ appearanceGroupId: groupId })
+            .where(and(eq(petParkSceneItems.id, original.id), eq(petParkSceneItems.kind, "decor")));
+        }
+        return tx.insert(petParkSceneItems)
+          .values({ kind: "decor", imageUrl: original.imageUrl, tapImageUrl: original.tapImageUrl, effectType: null,
+            appearanceGroupId: groupId, decorEffects: original.decorEffects,
+            isWaterSource: original.isWaterSource, decorSurface: original.decorSurface,
+            xPct, yPct, size: original.size, flipped: original.flipped, layer: original.layer })
+          .returning();
+      });
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] decor duplication failed", error);
@@ -529,8 +538,9 @@ export function registerPetParkAdminRoutes(
   });
 
   // Changes to a decoration's visual identity apply to all actual copies.
-  // Placement, size, flipped orientation, layer, and water-source designation
-  // deliberately do NOT appear in this endpoint and remain per instance.
+  // Placement, size, flipped orientation, layer, and behavior designation
+  // deliberately do NOT appear here. Positions stay per instance; behavior
+  // is edited through the shared-type /surface or /water-source route.
   app.patch("/api/admin/pet-park/items/:id/appearance", isAdmin, async (req, res) => {
     const body = req.body ?? {};
     const hasImage = Object.prototype.hasOwnProperty.call(body, "imageData");
@@ -587,17 +597,20 @@ export function registerPetParkAdminRoutes(
   });
 
   // A new single-choice editor uses this route; existing clients can continue
-  // using /water-source. Surface roles remain independent for linked copies.
+  // using /water-source. Behavior follows the decor artwork type across copies,
+  // while location, size and orientation remain independent.
   app.patch("/api/admin/pet-park/items/:id/surface", isAdmin, async (req, res) => {
     const { decorSurface, isWaterSource } = req.body ?? {};
     if (!isDecorSurface(decorSurface) || typeof isWaterSource !== "boolean" ||
         (isWaterSource && decorSurface !== "barrier"))
       return res.status(400).json({ message: "Choose one decoration behavior" });
     try {
-      const [item] = await db.update(petParkSceneItems).set({ decorSurface, isWaterSource })
-        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")))
-        .returning();
-      return item ? res.json(item) : res.status(404).json({ message: "Decoration not found" });
+      const [original] = await db.select().from(petParkSceneItems)
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")));
+      if (!original) return res.status(404).json({ message: "Decoration not found" });
+      const updated = await db.update(petParkSceneItems).set({ decorSurface, isWaterSource })
+        .where(decorAppearanceWhere(original)).returning();
+      return res.json({ item: updated.find(item => item.id === original.id), updatedCount: updated.length });
     } catch (error) {
       console.error("[pet-park] decoration behavior update failed", error);
       return res.status(500).json({ message: "Could not change decoration behavior" });
@@ -605,17 +618,21 @@ export function registerPetParkAdminRoutes(
   });
 
   // Keep the legacy water-source endpoint valid and mutually exclusive with
-  // Grass/Ground. No saved terrain or player watering charges are changed.
+  // Grass/Ground. Apply to every copy of this decor type too; garden refills
+  // keep using the existing persisted water flag.
   app.patch("/api/admin/pet-park/items/:id/water-source", isAdmin, async (req, res) => {
     const isWaterSource = req.body?.isWaterSource;
     if (typeof isWaterSource !== "boolean")
       return res.status(400).json({ message: "Water Source must be on or off" });
     try {
-      const [item] = await db.update(petParkSceneItems).set(isWaterSource
+      const [original] = await db.select().from(petParkSceneItems)
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")));
+      if (!original) return res.status(404).json({ message: "Decoration not found" });
+      const updated = await db.update(petParkSceneItems).set(isWaterSource
         ? { isWaterSource, decorSurface: "barrier" as const } : { isWaterSource })
-        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")))
-        .returning();
-      return item ? res.json(item) : res.status(404).json({ message: "Decoration not found" });
+        .where(decorAppearanceWhere(original)).returning();
+      // Preserve this existing endpoint's response shape for older clients.
+      return res.json(updated.find(item => item.id === original.id));
     } catch (error) {
       console.error("[pet-park] water source update failed", error);
       return res.status(500).json({ message: "Could not change Water Source" });
