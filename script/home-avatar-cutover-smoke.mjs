@@ -589,10 +589,12 @@ try {
       await firstSave;
       assert.equal(avatar.skinTone,"#d39a71",sc.name+": first save stores player-selected skin");
       assert.equal(writes.length,1,sc.name+": only the explicit wardrobe Save creates");
-      await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
-      await page.getByTestId("avatar-save-confirmation-close").tap();
-      await page.getByRole("button",{name:"Back to Home"}).tap();
+      // The save toast persists across navigation and the editor closes
+      // automatically after the server confirms the first character save.
       await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
+      assert.equal(await page.getByTestId("player-avatar-page").count(),0,
+        sc.name+": successful first save closes the editor automatically");
+      await page.getByText("Character saved",{exact:true}).waitFor({state:"visible"});
       assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),8,
         sc.name+": saved skin color renders on the Home avatar");
       assert.equal(await page.getByTestId("home-design-character").count(),0,
