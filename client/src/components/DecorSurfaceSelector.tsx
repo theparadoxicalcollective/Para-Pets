@@ -31,7 +31,7 @@ export default function DecorSurfaceSelector({
           className={`flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-[#fff1be] disabled:opacity-50 ${
             selected ? "border-[#ffe6a4] bg-[#31543b]" : "border-[#8e7845] bg-[#193829]"
           }`}>
-          <input type="radio" name={name} value={option.value} checked={selected}
+          <input type="radio" name={name} aria-label={option.label} value={option.value} checked={selected}
             disabled={disabled} onChange={() => onChange(option.value)}
             className="mt-0.5 h-5 w-5 shrink-0 accent-[#f2d17f]" />
           <span className="min-w-0">
