@@ -22,6 +22,8 @@ export interface PlayerCharacterRendererProps {
   clothingSegments?: readonly PlayerClothingSegment[];
   clothingLayers?: readonly AvatarClothingLayer[];
   previewClothingCategory?: PlayerClothingCategory;
+  /** Temporary editor-only swatch; never saved onto the clothing catalog art. */
+  previewClothingTint?: string | null;
   previewEyesClosed?: boolean;
   /** Optional artist-friendly tint; null retains the original source pixels. */
   skinTone?: string | null;
@@ -37,6 +39,7 @@ export default function PlayerCharacterRenderer({
   clothingSegments = [],
   clothingLayers = [],
   previewClothingCategory = "top",
+  previewClothingTint = null,
   previewEyesClosed = false,
   skinTone = null,
   topTucked = false,
@@ -50,7 +53,8 @@ export default function PlayerCharacterRenderer({
       segment,
       key: `draft:${clothingSegmentKey(segment)}`,
       category: previewClothingCategory,
-      colorTint: null,
+      colorTint: previewClothingTint,
+      itemKey: `draft:${previewClothingCategory}`,
       categoryOrder: 0,
     })),
     ...clothingLayers.flatMap(outfit => outfit.segments.map(segment => ({
@@ -60,6 +64,7 @@ export default function PlayerCharacterRenderer({
       // Server and wardrobe gate opt-in recoloring by catalog SKU.
       // Non-recolorable garments never receive a tint from old saved data.
       colorTint: outfit.colorTint ?? null,
+      itemKey: `${outfit.category}:${outfit.inventoryId}`,
       categoryOrder: PLAYER_CLOTHING_CATEGORIES.indexOf(outfit.category),
     }))),
   ];
@@ -93,6 +98,83 @@ export default function PlayerCharacterRenderer({
   ));
   const tintFilter = (color: string | null) =>
     color ? `url("#${tintPrefix}-${tintColors.indexOf(color)}")` : undefined;
+  // A colored Top or Bottom is ONE tinted material even when made from
+  // independently moving sleeve/torso or leg sprites. Group only those two
+  // categories: Hair Back and other high/low-depth accessories must retain
+  // their existing scene stacking and blink/motion behavior.
+  const compositedGarments = [...new Set(layers
+    .filter(layer => (layer.category === "top" || layer.category === "bottom") && !!layer.colorTint)
+    .map(layer => layer.itemKey))].map(itemKey => {
+      const pieces = layers.filter(layer => layer.itemKey === itemKey);
+      return { itemKey, pieces, color: pieces[0].colorTint!, depth: garmentDepth(pieces[0]) };
+    });
+  const compositeKeys = new Set(compositedGarments.map(item => item.itemKey));
+
+  // Keep both legacy local-fit and new 1000px-canvas pieces in the exact
+  // same rig. A nested colored piece receives NO independent filter; the
+  // garment group's final composited alpha is recolored only once.
+  const renderLegacy = (layer: (typeof layers)[number], grouped = false) => {
+    const part = partByType.get(layer.segment.partType);
+    if (!part) return null;
+    return (
+      <div key={layer.key} data-clothing-part={layer.segment.partType}
+        data-clothing-slot={layer.segment.slot ?? layer.segment.partType}
+        data-clothing-plane={layer.segment.renderPlane}
+        data-clothing-key={layer.key}
+        data-legacy-clothing-overlay="true"
+        className="player-character-renderer__anchor"
+        style={{
+          left: `${part.xPct}%`, top: `${part.yPct}%`,
+          width: `${part.widthPct}%`,
+          zIndex: grouped ? 1 : garmentDepth(layer),
+          transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%`,
+          transform: `translate(-${part.pivotXPct}%, -${part.pivotYPct}%) rotate(${part.rotationDeg}deg)`,
+        }}>
+        <div data-character-motion-part={layer.segment.partType}
+          className={`player-character-renderer__motion player-character-renderer__motion--${motion}`}
+          style={{ transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%` }}>
+          {/* Intrinsic part image keeps legacy fit coordinates aligned. */}
+          <img src={part.imageUrl} alt="" aria-hidden="true" draggable={false}
+            className="player-character-renderer__image" style={{ visibility: "hidden" }}/>
+          <div className="player-character-renderer__clothing"
+            style={{
+              left: `${layer.segment.fit.xPct}%`,
+              top: `${layer.segment.fit.yPct}%`,
+              width: `${layer.segment.fit.widthPct}%`,
+              transformOrigin: `${layer.segment.fit.pivotXPct}% ${layer.segment.fit.pivotYPct}%`,
+              transform: `translate(-${layer.segment.fit.pivotXPct}%, -${layer.segment.fit.pivotYPct}%) rotate(${layer.segment.fit.rotationDeg}deg)`,
+              zIndex: 1,
+              filter: grouped ? undefined : tintFilter(layer.colorTint),
+            }}>
+            <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
+              draggable={false} className="player-character-renderer__legacy-image" />
+          </div>
+        </div>
+      </div>
+    );
+  };
+  const renderCanvas = (layer: (typeof layers)[number], grouped = false) => {
+    const attachment = partByType.get(layer.segment.partType);
+    return (
+      <div key={layer.key}
+        data-character-motion-part={layer.segment.partType}
+        data-clothing-part={layer.segment.partType}
+        data-clothing-slot={layer.segment.slot ?? layer.segment.partType}
+        data-clothing-plane={layer.segment.renderPlane}
+        data-clothing-key={layer.key}
+        className={`player-character-renderer__canvas-motion player-character-renderer__motion--${motion}`}
+        style={{
+          transformOrigin: attachment ? `${attachment.xPct}% ${attachment.yPct}%` : "50% 50%",
+          zIndex: grouped ? 1 : garmentDepth(layer),
+          filter: grouped ? undefined : tintFilter(layer.colorTint),
+        }}>
+        <img src={layer.segment.imageUrl} alt="" aria-hidden="true" draggable={false}
+          className={`player-character-renderer__canvas-image${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}/>
+      </div>
+    );
+  };
+  const renderClothingPiece = (layer: (typeof layers)[number], grouped = false) =>
+    layer.segment.canvasAligned ? renderCanvas(layer, grouped) : renderLegacy(layer, grouped);
   return (
     <div data-testid="player-character-renderer"
       data-coordinate-space="character-relative"
@@ -139,79 +221,22 @@ export default function PlayerCharacterRenderer({
         </div>
       ))}
       </div>
-      {/* Legacy part-local garments are independent siblings of body anchors,
-          so a sleeve or pant leg cannot be obscured by a higher-z torso.
-          They keep the exact same part pivot, resize and motion as before. */}
-      {oldPartLocal.map(layer => {
-        const part = partByType.get(layer.segment.partType);
-        if (!part) return null;
-        return (
-          <div key={layer.key} data-clothing-part={layer.segment.partType}
-            data-clothing-slot={layer.segment.slot ?? layer.segment.partType}
-            data-clothing-plane={layer.segment.renderPlane}
-            data-clothing-key={layer.key}
-            data-legacy-clothing-overlay="true"
-            className="player-character-renderer__anchor"
-            style={{
-              left: `${part.xPct}%`, top: `${part.yPct}%`,
-              width: `${part.widthPct}%`,
-              zIndex: garmentDepth(layer),
-              transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%`,
-              transform: `translate(-${part.pivotXPct}%, -${part.pivotYPct}%) rotate(${part.rotationDeg}deg)`,
-            }}>
-            <div data-character-motion-part={layer.segment.partType}
-              className={`player-character-renderer__motion player-character-renderer__motion--${motion}`}
-              style={{ transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%` }}>
-              {/* Keep the original part's intrinsic height so legacy % fit
-                  coordinates remain unchanged even though this is a sibling
-                  overlay rather than a child of the body image. */}
-              <img src={part.imageUrl} alt="" aria-hidden="true" draggable={false}
-                className="player-character-renderer__image"
-                style={{ visibility: "hidden" }}/>
-              <div className="player-character-renderer__clothing"
-                 style={{
-                  left: `${layer.segment.fit.xPct}%`,
-                  top: `${layer.segment.fit.yPct}%`,
-                  width: `${layer.segment.fit.widthPct}%`,
-                  transformOrigin: `${layer.segment.fit.pivotXPct}% ${layer.segment.fit.pivotYPct}%`,
-                  transform: `translate(-${layer.segment.fit.pivotXPct}%, -${layer.segment.fit.pivotYPct}%) rotate(${layer.segment.fit.rotationDeg}deg)`,
-                  zIndex: 1,
-                  filter: tintFilter(layer.colorTint),
-                }}>
-                <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
-                  draggable={false} className="player-character-renderer__legacy-image" />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-      {/* New full-canvas artwork never inherits an individual part's resized
-          anchor. Separate layers make Hair Back/Face/Accessories ordering
-          possible even when multiple images attach to the same head. */}
-      {fullCanvas.map(layer => {
-        // Full-canvas parts already use the same head/limb motion keyframes as
-        // the base. Match their world-space pivot too: rotating about the
-        // overall 1000x1000 canvas center sends face parts the wrong way.
-        const attachment = partByType.get(layer.segment.partType);
-        return (
-        <div key={layer.key}
-          data-character-motion-part={layer.segment.partType}
-          data-clothing-part={layer.segment.partType}
-          data-clothing-slot={layer.segment.slot ?? layer.segment.partType}
-          data-clothing-plane={layer.segment.renderPlane}
-          data-clothing-key={layer.key}
-          className={`player-character-renderer__canvas-motion player-character-renderer__motion--${motion}`}
-          style={{
-            transformOrigin: attachment ? `${attachment.xPct}% ${attachment.yPct}%` : "50% 50%",
-            zIndex: garmentDepth(layer),
-            filter: tintFilter(layer.colorTint),
-          }}>
-          <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
-            draggable={false}
-            className={`player-character-renderer__canvas-image${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}/>
+      {/* Untinted or non-garment art keeps its original per-segment depth.
+          This includes Back Hair and any uncolored sleeves or pants. */}
+      {oldPartLocal.filter(layer => !compositeKeys.has(layer.itemKey)).map(layer => renderLegacy(layer))}
+      {fullCanvas.filter(layer => !compositeKeys.has(layer.itemKey)).map(layer => renderCanvas(layer))}
+      {/* Colored Tops and Bottoms are flattened before the shared hue/luma
+          matrix runs. This eliminates duplicate tint pixels at seams while
+          preserving each piece's independent animation/attachment. */}
+      {compositedGarments.map(garment => (
+        <div key={garment.itemKey} className="player-character-renderer__garment-composite"
+          data-testid="avatar-clothing-composite"
+          data-clothing-category={garment.pieces[0].category}
+          data-clothing-item={garment.itemKey}
+          style={{ zIndex: garment.depth, filter: tintFilter(garment.color) }}>
+          {garment.pieces.map(piece => renderClothingPiece(piece, true))}
         </div>
-        );
-      })}
+      ))}
     </div>
   );
 }
