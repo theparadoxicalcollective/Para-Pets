@@ -127,6 +127,8 @@ jobs:
           node script/janson-quest-smoke.mjs
           # Real player-avatar UI against isolated, disposable account fixtures.
           node script/player-avatar-wardrobe-smoke.mjs
+          # Test actual skin/hair pixels after recoloring one flattened avatar surface.
+          node script/avatar-skin-tone-render-smoke.mjs
           # Real admin Masc/Fem body upload, preview, one-click save and conflict retry.
           node script/avatar-base-editor-smoke.mjs
           node script/avatar-clothing-canvas-smoke.mjs
