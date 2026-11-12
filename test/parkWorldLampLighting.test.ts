@@ -23,8 +23,8 @@ test("Pet Park and World Editor darken more at night without changing home light
   const world = source("client/src/pages/WorldSceneEditorPage.tsx");
   assert.match(park, /darkness=\{parkSceneDarkness\(parkLighting\.nightStrength\)\}/);
   assert.match(world, /darkness=\{parkSceneDarkness\(worldLighting\.nightStrength\)\}/);
-  assert.match(park, /useHomeOutdoorLighting\("auto"\)/);
-  assert.match(world, /useHomeOutdoorLighting\("auto"\)/);
+  assert.match(park, /useHomeOutdoorLighting\("auto", clockAccount\?\.timeZone\)/);
+  assert.match(world, /useHomeOutdoorLighting\("auto", clockAccount\?\.timeZone\)/);
 });
 
 test("outdoor lamps follow nightfall, sunlight follows daytime, fires remain independent", () => {
