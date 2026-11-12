@@ -252,8 +252,8 @@ try {
     assert.ok(await page.getByTestId("avatar-save-character-button").count() === 0,
       name + ": new character keeps its own single Save Character control");
     await page.getByTestId("avatar-skin-warm").tap();
-    assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 8,
-      name + ": color preview tints the eight body layers");
+    assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 1,
+      name + ": color preview tints the assembled eight-part body exactly once");
     await page.getByTestId("avatar-category-top").tap();
     assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), false,
       name + ": untucked is the default");
@@ -414,10 +414,14 @@ try {
       el.dispatchEvent(new Event("input", {bubbles: true}));
       el.dispatchEvent(new Event("change", {bubbles: true}));
     });
-    await page.waitForFunction(() =>
-      document.querySelectorAll('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').length === 2);
-    assert.equal(await page.locator('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').count(), 2,
-      name + ": front and back hair share a live tint preview");
+    await page.waitForFunction(() => {
+      const hair = [...document.querySelectorAll('[data-clothing-key^="hair:"]')];
+      return hair.length === 2 && hair.every(el => getComputedStyle(el).filter.includes("url("));
+    });
+    assert.equal(await page.locator('[data-clothing-key^="hair:"]').count(), 2,
+      name + ": front and back hair remain separate artwork with active recoloring");
+    assert.equal(await page.getByTestId("avatar-clothing-tint").count(), 0,
+      name + ": neither hair segment has an extra translucent masked copy");
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-pants").tap();
     await page.getByTestId("avatar-unequip-button").tap();
@@ -438,10 +442,12 @@ try {
     await page.getByTestId("avatar-skin-rich").tap();
     const skinBlend = await page.locator('[data-testid="avatar-skin-tint"]').first()
       .evaluate(el => ({mode:getComputedStyle(el).mixBlendMode,
-        opacity:getComputedStyle(el).opacity}));
-    assert.equal(skinBlend.mode,"color",name + ": skin color preserves painted shading");
-    assert.ok(Number(skinBlend.opacity) <= .8,
-      name + ": skin overlay is intentionally softer");
+        opacity:getComputedStyle(el).opacity,filter:getComputedStyle(el).filter}));
+    assert.equal(skinBlend.mode,"normal",name + ": no pale luminosity-preserving Color blend");
+    assert.equal(Number(skinBlend.opacity),1,
+      name + ": dark skin is never diluted by overlay opacity");
+    assert.match(skinBlend.filter,/url\\(/,
+      name + ": one alpha-preserving SVG filter recolors the complete assembled body");
     await page.getByTestId("avatar-choose-fem").tap();
     assert.equal(avatar.base.id,"base-2",
       name + ": switching Fem/Masc never saves an intermediate appearance");
