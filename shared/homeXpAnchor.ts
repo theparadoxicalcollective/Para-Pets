@@ -1,6 +1,6 @@
 /** Home XP placement remains relative to intrinsic background artwork.
  * The optional depth upgrades previously saved admin placements in place. */
-export const HOME_XP_DEFAULT_CURVE = 145;
+export const HOME_XP_DEFAULT_CURVE = 135;
 export const HOME_XP_MIN_CURVE = 105;
 export const HOME_XP_MAX_CURVE = 220;
 export interface HomeXpAnchor { xPct: number; yPct: number; curveDepth?: number }
@@ -26,6 +26,6 @@ export function homeXpArcGeometry(curveDepth = HOME_XP_DEFAULT_CURVE) {
   return {
     path: `M 12 14 C 76 ${depth} 244 ${depth} 308 14`,
     levelPath: `M 100 ${levelY} Q 160 ${levelY + 16} 220 ${levelY}`,
-    viewHeight: Math.ceil(center + 79),
+    viewHeight: Math.ceil(center + 58),
   };
 }

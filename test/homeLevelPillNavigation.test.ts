@@ -15,10 +15,10 @@ test("Home level lettering curves beneath the platform XP arc without changing X
   assert.doesNotMatch(hud, /home-player-hud__level-pill/);
   assert.match(hud, /totalXpRequiredForPlayerLevel\(player\.level\)/);
   assert.match(hud, /data-testid="home-player-xp-track"/);
-  assert.match(hud, /data-testid="home-player-total-xp"/);
+  assert.doesNotMatch(hud, /<text data-testid="home-player-total-xp"/);
 });
 test("deep XP curve and lower pets preserve short-phone clearance", () => {
-  assert.match(hudCss, /aspect-ratio: 320 \/ 130/);
+  assert.match(hudCss, /The SVG viewBox follows the saved curve depth/);
   assert.match(hudCss, /\.home-player-hud__xp-arc-track/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel/);
   assert.match(hudCss, /bottom: calc\(12px \+ env\(safe-area-inset-bottom/);

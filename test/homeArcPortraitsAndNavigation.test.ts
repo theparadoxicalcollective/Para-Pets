@@ -20,17 +20,17 @@ test("Home enlarges and raises the avatar's five Elevation stars, not the pet ra
 
 test("Home XP forms a more semicircular arc with accessible proportional progress", () => {
   assert.match(homeHud, /className="home-player-hud__xp-arc"/);
-  assert.match(homeHud, /d="M 10 10 Q 160 154 310 10"/);
-  assert.match(homeHud, /viewBox="0 0 320 130"/);
+  assert.match(homeHud, /d=\{xpArc\.path\}/);
+  assert.match(homeHud, /xpArc\.viewHeight/);
   assert.match(homeHud, /className="home-player-hud__level-curved"/);
   assert.match(homeHud, /<textPath href="#home-player-level-curve" startOffset="50%">/);
-  assert.match(homeHud, /x="37" y="39" textAnchor="middle"/);
+  assert.doesNotMatch(homeHud, /<text data-testid="home-player-total-xp"/);
   assert.doesNotMatch(homeHud, /home-player-hud__level-pill/);
   assert.match(homeHud, /strokeDashoffset=\{100 - xpFillPct\}/);
   assert.match(homeHud, /xpFillPct !== null && xpFillPct > 0/);
   assert.match(homeHud, /className="home-player-hud__xp-arc-rim"/);
-  assert.match(homeCss, /\.home-player-hud__xp-arc-track \{\s*stroke: #122b1d/);
-  assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: rgba\(210, 181, 113, \.72\)/);
+  assert.match(homeCss, /\.home-player-hud__xp-arc-track \{ stroke: #123b27/);
+  assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: #eed28e/);
   assert.match(homeHud, /xpEarnedThisLevel\.toLocaleString\(\)/);
   assert.match(homeHud, /pathLength=\{100\}/);
   assert.match(homeHud, /role="progressbar"/);
@@ -38,7 +38,7 @@ test("Home XP forms a more semicircular arc with accessible proportional progres
   assert.match(homeHud, /totalXpRequiredForPlayerLevel\(player\.level\)/);
   assert.match(homeHud, /: <span aria-hidden="true" style=\{xpFillPct === null/);
   assert.match(homeCss, /--home-xp-art-width, 220px/);
-  assert.match(homeCss, /drop-shadow\(0 0 3px rgba\(238, 198, 101, \.48\)\)/);
+  assert.match(homeCss, /drop-shadow\(0 0 5px rgba\(255, 226, 140, \.75\)\)/);
 });
 
 test("pet team keeps five editable hit targets but no circular frames or helper copy", () => {
@@ -71,7 +71,7 @@ test("compact blinking pet thumbnails retain equipped adornments and mini pets",
   const miniCss = homeCss.split(".home-player-hud__mini-companion {")[1].split("}")[0];
   assert.doesNotMatch(miniCss, /drop-shadow\(1px 0 0|drop-shadow\(-1px 0 0/);
   assert.match(miniCss, /drop-shadow\(0 2px 2px rgba/);
-  assert.match(homeCss, /transform: scale\(1\.02\)/);
+  assert.match(homeCss, /transform: scale\(1\.31\)/);
 });
 
 test("Home keeps username above smaller Watcher without changing its tap target or messages", () => {
