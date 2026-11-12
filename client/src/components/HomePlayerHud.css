@@ -386,9 +386,6 @@
   .home-player-hud--avatar-home .home-player-hud__party-panel {
     bottom: calc(22px + env(safe-area-inset-bottom, 0px));
   }
-  .home-player-hud--avatar-home .home-player-hud__progress {
-    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 28px);
-  }
   .home-player-hud--avatar-home .home-player-hud__slot {
     width: min(100%, clamp(58px, 17vw, 68px));
   }
@@ -413,7 +410,7 @@
   height: clamp(37px, 10vw, 51px);
 }
 .home-player-hud--avatar-home .home-player-hud__progress {
-  top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px));
+  top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 8px));
   width: min(calc(100vw - 28px), clamp(185px, var(--home-xp-art-width, 220px), 330px));
 }
 .home-player-hud--avatar-home .home-player-hud__xp-row { height: auto; }
@@ -664,7 +661,7 @@
   /* Compress the visual arc on short phones, without shortening XP math
      or taking touch area from the five pets. */
   .home-player-hud--avatar-home .home-player-hud__progress {
-    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 2px));
+    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 12px));
     width: min(calc(100vw - 28px), clamp(170px, var(--home-xp-art-width, 220px), 330px));
   }
   .home-player-hud--avatar-home .home-player-hud__xp-row,
