@@ -312,13 +312,26 @@ export function registerWorldSceneContentRoutes(app: Express, {
       });
       if (!(await withinLimit(db, worldScenePlacements, worldId, MAX_OBJECTS)))
         return res.status(409).json({ message: "World placement limit reached" });
+      // A world asset is the decor type. Copying/placing that asset must
+      // inherit the existing type behavior even when an older client sends
+      // default fields. Do not let a new placement silently reclassify it.
+      const [sameType] = kind === "decor" ? await db.select({
+        isWaterSource: worldScenePlacements.isWaterSource,
+        decorSurface: worldScenePlacements.decorSurface,
+      }).from(worldScenePlacements).where(and(
+        eq(worldScenePlacements.worldId, worldId),
+        eq(worldScenePlacements.kind, "decor"),
+        eq(worldScenePlacements.assetId, assetId),
+      )).orderBy(asc(worldScenePlacements.createdAt)).limit(1) : [];
       const [placed] = await db.insert(worldScenePlacements).values({
         worldId, kind, assetId: kind === "effect" || kind === "npc" ? null : assetId,
         npcId: kind === "npc" ? npcId : null, effectType,
         effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, layer: body.layer,
-        decorEffects, isWaterSource, decorSurface, isShop, legacyLocationId, shopItemIds, shopItemPlacements: [],
+        decorEffects, isWaterSource: sameType?.isWaterSource ?? isWaterSource,
+        decorSurface: sameType?.decorSurface ?? decorSurface,
+        isShop, legacyLocationId, shopItemIds, shopItemPlacements: [],
       }).returning();
       return res.status(201).json(placed);
     } catch (error) {
@@ -428,12 +441,17 @@ export function registerWorldSceneContentRoutes(app: Express, {
       const updated = await db.transaction(async tx => {
         const [placed] = await tx.update(worldScenePlacements).set(changes).where(
           and(eq(worldScenePlacements.worldId, worldId), eq(worldScenePlacements.id, saved.id))).returning();
-        // Match Pet Park linked decorations: artwork and attached visual effects
-        // belong to this world asset, but each copy keeps its own position,
-        // size and orientation. Never synchronize placements across worlds.
-        if (placed && saved.kind === "decor" && saved.assetId && "decorEffects" in changes) {
+        // An asset is the decor type: synchronize role, water-source status
+        // and linked visual effects for all copies within THIS world, but not
+        // placement transforms, NPCs, buildings, or neighboring world assets.
+        if (placed && saved.kind === "decor" && saved.assetId &&
+            ("decorEffects" in changes || "decorSurface" in changes || "isWaterSource" in changes)) {
           await tx.update(worldScenePlacements)
-            .set({ decorEffects: changes.decorEffects })
+            .set({
+              ...("decorEffects" in changes ? { decorEffects: placed.decorEffects } : {}),
+              ...( "decorSurface" in changes || "isWaterSource" in changes
+                ? { decorSurface: placed.decorSurface, isWaterSource: placed.isWaterSource } : {}),
+            })
             .where(and(
               eq(worldScenePlacements.worldId, worldId),
               eq(worldScenePlacements.kind, "decor"),
