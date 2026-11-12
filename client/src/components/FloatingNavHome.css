@@ -96,7 +96,7 @@
    vertical spacing; route behavior and tap-to-reveal labels are unchanged. */
 .home-realm-shortcuts {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: -4px;
   z-index: 97;
   width: 62px;
