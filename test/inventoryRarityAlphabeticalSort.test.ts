@@ -23,6 +23,15 @@ test("Mini Pets and other starred items sort rarity descending then name ascendi
   assert.deepEqual([...mini].sort(compareInventoryByRarityThenName).map(x=>x.name),
     ["Amber","Zebra","Blue","Clover","Unranked"]);
 });
+test("starRarity from the inventory API is honored over legacy rarity", () => {
+  const ranked=[
+    {name:"Legacy Five",rarity:5,starRarity:2},
+    {name:"Actual Four",rarity:1,starRarity:4},
+    {name:"Ranked Three",rarity:null,starRarity:3},
+  ];
+  assert.deepEqual([...ranked].sort(compareInventoryByRarityThenName).map(x=>x.name),
+    ["Actual Four","Ranked Three","Legacy Five"]);
+});
 test("pet nickname is the alphabetical label and pet level is never a tie breaker", () => {
   const pets=[
     {name:"Wolf",petNickname:"Zed",rarity:4,inventoryId:"b"},

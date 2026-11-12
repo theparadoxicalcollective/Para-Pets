@@ -64,6 +64,7 @@ const pets=[
 ];
 const bagItem=(type,id,name,rarity=null)=>({
   ...ownedPet(id,name,rarity,false,1),type,quantity:1,
+  starRarity:rarity,
 });
 const bagItems=[
   bagItem("mini_pet","mini-c","Blue Sprite",3),

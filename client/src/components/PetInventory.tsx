@@ -95,6 +95,7 @@ interface InventoryItem {
   imageUrl: string | null;
   worldId: string;
   rarity: number | null;
+  starRarity?: number | null;
   hatchTime: number | null;
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;

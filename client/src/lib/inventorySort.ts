@@ -6,6 +6,7 @@ export type InventorySortable = {
   name: string;
   petNickname?: string | null;
   rarity?: number | null;
+  starRarity?: number | null;
   inventoryId?: string;
   shopItemId?: string;
   key?: string;
@@ -21,8 +22,12 @@ export function compareInventoryByRarityThenName(
   a: InventorySortable,
   b: InventorySortable,
 ): number {
-  const starA = typeof a.rarity === "number" && Number.isFinite(a.rarity) ? a.rarity : 0;
-  const starB = typeof b.rarity === "number" && Number.isFinite(b.rarity) ? b.rarity : 0;
+  // The inventory API exposes both fields. Most Mini Pets use rarity, while
+  // some starred shop categories store the authoritative stars in starRarity.
+  const aStars = a.starRarity ?? a.rarity;
+  const bStars = b.starRarity ?? b.rarity;
+  const starA = typeof aStars === "number" && Number.isFinite(aStars) ? aStars : 0;
+  const starB = typeof bStars === "number" && Number.isFinite(bStars) ? bStars : 0;
   const rarityDifference = starB - starA;
   if (rarityDifference !== 0) return rarityDifference;
 
