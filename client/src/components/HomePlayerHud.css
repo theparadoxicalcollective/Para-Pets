@@ -389,9 +389,6 @@
   .home-player-hud--avatar-home .home-player-hud__slot {
     width: min(100%, clamp(58px, 17vw, 68px));
   }
-  .home-player-hud--avatar-home .home-player-hud__pet-renderer {
-    transform: scale(1.23);
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud--avatar-home .home-player-hud__stars img,
@@ -557,7 +554,7 @@
   pointer-events: none;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-portrait {
-  inset: -2px 2px 5px;
+  inset: -2px 2px 2px;
   display: block;
   overflow: visible;
   border: 0;
@@ -582,9 +579,9 @@
   > .home-player-hud__fallback-pet { opacity: 0; }
 .home-player-hud__mini-companion {
   position: absolute;
-  right: -1%;
-  bottom: 9%;
-  width: 29%;
+  right: -9%;
+  bottom: 6%;
+  width: 43%;
   aspect-ratio: 1;
   z-index: 3;
   pointer-events: none;
@@ -616,7 +613,7 @@
   opacity: 1;
   text-shadow: 0 2px 4px #001b10, 0 0 8px #001b10;
 }
-.home-player-hud--avatar-home .home-player-hud__slot-stars { top: -9px; }
+.home-player-hud--avatar-home .home-player-hud__slot-stars { top: -28px; }
 .home-player-hud--avatar-home .home-player-hud__slot:disabled {
   opacity: 1;
   cursor: progress;
@@ -653,7 +650,8 @@
 /* Pet size and ornament positions stay tied to their own slot, not to
    the overall page height. Preserve the animator's House-mode blink. */
 .home-player-hud--avatar-home .home-player-hud__pet-renderer {
-  transform: scale(1.31);
+  /* The composite shares its foot line with the oval, not the slot center. */
+  transform: translateY(6px) scale(1.16);
   transform-origin: center bottom;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-placeholder img {
@@ -677,4 +675,12 @@
   .home-player-hud--avatar-home .home-player-hud__slot:nth-child(5) { transform: translateY(-17px); }
   .home-player-hud--avatar-home .home-player-hud__slot:nth-child(2),
   .home-player-hud--avatar-home .home-player-hud__slot:nth-child(4) { transform: translateY(-7px); }
+}
+
+/* Smaller phone viewports keep companions above their ovals without clipping. */
+@media (max-height: 690px) {
+  .home-player-hud--avatar-home .home-player-hud__pet-renderer {
+    transform: translateY(4px) scale(1.09);
+  }
+  .home-player-hud--avatar-home .home-player-hud__slot-stars { top: -25px; }
 }
