@@ -8,7 +8,7 @@ type RegisteredUser = InsertUser & {
 };
 
 /** The fixed, least-privilege fields used for every self-service registration. */
-export function createRegisteredUser(input: Pick<InsertUser, "username" | "email" | "password" | "profileImage">): RegisteredUser {
+export function createRegisteredUser(input: Pick<InsertUser, "username" | "email" | "password" | "profileImage" | "timeZone">): RegisteredUser {
   return {
     ...input,
     isAdmin: false,

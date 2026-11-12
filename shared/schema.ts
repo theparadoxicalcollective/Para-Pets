@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   profileImage: text("profile_image"),
+  timeZone: text("time_zone"),
   coins: integer("coins").notNull().default(0),
   essence: integer("essence").notNull().default(1000),
   raidTotalDamage: integer("raid_total_damage").notNull().default(0),

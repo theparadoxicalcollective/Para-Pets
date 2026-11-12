@@ -12,6 +12,9 @@ import { sql } from "drizzle-orm";
 
 /** Schema work that must finish before routes are registered and the listener starts. */
 export async function runEssentialBoot(): Promise<void> {
+  // Add the account preference before any auth route reads the user record.
+  // Existing accounts retain their current device-local clock until updated.
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS time_zone TEXT`);
   // Create disabled-by-default Pet Park tables before any park routes can register.
   await ensurePetParkStorage();
   await ensureGardenStorage();

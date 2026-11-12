@@ -103,7 +103,7 @@ app.post("/api/auth/register", async (req, res) => {
       const issue = parsed.error.issues[0];
       return res.status(400).json({ field: issue.path[0], message: issue.message });
     }
-    const { username, email, password, profileImageData, referrer } = parsed.data;
+    const { username, email, password, profileImageData, referrer, timeZone } = parsed.data;
     if (await containsBadWord(username)) {
       return res.status(400).json({ field: "username", message: "That username contains a forbidden word. Please choose another." });
     }
@@ -147,6 +147,7 @@ app.post("/api/auth/register", async (req, res) => {
       email,
       password: hashedPassword,
       profileImage: profileImagePath,
+      timeZone: timeZone ?? null,
     }));
 
     try {

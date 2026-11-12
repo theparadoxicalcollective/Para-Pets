@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { isValidPlayerTimeZone } from "./playerTimeZone";
+
+export const playerTimeZoneSchema = z.string().max(80).refine(isValidPlayerTimeZone, "Choose a valid time zone");
 
 export const accountEmailSchema = z.string().trim().toLowerCase().max(254).email("Please enter a valid email address");
 export const accountUsernameSchema = z.string().trim().min(3, "Username must be between 3 and 20 characters").max(20, "Username must be between 3 and 20 characters")
@@ -11,6 +14,7 @@ export const registrationSchema = z.object({
   email: accountEmailSchema,
   password: newAccountPasswordSchema,
   profileImageData: z.string().max(4_000_000).nullish(),
+  timeZone: playerTimeZoneSchema.optional(),
   referrer: z.string().max(2048).optional(),
 });
 
