@@ -31,7 +31,7 @@ import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import PetParkDecorEffects from "@/components/PetParkDecorEffects";
 import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
 import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
-import { decorDrawDepth, decorRole, decorRoleUpdate, decorBlocksImagePoint, type DecorRole, type DecorSurface } from "@shared/decorSurface";
+import { decorDrawDepth, decorRole, decorRoleUpdate, decorBlocksWorldPoint, type DecorRole, type DecorSurface } from "@shared/decorSurface";
 import type { ParkEffectType } from "@shared/petParkEffects";
 import { X, Expand, LockKeyhole, Droplets, RotateCcw } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
@@ -578,6 +578,26 @@ export default function PetParkPage() {
     return pets.some(element => element !== source &&
       parkPetWouldObscureAnother(projected, parkVisiblePetArtworkBounds(element)));
   };
+  // A park pet's placement uses the same alpha-accurate barrier footprint that
+  // walking actors can use later. Grass/Ground remain passable, and transparent
+  // pixels of ordinary decor never block the chosen ground point.
+  const outdoorPointBlockedByDecor = (point: { xPct: number; yPct: number }) => {
+    if (!scene) return false;
+    const worldElement = document.querySelector<HTMLElement>("[data-park-world-artwork]");
+    if (!worldElement) return false;
+    return scene.items.some(item => {
+      if (item.kind !== "decor" || !item.imageUrl) return false;
+      return decorBlocksWorldPoint(item, point,
+        { width: sceneWidth, height: sceneHeight, scale }, (x, y) => {
+          const element = worldElement.querySelector<HTMLElement>(`[data-park-object-id="${item.id}"]`);
+          const image = element?.querySelector<HTMLImageElement>("img");
+          if (!image) return false;
+          const rect = image.getBoundingClientRect();
+          return parkImageHitAt(image, rect.left + x * rect.width,
+            rect.top + y * rect.height, item.flipped);
+        });
+    });
+  };
   const dropEquippedPet = (petId: string, clientX: number, clientY: number) => {
     const rect = viewport.current?.getBoundingClientRect();
     if (!rect || clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
@@ -589,6 +609,10 @@ export default function PetParkPage() {
     const xPct = (clientX - rect.left - camera.x) / sceneWidth;
     const yPct = (clientY - rect.top - camera.y) / sceneHeight;
     if (xPct < 0 || xPct > 1 || yPct < 0 || yPct > 1) return;
+    if (outdoorPointBlockedByDecor({ xPct, yPct })) {
+      toast({ title: "That spot is blocked", description: "Choose an opening beside the decoration." });
+      return;
+    }
     const inventoryId = deposits.find(item => item.id === petId)?.petInventoryId;
     if (inventoryId && outdoorOverlapsAnotherPet(inventoryId, { xPct, yPct })) {
       toast({ title: "That spot is occupied", description: "Place your pet a little to the side." });
@@ -771,6 +795,10 @@ export default function PetParkPage() {
     if (!moved) return;
     const next = outdoorPetPosition(drag, event.clientX, event.clientY);
     suppressOutdoorInspectUntil.current = Date.now() + 450;
+    if (outdoorPointBlockedByDecor({ xPct: next.x, yPct: next.y })) {
+      toast({ title: "That spot is blocked", description: "Choose an opening beside the decoration." });
+      return;
+    }
     if (outdoorOverlapsAnotherPet(drag.petInventoryId, { xPct: next.x, yPct: next.y })) {
       toast({ title: "That spot is occupied", description: "Move slightly to the side so both pets stay visible." });
       return;
