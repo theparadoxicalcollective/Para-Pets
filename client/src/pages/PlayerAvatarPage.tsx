@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, RefreshCw } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, playerClothingCanRecolor, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
-import { REQUIRED_AVATAR_CREATION_CATEGORIES, type AvatarCreationOutfit,
+import { requiredAvatarCreationCategoriesForBody, type AvatarCreationOutfit,
   type AvatarCharacterOutfit } from "@shared/playerAvatarEquipment";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -56,7 +56,6 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   // No wardrobe is expanded until a player taps its category icon.
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
-  const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
   // Each tap remounts one short, CSS-only burst. No timers, audio or costly
   // particle loop; the animation disappears completely for reduced motion.
   const [sparkle, setSparkle] = useState({ token: 0, kind: "choice" as "choice" | "save" });
@@ -133,8 +132,10 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setSkinChoice(undefined);
       setWardrobeOpen(false);
       setSkinPickerOpen(false);
-      setSaveConfirmationOpen(true);
-      showSparkle("save");
+      // The existing global toast survives route changes. Close the editor
+      // only after the server has confirmed the complete character save.
+      toast({ title: "Character saved", duration: 2800 });
+      navigate(fromHome ? "/" : "/bag");
     },
     onError: (error: Error, input) => {
       if (input.accountId === userId) {
@@ -166,8 +167,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setSkinChoice(undefined);
       setSkinPickerOpen(false);
       setWardrobeOpen(false);
-      showSparkle("save");
-      // No intermediate confirmation popup; the Save button is the commit.
+      toast({ title: "Character saved", duration: 2800 });
+      navigate(fromHome ? "/" : "/bag");
     },
     onError: (error: Error, input) => {
       if (input.accountId === userId)
@@ -227,7 +228,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     };
     return choices;
   }, {} as Partial<AvatarCreationOutfit>);
-  const missingFirstOutfit = REQUIRED_AVATAR_CREATION_CATEGORIES.filter(slot => !firstOutfit[slot]);
+  const requiredFirstOutfit = requiredAvatarCreationCategoriesForBody(selectedBody?.name);
+  const missingFirstOutfit = requiredFirstOutfit.filter(slot => !firstOutfit[slot]);
   // Full draft for one atomic edit save. Existing selections survive body
   // changes only when they still fit that body; nothing is committed yet.
   const draftOutfit = PLAYER_CLOTHING_CATEGORIES.reduce((choices, slot) => {
@@ -268,7 +270,15 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
   const chooseClothing = (item: OwnedAvatarClothing) => {
     if (busy || !canWearOnBody(item)) return;
-    setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
+    setPreviewSelections(current => {
+      // Undefined means "unchanged saved garment"; tapping that garment
+      // again must also unequip it. Keep the entire choice local until Save.
+      const activeId = current[category] !== undefined ? current[category] :
+        avatar?.created && !resetPending
+          ? avatar.equipped.find(entry => entry.category === category)?.inventoryId ?? null
+          : null;
+      return { ...current, [category]: activeId === item.inventoryId ? null : item.inventoryId };
+    });
     showSparkle();
   };
   const toggleTuck = (checked: boolean) => {
@@ -384,7 +394,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   <span className="sr-only">{PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
                   {(avatar.created ? draftOutfit[slot] : firstOutfit[slot]) &&
                     <span className="player-avatar-page__equipped-dot" aria-hidden="true" />}
-                  {!avatar.created && REQUIRED_AVATAR_CREATION_CATEGORIES.some(required => required === slot) &&
+                  {!avatar.created && requiredFirstOutfit.some(required => required === slot) &&
                     !firstOutfit[slot] && <span className="player-avatar-page__required-dot" aria-hidden="true">!</span>}
                 </button>
               ))}
@@ -562,7 +572,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   data-testid="avatar-required-clothing-status">
                   {missingFirstOutfit.length
                     ? `Choose ${missingFirstOutfit.map(slot => PLAYER_CLOTHING_CATEGORY_LABELS[slot]).join(", ")} before saving.`
-                    : "Top, Bottoms and Face selected. All other clothing is optional."}
+                    : `${requiredFirstOutfit.map(slot => PLAYER_CLOTHING_CATEGORY_LABELS[slot]).join(", ")} selected. All other clothing is optional.`}
                 </p>
               )}
               <button type="button"
@@ -589,22 +599,6 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
           </>
         ) : null}
       </div>
-      {saveConfirmationOpen && (
-        <div className="player-avatar-page__saved-overlay"
-          data-testid="avatar-save-confirmation-overlay">
-          <section role="dialog" aria-modal="true"
-            aria-labelledby="avatar-save-confirmation-title"
-            data-testid="avatar-save-confirmation"
-            className="player-avatar-page__saved-dialog">
-            <Sparkles size={35} aria-hidden="true" className="player-avatar-page__saved-sparkle" />
-            <h2 id="avatar-save-confirmation-title">Character Saved</h2>
-            <p>Your character's appearance has been saved. Tap your character on Home whenever you want to customize it again.</p>
-            <button type="button" autoFocus
-              data-testid="avatar-save-confirmation-close"
-              onClick={() => setSaveConfirmationOpen(false)}>Continue</button>
-          </section>
-        </div>
-      )}
     </main>
   );
 }

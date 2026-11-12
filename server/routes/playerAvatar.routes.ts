@@ -229,9 +229,14 @@ export function registerPlayerAvatarRoutes(
         if (!base || !available)
           return { status: 422 as const, message: "Save all eight body parts before selecting this character" };
 
+        // Enforce body-specific first-save requirements on the server too:
+        // Masc may be topless; Fem still needs Top, with Bottoms and Face on both.
+        // The shared schema requires Bottoms and Face regardless of body.
+        if (base.name.trim().toLowerCase() !== "masc" && !input.data.outfit.top)
+          return { status: 422 as const, message: "Choose a Top before saving a Fem character" };
         // Validate every selected garment before creating a profile or stock.
-        // Required Top, Bottoms and Face plus any optional previewed pieces are
-        // committed atomically. An invalid/stale item leaves no partial avatar.
+        // Selected optional items are committed atomically with required ones.
+        // An invalid/stale item leaves no partial avatar.
         const outfitToSave: Array<{
           category: PlayerClothingCategory;
           inventoryId: string | null; shopItemId: string; colorTint: string | null;
@@ -289,7 +294,7 @@ export function registerPlayerAvatarRoutes(
                 universal: item.universal, publishedSegmentsCount: parsed.data.segments.length,
               })) {
             return { status: 422 as const,
-              message: "One selected clothing item is unavailable. Choose a valid Top, Bottoms and Face." };
+              message: "One selected clothing item is unavailable. Choose another item that fits this body." };
           }
           if (!playerClothingCanRecolor(category, item.colorPickerEnabled) && selection.colorTint != null)
             return { status: 422 as const, message: "This clothing does not offer a color picker" };

@@ -514,53 +514,6 @@
   .player-avatar-page__category { transition: none; }
 }
 
-/* The save confirmation is deliberately local to the avatar viewport,
-   independent of home HUD overlays or an old reference phone plane. */
-.player-avatar-page__saved-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: calc(18px + env(safe-area-inset-top, 0px)) 18px
-    calc(18px + env(safe-area-inset-bottom, 0px));
-  background: rgba(3, 15, 9, .76);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-.player-avatar-page__saved-dialog {
-  box-sizing: border-box;
-  width: min(100%, 390px);
-  max-height: 90dvh;
-  overflow-y: auto;
-  padding: 24px 20px 21px;
-  border: 2px solid #d5b671;
-  border-radius: 25px;
-  background: radial-gradient(ellipse at 50% 0%, #355b3d, #143223 75%);
-  box-shadow: inset 0 0 22px #e9d4901c, 0 18px 70px #000b;
-  color: #f5e2b4;
-  text-align: center;
-}
-.player-avatar-page__saved-sparkle { color: #f3d58f; margin: 0 auto 7px; }
-.player-avatar-page__saved-dialog h2 {
-  margin: 0 0 11px;
-  font: 700 25px Georgia, serif;
-  color: #ffe6a5;
-  text-shadow: 0 2px 5px #0008;
-}
-.player-avatar-page__saved-dialog p { margin: 0 auto 19px; max-width: 300px; font: 13px/1.6 Georgia, serif; }
-.player-avatar-page__saved-dialog button {
-  min-width: 145px;
-  min-height: 46px;
-  padding: 9px 22px;
-  border: 1px solid #ebd28e;
-  border-radius: 24px;
-  color: #fff1c6;
-  background: linear-gradient(170deg,#688246,#294e30);
-  font: 700 15px Georgia, serif;
-  touch-action: manipulation;
-}
-
 /* Character creator mobile/tablet shelf refinements. Keep the header and
    preview fixed, while the lower controls scroll inside the usable viewport. */
 .player-avatar-page__details { display: flex; flex-direction: column; }
@@ -646,8 +599,8 @@ body:has(.player-avatar-page) { background: #071810; }
   background: linear-gradient(165deg,#193c29 0%,#112a1e 47%,#071810 100%) !important;
 }
 
-/* New character creation makes only Top, Bottoms and Face mandatory.
-   Small gold markers and an always-visible explanation avoid surprise saves. */
+/* New character creation requires a Top only for Fem bodies; Bottoms
+   and Face remain required on both. Gold markers match the active body. */
 .player-avatar-page__required-dot {
   position: absolute;
   top: -5px;
