@@ -8,6 +8,7 @@ const fixture=[
   'import React,{useState} from "react";',
   'import {createRoot} from "react-dom/client";',
   'import PlayerTimeZoneSelect from "@/components/PlayerTimeZoneSelect";',
+  'import "@/index.css";',
   'import {isNightInteriorArtworkActive} from "@/lib/homeOutdoorLighting";',
   'function Fixture(){',
   ' const [signup,setSignup]=useState("America/New_York");',
