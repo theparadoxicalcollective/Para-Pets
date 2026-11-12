@@ -6,7 +6,9 @@ const read=(path:string)=>readFileSync(path,"utf8");
 test("Home player slots remain fixed when a pet swap starts or finishes saving", () => {
   const css=read("client/src/components/HomePlayerHud.css");
   const hud=read("client/src/components/HomePlayerHud.tsx");
-  assert.match(css,/grid-auto-rows: clamp\(68px, 19vw, 95px\)/);
+  assert.match(css,/\.home-player-hud--avatar-home \.home-player-hud__team \{[^}]*position: relative;[^}]*display: block/s);
+  assert.match(css,/\.home-player-hud--avatar-home \.home-player-hud__slot \{[^}]*position: absolute/s);
+  assert.match(css,/home-player-hud__slot--position-2/);
   assert.match(css,/\.home-player-hud--avatar-home \.home-player-hud__status \{\s*position: absolute/);
   assert.match(css,/\.home-player-hud--avatar-home \.home-player-hud__slot:disabled \{\s*opacity: 1/);
   assert.match(hud,/key=\{index\}/);
