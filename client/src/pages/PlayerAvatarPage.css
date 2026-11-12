@@ -670,3 +670,37 @@ body:has(.player-avatar-page) { background: #071810; }
   text-align: center;
   font: 12px/1.5 Georgia, serif;
 }
+
+/* One visible bottom commit for both new and edited characters. The wardrobe
+   keeps scrolling independently; iOS home indicators never cover Save. */
+.player-avatar-page__save-footer {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 9px 8px max(10px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(224, 189, 113, .55);
+  background: linear-gradient(180deg, rgba(19, 51, 32, .92), rgba(9, 33, 21, .98));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 4;
+}
+.player-avatar-page__save-footer button {
+  min-width: min(240px, 86vw);
+  min-height: 46px;
+  padding: 9px 22px;
+  border: 1px solid #e7c985;
+  border-radius: 25px;
+  color: #fff1c9;
+  background: linear-gradient(150deg, #345a39, #163e29);
+  font: 700 15px Georgia, serif;
+  touch-action: manipulation;
+  box-shadow: 0 4px 9px #06190db0, inset 0 1px 0 #e7d09324;
+}
+.player-avatar-page__save-footer .player-avatar-page__required-hint {
+  margin: 0 auto 3px;
+}
+@media (max-height: 650px) {
+  .player-avatar-page__save-footer { padding-top: 5px; padding-bottom: 5px; }
+  .player-avatar-page__save-footer button { min-height: 44px; }
+}
