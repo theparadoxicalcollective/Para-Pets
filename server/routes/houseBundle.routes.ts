@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { and, asc, eq } from "drizzle-orm";
-import { homeDecorItems, houseBundleIncludedItems, houseBundles as houseBundlesTable, shopItems } from "@shared/schema";
+import { homeDecorItems, houseBundleGardenPlots, houseBundleIncludedItems, houseBundles as houseBundlesTable, shopItems } from "@shared/schema";
+import { HOME_GARDEN_PLOT_DEFAULT_SIZE, HOME_GARDEN_PLOT_MAX_PER_BUNDLE, validHomeGardenCoordinate, validHomeGardenSize } from "@shared/homeBundleGardenPlots";
 import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHomeOutdoorLightingMode, isHouseBuildingType, isHouseInteriorLightEffectType, sanitizeHouseBundleIncludedItemQuantity, sanitizeHouseInteriorDarkness, sanitizeHouseInteriorEffects, sanitizeHouseOutdoorEffects } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
@@ -238,6 +239,75 @@ export function registerHouseBundleRoutes(
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
+  });
+
+  // ── Outdoor Garden Plots (bundle-authored geometry, NOT inventory) ──────────
+  const listGardenPlots = async (bundleId: string) =>
+    db.select().from(houseBundleGardenPlots)
+      .where(eq(houseBundleGardenPlots.bundleId, bundleId))
+      .orderBy(asc(houseBundleGardenPlots.createdAt), asc(houseBundleGardenPlots.id));
+
+  // The authored outdoor ground is public scene information, just like the
+  // bundle's background/buildings. No account garden state is exposed here.
+  app.get("/api/house-bundles/:bundleId/garden-plots", async (req, res) => {
+    try { return res.json(await listGardenPlots(req.params.bundleId as string)); }
+    catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/admin/house-bundles/:bundleId/garden-plots", isAdmin, async (req, res) => {
+    try { return res.json(await listGardenPlots(req.params.bundleId as string)); }
+    catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/house-bundles/:bundleId/garden-plots", isAdmin, async (req, res) => {
+    const bundleId = req.params.bundleId as string;
+    const { xPct = 0.5, yPct = 0.52, size = HOME_GARDEN_PLOT_DEFAULT_SIZE } = req.body ?? {};
+    if (!validHomeGardenCoordinate(xPct) || !validHomeGardenCoordinate(yPct) ||
+        !validHomeGardenSize(size))
+      return res.status(400).json({ message: "Choose a valid outdoor Garden Plot position and size" });
+    try {
+      const [bundle] = await db.select({ id: houseBundlesTable.id }).from(houseBundlesTable)
+        .where(eq(houseBundlesTable.id, bundleId)).limit(1);
+      if (!bundle) return res.status(404).json({ message: "Home Bundle not found" });
+      const plots = await listGardenPlots(bundleId);
+      if (plots.length >= HOME_GARDEN_PLOT_MAX_PER_BUNDLE)
+        return res.status(409).json({ message: "This Home Bundle has reached its Garden Plot limit" });
+      const [plot] = await db.insert(houseBundleGardenPlots)
+        .values({ bundleId, xPct, yPct, size }).returning();
+      return res.status(201).json(plot);
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/admin/house-bundle-garden-plots/:id", isAdmin, async (req, res) => {
+    const patch: Partial<typeof houseBundleGardenPlots.$inferInsert> = {};
+    for (const key of ["xPct", "yPct"] as const) {
+      if (req.body?.[key] !== undefined) {
+        if (!validHomeGardenCoordinate(req.body[key]))
+          return res.status(400).json({ message: "Garden Plot positions must be between 2% and 98%" });
+        patch[key] = req.body[key];
+      }
+    }
+    if (req.body?.size !== undefined) {
+      if (!validHomeGardenSize(req.body.size))
+        return res.status(400).json({ message: "Invalid Garden Plot size" });
+      patch.size = req.body.size;
+    }
+    if (!Object.keys(patch).length)
+      return res.status(400).json({ message: "No Garden Plot changes supplied" });
+    try {
+      const [plot] = await db.update(houseBundleGardenPlots).set(patch)
+        .where(eq(houseBundleGardenPlots.id, req.params.id as string)).returning();
+      return plot ? res.json(plot) : res.status(404).json({ message: "Garden Plot not found" });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/house-bundle-garden-plots/:id", isAdmin, async (req, res) => {
+    try {
+      const [plot] = await db.delete(houseBundleGardenPlots)
+        .where(eq(houseBundleGardenPlots.id, req.params.id as string))
+        .returning({ id: houseBundleGardenPlots.id });
+      return plot ? res.json({ ok: true }) : res.status(404).json({ message: "Garden Plot not found" });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
   });
 
   // ── Home Bundle included Decor / Objects ───────────────────────────────────
