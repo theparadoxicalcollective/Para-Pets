@@ -22,7 +22,7 @@ export default function DecorSurfaceSelector({
     className="rounded-xl border border-[#c9a85d] bg-[#102c20] p-3 text-[#fae8b6]">
     <legend className="px-2 text-sm font-bold text-[#ffe4a1]">Decoration behavior</legend>
     <p className="mb-3 text-xs leading-relaxed text-[#f4dfad]">
-      Choose one. Existing decorations default to Barrier. This setting belongs to this placed item.
+      Choose one. Existing decorations default to Barrier. All copies of the same decoration share this setting.
     </p>
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {OPTIONS.map(option => {
