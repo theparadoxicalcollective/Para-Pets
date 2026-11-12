@@ -1,7 +1,7 @@
 /** Home XP placement remains relative to intrinsic background artwork.
  * The optional depth upgrades previously saved admin placements in place. */
 export const HOME_XP_DEFAULT_CURVE = 135;
-export const HOME_XP_MIN_CURVE = 105;
+export const HOME_XP_MIN_CURVE = 20;
 export const HOME_XP_MAX_CURVE = 220;
 export interface HomeXpAnchor { xPct: number; yPct: number; curveDepth?: number }
 
