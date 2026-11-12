@@ -1150,6 +1150,21 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Garden plots are bundle-authored outdoor scene features, not purchasable
+// inventory items. Separate persistence prevents duplication of player
+// inventory or accidental garden economy changes on bundle activation.
+export const houseBundleGardenPlots = pgTable("house_bundle_garden_plots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bundleId: varchar("bundle_id").notNull().references(() => houseBundles.id, { onDelete: "cascade" }),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(180),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, table => [
+  index("house_bundle_garden_plots_bundle_idx").on(table.bundleId),
+]);
+export type HouseBundleGardenPlot = typeof houseBundleGardenPlots.$inferSelect;
+
 // ── Home Bundle Included Decor / Objects ──────────────────────────────────────
 // One catalog item per bundle row. Quantity changes are deliberate and player
 // delivery is tracked separately so refreshes, relists, and Home switching are
