@@ -196,7 +196,8 @@ test("world creator keeps Pet Park-style one-step forms without a mandatory asse
   assert.match(form, /WorldDecorEffectEditor/);
   assert.match(form, /Tap Image/);
   assert.match(form, /Starting size/);
-  assert.match(form, /Water Source/);
+  assert.match(form, /testId="world-create-decor-behavior"/);
+  assert.match(readFileSync("client/src/components/DecorSurfaceSelector.tsx", "utf8"), /value: "water", label: "Water Source"/);
   assert.match(form, /\/assets/);
   assert.match(form, /\/placements/);
   assert.match(controls, /<WorldSceneCreateForm/);
@@ -206,7 +207,9 @@ test("world creator keeps Pet Park-style one-step forms without a mandatory asse
   assert.match(controls, /Replace Decoration Artwork/);
   assert.match(controls, /Edit decoration Tap Image/);
   assert.match(routes, /eq\(worldScenePlacements\.worldId, worldId\)/);
-  assert.match(routes, /saved\.kind === "decor" && saved\.assetId && "decorEffects" in changes/);
+  assert.match(routes, /saved\.kind === "decor" && saved\.assetId &&/);
+  assert.match(routes, /"decorEffects" in changes \|\| "decorSurface" in changes \|\| "isWaterSource" in changes/,
+    "linked World decoration types share effects and behavior");
 });
 
 test("browser CI includes an actual world editor phone/tablet fixture", () => {
