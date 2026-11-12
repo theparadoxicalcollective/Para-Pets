@@ -56,8 +56,8 @@ test("the eight wardrobe buttons are independent of the eight animation parts", 
   assert.match(page, /data-testid="avatar-clothing-category-panel"/);
   assert.match(page, /data-testid="avatar-skin-picker-toggle"/);
   assert.match(page, /\{skinPickerOpen && \(/);
-  assert.match(page, /data-testid="avatar-save-confirmation"/);
-  assert.match(page, /setSaveConfirmationOpen\(true\)/);
+  assert.match(page, /data-testid="avatar-save-celebration"/);
+  assert.match(page, /setSavedCelebration\(\{ accountId: input\.accountId \}\)/);
   assert.match(page, /setSkinPickerOpen\(false\)/);
   assert.match(page, /setWardrobeOpen\(false\)/);
   assert.match(page, /PlayerCharacterRenderer/);
@@ -179,7 +179,8 @@ test("the player page uses authenticated avatar APIs and previews until Save Cha
   assert.match(page, /"Character not saved"/);
   assert.match(page, /avatar.created \? "avatar-save-character-button" : "avatar-create-button"/);
   assert.match(page, /onClick=\{\(\) => chooseClothing\(item\)\}/);
-  assert.match(page, /setPreviewSelections\(current => \(\{ \.\.\.current, \[category\]: item\.inventoryId \}\)\)/);
+  assert.match(page, /const activeId = current\[category\] !== undefined/);
+  assert.match(page, /activeId === item\.inventoryId \? null : item\.inventoryId/);
   assert.doesNotMatch(page, /data-testid="avatar-equip-button"/);
   assert.match(page, /data-testid="avatar-unequip-button"/);
   assert.match(page, /data-testid="avatar-owned-inventory"/);

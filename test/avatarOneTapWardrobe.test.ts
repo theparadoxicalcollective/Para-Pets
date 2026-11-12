@@ -13,7 +13,8 @@ const empty = { head: null, hair: null, face: null, top: null, bottom: null,
 test("all body, tone, tuck, and clothing edits stay in preview until one Save Character action", () => {
   assert.match(source, /const chooseClothing =/);
   assert.match(source, /onClick=\{\(\) => chooseClothing\(item\)\}/);
-  assert.match(source, /setPreviewSelections\(current => \(\{ \.\.\.current, \[category\]: item\.inventoryId \}\)\)/);
+  assert.match(source, /const activeId = current\[category\] !== undefined/);
+  assert.match(source, /activeId === item\.inventoryId \? null : item\.inventoryId/);
   assert.match(source, /const toggleTuck =/);
   assert.match(source, /setTuckChoice\(\{ accountId: userId, value: checked \}\)/);
   assert.match(source, /setBodyChoiceId\(option\.id\)/);
@@ -87,11 +88,16 @@ test("choices show a short gold tap sparkle; reduced motion removes animations a
   assert.match(source, /key=\{sparkle.token\}/);
   assert.match(source, /className=\{\`player-avatar-page__sparkle-burst/);
   assert.match(source, /Array.from\(\{ length: 7 \}/);
-  assert.match(source, /showSparkle\("save"\)/);
+  assert.match(source, /data-testid="avatar-save-celebration"/);
+  assert.match(source, /Character Saved!/);
   assert.match(source, /onClick=\{\(\) => \{ setBodyChoiceId\(option.id\); showSparkle\(\); \}\}/);
   assert.match(css, /player-avatar-page__sparkle-burst \{[\s\S]*?pointer-events: none/);
   assert.match(css, /animation: avatar-choice-spark \.62s/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /\.player-avatar-page__sparkle-burst \{ display: none; \}/);
-  assert.doesNotMatch(source, /setInterval\(|setTimeout\(/);
+  assert.doesNotMatch(source, /setInterval\(/);
+  // One timeout closes the short reward card; it is cleaned on unmount or
+  // account switch, not used as a recurring character animation.
+  assert.match(source, /setTimeout\(\(\) => navigate/);
+  assert.match(source, /clearTimeout\(timeout\)/);
 });
