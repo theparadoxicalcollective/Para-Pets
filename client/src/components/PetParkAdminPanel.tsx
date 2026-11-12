@@ -5,6 +5,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
+import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
+import { decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
@@ -36,7 +38,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [pendingTapImage, setPendingTapImage] = useState<string | null>(null);
-  const [newWaterSource, setNewWaterSource] = useState(false);
+  const [newDecorRole, setNewDecorRole] = useState<DecorRole>("barrier");
   const [newDecorEffects, setNewDecorEffects] = useState<ParkDecorEffect[]>([]);
   const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [itemSize, setItemSize] = useState(100);
@@ -68,7 +70,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       if (!isBuilding && !isItem) return;
       const created = result?.building ?? result?.item ?? result;
       if (isBuilding) { setBuildingImage(null); setInteriorImage(null); setNightInteriorImage(null); setBuildingIsShop(false); }
-      if (isItem) { setPendingImage(null); setPendingTapImage(null); setNewWaterSource(false); setNewDecorEffects([]); }
+      if (isItem) { setPendingImage(null); setPendingTapImage(null); setNewDecorRole("barrier"); setNewDecorEffects([]); }
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       if (typeof created?.id === "string") {
         onCreated?.({
@@ -286,20 +288,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           </div>
           <p className="text-[11px] text-amber-100/60">Size is saved when the object is created. Use Move park objects to position, resize or flip it afterward. Depth follows ground position automatically.</p>
         </div>
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3 text-xs text-[#f4d795]">
-          <input aria-label="Water Source" type="checkbox" checked={newWaterSource}
-            onChange={event => setNewWaterSource(event.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-[#d8bc67]" />
-          <span><strong className="block text-sm">Water Source</strong>
-            <span className="block text-[11px] text-amber-100/75">Allow refillable garden tools to collect water here. This decoration keeps its artwork and placement.</span>
-          </span>
-        </label>
+        <DecorSurfaceSelector name="park-new-decor-role" testId="park-new-decor-behavior"
+          value={newDecorRole} onChange={setNewDecorRole} disabled={mutation.isPending} />
         <button type="button" disabled={mutation.isPending || !pendingImage}
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
             kind: "decor", imageData: pendingImage, tapImageData: pendingTapImage,
-            decorEffects: newDecorEffects, effectType: null, isWaterSource: newWaterSource,
+            decorEffects: newDecorEffects, effectType: null, ...decorRoleUpdate(newDecorRole),
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
             size: itemSize, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding…" : "Add Decoration"}</button>
