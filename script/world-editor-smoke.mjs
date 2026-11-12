@@ -174,7 +174,18 @@ try {
       }
       if (req.method() === "POST" && tail === "placements") {
         const id = `40000000-0000-4000-8000-${String(createdIndex++).padStart(12, "0")}`;
-        const created = { id, worldId, ...req.postDataJSON() };
+        // Model the actual DB-returned defaults, not just the POST request.
+        // Without shopItemPlacements the newly created shop crashes when
+        // entering its room, masking genuine gesture and legacy link tests.
+        const created = {
+          id, worldId, kind: "decor", assetId: null, effectType: null,
+          effectColor: null, terrainKey: null,
+          xPct: .5, yPct: .5, size: 100, flipped: false, layer: 0,
+          decorEffects: [], isWaterSource: false, isShop: false,
+          legacyLocationId: null, shopItemIds: [], shopItemPlacements: [],
+          interiorDarkness: 35, interiorNightDarkness: null,
+          ...req.postDataJSON(),
+        };
         record.scene.placements.push(created);
         return route.fulfill({ status: 201, json: created });
       }
