@@ -260,8 +260,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorW = Math.min(size.width, size.height * interiorRatio);
   const interiorH = interiorW / interiorRatio;
   const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
-    .filter(item => item.buildingId === activeBuilding.id && isHouseInteriorEffectType(item.effectType))
-    .map(item => ({ id: item.id, type: item.effectType as HouseInteriorEffect["type"],
+    .filter(item => item.buildingId === activeBuilding.id &&
+      (isHouseInteriorEffectType(item.effectType) || item.effectType === "colored_light"))
+    // Colored Light is the customizable outdoor form of lamp_light. Even
+    // when saved inside an older building, its visible orb must cut a real
+    // light pool out of the room's existing darkness mask.
+    .map(item => ({ id: item.id,
+      type: (item.effectType === "colored_light" ? "lamp_light" : item.effectType) as HouseInteriorEffect["type"],
       x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
 
   useEffect(() => { setInteriorRatio(4 / 3); }, [activeBuildingId, interiorImageUrl]);

@@ -202,6 +202,7 @@ export default function WorldSceneControls(props: Props) {
   const control = "rounded-md border border-[#a88b49]/70 bg-[#21422c] px-2.5 py-2 text-[11px] font-semibold disabled:opacity-40";
   const danger = "rounded-md border border-red-300/40 bg-[#451f25] px-2.5 py-2 text-[11px] text-[#ffd4c9] disabled:opacity-40";
   const field = "w-full rounded-md border border-[#a88b49]/60 bg-[#132a20] p-2 text-xs text-[#f5e5bb]";
+  const disclosure = "space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-3 [&>summary]:cursor-pointer [&>summary]:select-none [&>summary]:min-h-9 [&>summary]:flex [&>summary]:items-center [&>summary]:font-semibold [&>summary]:text-[#f5d98e] [&>summary]:text-xs";
   const heading = "text-xs font-semibold text-[#f7d783]";
 
   const openCreator = (mode: Panel, kind: "decor" | "building" | null = null) => {
@@ -334,7 +335,7 @@ export default function WorldSceneControls(props: Props) {
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
           <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
             {panel === "library" ? (props.activeBuilding || assetKindFilter === "decor" ? "Decor / Objects" : "Add Building")
-              : panel === "effects" ? "World Effects"
+              : panel === "effects" ? (props.activeBuilding ? "Interior Effects" : "World Effects")
               : panel === "npc" ? "Add NPC"
               : panel === "selected" ? "Edit " + selectedName
               : panel === "shop" ? "Building Shop Setup"
@@ -413,10 +414,9 @@ export default function WorldSceneControls(props: Props) {
                 </span>
               </button>)}
           </div>
-          <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
-            Water Effects
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+          <details className={disclosure} data-testid="world-water-effect-options">
+            <summary>Water Effects</summary>
+          <div className="grid grid-cols-2 gap-2 pt-2">
             {EFFECT_CHOICES.filter(effect => effect.group === "water").map(effect =>
               <button key={effect.type} type="button"
                 data-testid={`add-world-effect-${effect.type}`} disabled={busy}
@@ -430,6 +430,7 @@ export default function WorldSceneControls(props: Props) {
                 </span>
               </button>)}
           </div>
+          </details>
           <p className="text-center text-xs text-amber-100/60">
             Tap to place, then drag the selected effect to move it.
           </p>
@@ -472,11 +473,18 @@ export default function WorldSceneControls(props: Props) {
               }}/>
           </label>}
         </div>
-        {currentAsset && <WorldDecorEffectEditor key={props.selected.id}
-          imageUrl={currentAsset.imageUrl} effects={props.selected.decorEffects} disabled={busy}
-          onChange={effects => void patchSelected({ decorEffects: effects })}/>}
-        {currentAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
-          data-testid="world-decoration-tap-image-editor">
+        {currentAsset && <details key={props.selected.id + ":effects"}
+          className={disclosure} defaultOpen={props.selected.decorEffects.length > 0}
+          data-testid="world-edit-decor-effects">
+          <summary>Attached lights &amp; effects ({props.selected.decorEffects.length})</summary>
+          <div className="pt-2"><WorldDecorEffectEditor
+            imageUrl={currentAsset.imageUrl} effects={props.selected.decorEffects} disabled={busy}
+            onChange={effects => void patchSelected({ decorEffects: effects })}/></div>
+        </details>}
+        {currentAsset && <details className={disclosure}
+          defaultOpen={Boolean(currentAsset.tapImageUrl)} data-testid="world-decoration-tap-image-editor">
+          <summary>Alternate Tap Image {currentAsset.tapImageUrl ? "(set)" : "(optional)"}</summary>
+          <div className="space-y-2 pt-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-[#f5d98e]">Tap Image
               <span className="ml-1 font-normal text-amber-100/70">(optional)</span>
@@ -497,20 +505,25 @@ export default function WorldSceneControls(props: Props) {
           <p className="text-[11px] text-amber-100/70">
             Alternate artwork changes every linked copy; each copy keeps its own position and size.
           </p>
-        </div>}
+          </div>
+        </details>}
       </>}
       {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
-        <WorldLegacyPagePicker worldId={props.worldId}
-          value={selectedLegacyPage}
-          onChange={id => { void patchLegacyPage(id); }}
-          disabled={busy} preview />
-        {currentAsset && <section className="space-y-2">
-          <p className="text-xs font-semibold text-amber-200">Exterior building lights & effects</p>
+        <details className={disclosure} data-testid="world-edit-building-page">
+          <summary>Link existing world page (optional)</summary>
+          <div className="pt-2"><WorldLegacyPagePicker worldId={props.worldId}
+            value={selectedLegacyPage}
+            onChange={id => { void patchLegacyPage(id); }}
+            disabled={busy} preview /></div>
+        </details>
+        {currentAsset && <details className={disclosure}
+          defaultOpen={props.selected.decorEffects.length > 0} data-testid="world-edit-building-effects">
+          <summary>Exterior building lights &amp; effects ({props.selected.decorEffects.length})</summary>
           <p className="text-[11px] text-amber-100/65">Facade lamps follow the outdoor day/night cycle and move with the building.</p>
           <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
             effects={props.selected.decorEffects} disabled={busy}
             onChange={effects => void patchSelected({ decorEffects: effects })}/>
-        </section>}
+        </details>}
         <label className="block space-y-1 text-xs">Building Name
           <input aria-label="Rename world building" value={buildingNameDraft}
             onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
@@ -520,7 +533,10 @@ export default function WorldSceneControls(props: Props) {
           disabled={busy || !buildingNameDraft.trim() || buildingNameDraft === currentAsset?.name}
           onClick={() => currentAsset && void mutate("PATCH", `/assets/${currentAsset.id}`,
             { name: buildingNameDraft.trim() })}>Save Name</button>
-        {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+        {currentAsset && <details className={disclosure} data-testid="world-edit-building-artwork">
+          <summary>Exterior &amp; interior artwork</summary>
+          <div className="space-y-2 pt-2">
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
           Replace Building Artwork
           <input type="file" aria-label="Replace building artwork" accept="image/png,image/jpeg"
             className="sr-only" disabled={busy} onChange={event => {
@@ -551,17 +567,17 @@ export default function WorldSceneControls(props: Props) {
             Remove nighttime image
           </button>}
         </div>}
+          </div>
+        </details>}
         <label className="flex items-center justify-between rounded-lg border border-[#b99a4c]/55 p-3 text-xs">
           <span>Is Shop · {props.selected.isShop ? "ON" : "OFF"}</span>
           <input type="checkbox" role="switch" aria-label="Is Shop building"
             checked={props.selected.isShop} disabled={busy}
             onChange={event => void patchSelected({ isShop: event.target.checked })}/>
         </label>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>
-          {props.selected.isShop && <button type="button" className={control}
-            onClick={() => openCreator("shop")}>Shop Setup</button>}
-        </div>
+        <p className="text-[11px] text-amber-100/65">
+          Enter Building and Shop Setup are also available directly on the selected object toolbar.
+        </p>
       </div>}
             {props.activeBuilding && <p className="text-xs text-amber-100/80">
               Use the on-scene controls to move, resize or flip this interior object.
