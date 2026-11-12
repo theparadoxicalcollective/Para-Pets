@@ -288,10 +288,16 @@ try {
       w.body.size === 300 && w.body.isShop === true &&
       w.body.legacyLocationId === legacyPages[0].id),
       name + ": building created with its original old-world page link");
-    const selectedLegacy = page.getByTestId("world-scene-selected-controls")
-      .getByTestId("select-world-legacy-page");
+    assert.equal(await page.getByText("Shop", { exact: true }).count(), 0,
+      name+": shop buildings never show a floating map label");
+    assert.equal(await page.getByTestId("world-scene-selected-controls")
+      .getByTestId("select-world-legacy-page").count(), 0);
+    await page.getByRole("button", { name: "Edit selected object details" }).click();
+    const details = page.getByTestId("world-edit-building-page");
+    await details.locator("summary").click();
+    const selectedLegacy = details.getByTestId("select-world-legacy-page");
     assert.equal(await selectedLegacy.inputValue(), legacyPages[0].id,
-      name + ": created building keeps legacy page selection");
+      name + ": building legacy link is edited in its existing details");
     const linkEdit = page.waitForResponse(r =>
       r.request().method() === "PATCH" && r.url().includes("/placements/"));
     await selectedLegacy.selectOption(legacyPages[1].id);
@@ -302,6 +308,7 @@ try {
       r.request().method() === "PATCH" && r.url().includes("/placements/"));
     await selectedLegacy.selectOption(legacyPages[0].id);
     await linkReset;
+    await page.getByRole("button", { name: "Close editor" }).click();
     await page.getByRole("button", { name: "Enter Building" }).click();
     try {
       await page.getByTestId("world-editor-interior").waitFor({ state: "visible", timeout: 9000 });
@@ -418,14 +425,23 @@ try {
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
     const atNormalZoom = await worldSprite.boundingBox();
     assert.ok(atNormalZoom);
-    // The World Editor must zoom out a little farther than the Pet Park 0.6
-    // minimum, while letting admins use the existing scene after zooming.
-    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom out" }).click();
-    const atWideZoom = await worldSprite.boundingBox();
-    assert.ok(atWideZoom && atWideZoom.width < atNormalZoom.width * .6,
-      name + ": Zoom out reaches a wider world view than the old 0.6 minimum");
-    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
-    const rect = await worldSprite.boundingBox();
+    // Optional scene settings replace the cramped second header row.
+    assert.equal(await page.getByTestId("button-world-options").count(),0);
+    await page.getByTestId("button-world-settings").click();
+    const zoomSlider=page.getByTestId("input-world-editor-zoom");
+    await zoomSlider.waitFor({state:"visible"});
+    await zoomSlider.focus();
+    await zoomSlider.press("ArrowLeft");
+    assert.ok(Number(await zoomSlider.inputValue())<1,
+      name+": zoom slider supports fine steps");
+    await page.getByTestId("button-world-fit").click();
+    const atWideZoom=await worldSprite.boundingBox();
+    assert.ok(atWideZoom && atWideZoom.width<atNormalZoom.width*.6,
+      name+": Fit shows the full authored world");
+    await page.getByRole("button",{name:"Reset world zoom"}).click();
+    assert.ok(Math.abs(Number(await zoomSlider.inputValue())-1)<.011);
+    await page.getByRole("button",{name:"Close World Settings"}).click();
+    const rect=await worldSprite.boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
     // The outer 26px of the source SVG are transparent. Its rectangular
     // button must not select or move anything when touched there.
@@ -548,12 +564,12 @@ try {
     assert.equal(apiWrites.filter(write => write.tail === "placements/" + ids.building &&
       write.body.interiorDarkness !== undefined).length, 1,
       name + ": a single keyboard gesture sends one save request");
-    await page.getByRole("button", { name: "Exit Interior" }).click();
+    await page.getByRole("button", { name: "Exit Room" }).click();
     await page.getByTestId("world-scene-placement-" + ids.building).click();
     await page.getByRole("button", { name: "Enter Building" }).click();
     assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
       name + ": reopening the building retains its saved darkness");
-    await page.getByRole("button", { name: "Exit Interior" }).click();
+    await page.getByRole("button", { name: "Exit Room" }).click();
     // The previously selected building intentionally stays selected when
     // leaving its room. Deselect before using the outdoor terrain toolbar.
     await page.getByRole("button", { name: "Deselect world object" }).click();
@@ -591,7 +607,7 @@ try {
     const ground = page.getByTestId("pet-park-painterly-terrain");
     assert.equal(await ground.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(57, 52, 65)",
       name + ": Haunted Woods uses a subtle purple world ground");
-    await page.getByTestId("button-world-options").click();
+    await page.getByTestId("button-world-settings").click();
     const themeControl = page.getByTestId("select-world-draft-ground-theme");
     await themeControl.selectOption("city");
     const savedCity = page.waitForResponse(r => r.url().endsWith("/draft") && r.request().method() === "PUT");
@@ -603,7 +619,9 @@ try {
       name + ": City saves as its own world theme using the original gray palette");
     assert.equal(await page.getByRole("button", { name: "Test Gardening" }).count(), 0,
       name + ": no Test Gardening mode in the world editor");
-    await page.getByTestId("button-world-options").click();
+    assert.equal(await page.getByTestId("world-scene-controls")
+      .getByRole("button",{name:"Clear all world terrain"}).count(),0);
+    await page.getByTestId("world-settings-clear-terrain").locator("summary").click();
     const cleared = page.waitForResponse(r => r.url().endsWith("/terrain") &&
       r.request().method() === "DELETE");
     await page.getByRole("button", { name: "Clear all world terrain" }).click();

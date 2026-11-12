@@ -16,7 +16,7 @@ import {
   worldTerrainCell, validDecorEffects, validEffect, validShopIds,
 } from "../shared/worlds/worldSceneContent";
 import { parkCameraGeometry, parkClampCamera, parkZoomAnchorPan } from "../client/src/lib/petParkCamera";
-import { WORLD_EDITOR_ZOOM_MIN, worldEditorMinZoom, worldEditorClampZoom, worldEditorCameraGeometry } from "../client/src/lib/worldEditorCamera";
+import { WORLD_EDITOR_ZOOM_MIN, worldEditorMinZoom, worldEditorClampZoom, worldEditorCameraGeometry, worldEditorClampCamera, worldEditorZoomAnchorPan } from "../client/src/lib/worldEditorCamera";
 
 test("Haunted Woods has a subtle purple world-only palette; City preserves original gray", () => {
   assert.equal(isWorldGroundTheme("city"), true);
@@ -58,7 +58,7 @@ test("World Editor City constraint migration uses valid paired PostgreSQL dollar
 test("object editing defaults to compact movement controls, with details opened only on demand", () => {
   const source = readFileSync("client/src/components/world-editor/WorldSceneControls.tsx", "utf8");
   const compact = source.split('data-testid="world-scene-selected-controls"')[1]
-    ?.split("    {expanded && <div")[0];
+    ?.split("    {expanded && panel === \"settings\"")[0];
   assert.ok(compact);
   assert.match(compact, /openCreator\("selected"\)/);
   assert.doesNotMatch(compact, /<WorldDecorEffectEditor|Replace Decoration Artwork/,
@@ -94,36 +94,39 @@ test("world terrain grid keys remain valid when the author expands the ground", 
   }
 });
 
-test("world editor zooms out beyond Pet Park without revealing blank edges", () => {
-  assert.equal(WORLD_EDITOR_ZOOM_MIN, 0.5);
+test("World Editor Fit reveals the full authored ground and centers small scenes", () => {
+  assert.equal(WORLD_EDITOR_ZOOM_MIN, 0.08);
   for (const [width, height] of [[390, 844], [834, 1194], [320, 768], [768, 1024]]) {
-    const min = worldEditorMinZoom(width, height, 1);
-    assert.ok(min >= .5 && min < .6, `world editor should allow extra zoom-out at ${width}x${height}`);
-    assert.equal(worldEditorClampZoom(0, width, height, 1), min);
-    const zoomed = worldEditorCameraGeometry(width, height, 1, min);
-    const park = parkCameraGeometry(width, height, 1, .6);
-    assert.ok(zoomed.sceneWidth >= width && zoomed.sceneHeight >= height,
-      `no outside-ground margins at ${width}x${height}`);
-    assert.ok(zoomed.scale < park.scale, "zoom-out is actually wider than the original 0.6 floor");
-    const pan = parkClampCamera({ x: -100000, y: 100000 }, zoomed);
-    assert.ok(pan.x <= 0 && pan.x >= -zoomed.limitX);
-    assert.ok(pan.y <= 0 && pan.y >= -zoomed.limitY);
-    const zoomedIn = worldEditorCameraGeometry(width, height, 1, 1);
-    const centered = parkZoomAnchorPan(
-      { x: -zoomedIn.limitX / 2, y: -zoomedIn.limitY / 2 },
-      zoomedIn.scale, zoomed.scale, { x: width / 2, y: height / 2 }, zoomed,
-    );
-    assert.ok(centered.x <= 0 && centered.x >= -zoomed.limitX);
-    assert.ok(centered.y <= 0 && centered.y >= -zoomed.limitY);
+    for (const groundLevel of [1, 2, 4]) {
+      const minimum = worldEditorMinZoom(width, height, groundLevel);
+      assert.ok(minimum >= WORLD_EDITOR_ZOOM_MIN && minimum < .6,
+        "Overview must show farther out than the original Pet Park view");
+      assert.equal(worldEditorClampZoom(0, width, height, groundLevel), minimum);
+      const overview = worldEditorCameraGeometry(width, height, groundLevel, minimum);
+      assert.ok(overview.sceneWidth <= width + 2 && overview.sceneHeight <= height + 2,
+        "Fit must reveal all authored terrain at "+width+"×"+height+", level "+groundLevel);
+      const centered = worldEditorClampCamera({ x: -100000, y: 100000 }, overview, { width, height });
+      assert.ok(Math.abs(centered.x - (width - overview.sceneWidth) / 2) < 2);
+      assert.ok(Math.abs(centered.y - (height - overview.sceneHeight) / 2) < 2);
+      const full = worldEditorCameraGeometry(width, height, groundLevel, 1);
+      const focal = worldEditorZoomAnchorPan(
+        worldEditorClampCamera({ x: -full.limitX/2, y: -full.limitY/2 }, full, { width, height }),
+        full.scale, overview.scale, { x: width / 2, y: height / 2 }, overview, { width, height },
+      );
+      assert.ok(Number.isFinite(focal.x) && Number.isFinite(focal.y));
+      assert.equal(worldEditorClampCamera(focal, overview, { width, height }).x, focal.x);
+    }
   }
-  // Pet Park callers retain exactly the prior minimum and geometry semantics.
+  assert.equal(worldEditorCameraGeometry(390, 844, 4, .01).scale,
+    worldEditorCameraGeometry(390, 844, 4, worldEditorMinZoom(390, 844, 4)).scale);
+  // The public Pet Park camera remains untouched, including its 0.6 floor.
   assert.equal(parkCameraGeometry(390, 844, 1, 0.1).scale,
     parkCameraGeometry(390, 844, 1, 0.6).scale);
-  assert.equal(worldEditorCameraGeometry(390, 844, 4, 0.1).scale,
-    worldEditorCameraGeometry(390, 844, 4, 0.5).scale);
   const page = readFileSync("client/src/pages/WorldSceneEditorPage.tsx", "utf8");
   assert.match(page, /worldEditorClampZoom\(pinch\.current\.zoom/);
   assert.match(page, /worldEditorCameraGeometry\(size\.width, size\.height, groundLevel, nextZoom\)/);
+  assert.match(page, /worldEditorZoomAnchorPan/);
+  assert.match(page, /backgroundColor: groundBackdrop/);
 });
 
 test("camera zoom stays bounded on phone and tablet without a 390 by 844 reference stage", () => {

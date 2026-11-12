@@ -17,8 +17,11 @@ import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
-import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
-import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
+import {
+  worldEditorCameraGeometry, worldEditorClampZoom, worldEditorMinZoom,
+  worldEditorClampCamera, worldEditorZoomAnchorPan,
+} from "@/lib/worldEditorCamera";
+import { PARK_GROUND_PALETTES } from "@/lib/petParkGroundPalette";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
 import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
@@ -26,7 +29,7 @@ import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
 import { PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
-import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
+import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import { worldGroundPalette, worldGroundRenderTheme } from "@/lib/worldGroundPalette";
 import type { ParkEffectType } from "@shared/petParkEffects";
 
@@ -92,7 +95,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   }, []);
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
   const [paintMode, setPaintMode] = useState(false);
-  const [showWorldOptions, setShowWorldOptions] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
@@ -150,7 +152,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
 
   useEffect(() => {
     setEdited(null); setPan(null); setZoom(1); setPaintMode(false);
-    setShowWorldOptions(false);
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     interiorDarknessDraftRef.current = null; setInteriorDarknessDraft(null);
     cameraDrag.current = null; objectDrag.current = null;
@@ -186,8 +187,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   }, [known]);
 
   const camera = worldEditorCameraGeometry(size.width, size.height, groundLevel, zoom);
-  const initialPan = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
-  const actualPan = parkClampCamera(pan ?? initialPan, camera);
+  const initialPan = worldEditorClampCamera(
+    { x: -camera.limitX / 2, y: -camera.limitY / 2 }, camera, size);
+  const actualPan = worldEditorClampCamera(pan ?? initialPan, camera, size);
+  const minZoom = worldEditorMinZoom(size.width, size.height, groundLevel);
   const { exteriorLights, exteriorFireflies } = useMemo(() => {
     const items = content.placements.map(item => objectPreview?.id === item.id ? { ...item, ...objectPreview } : item);
     const shape = { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale };
@@ -295,8 +298,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const changeZoom = (next: number, anchor = { x: size.width / 2, y: size.height / 2 }) => {
     const value = worldEditorClampZoom(next, size.width, size.height, groundLevel);
+    if (value === zoom) return;
+    // A queued pinch frame must not overwrite a later button/slider change.
+    if (cameraFrame.current !== null) {
+      window.cancelAnimationFrame(cameraFrame.current);
+      cameraFrame.current = null;
+      queuedCamera.current = null;
+    }
     const nextGeometry = worldEditorCameraGeometry(size.width, size.height, groundLevel, value);
-    setPan(parkZoomAnchorPan(actualPan, camera.scale, nextGeometry.scale, anchor, nextGeometry));
+    setPan(worldEditorZoomAnchorPan(actualPan, camera.scale, nextGeometry.scale,
+      anchor, nextGeometry, size));
     setZoom(value);
   };
   const viewportPoint = (x: number, y: number) => {
@@ -454,18 +465,19 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         x: (pinch.current.midpoint.x - (rect?.left ?? 0)) * ratioX,
         y: (pinch.current.midpoint.y - (rect?.top ?? 0)) * ratioY,
       };
-      const nextPan = parkZoomAnchorPan(pinch.current.pan, startCamera.scale, nextCamera.scale, originalMid, nextCamera);
-      queueCameraUpdate(parkClampCamera({
+      const nextPan = worldEditorZoomAnchorPan(
+        pinch.current.pan, startCamera.scale, nextCamera.scale, originalMid, nextCamera, size);
+      queueCameraUpdate(worldEditorClampCamera({
         x: nextPan.x + mid.x - originalMid.x,
         y: nextPan.y + mid.y - originalMid.y,
-      }, nextCamera), nextZoom);
+      }, nextCamera, size), nextZoom);
     } else if (cameraDrag.current?.id === event.pointerId) {
       const rect = viewportRef.current?.getBoundingClientRect();
       const dx = (event.clientX - cameraDrag.current.x) * size.width / Math.max(1, rect?.width ?? size.width);
       const dy = (event.clientY - cameraDrag.current.y) * size.height / Math.max(1, rect?.height ?? size.height);
-      queueCameraUpdate(parkClampCamera({
+      queueCameraUpdate(worldEditorClampCamera({
         x: cameraDrag.current.panX + dx, y: cameraDrag.current.panY + dy,
-      }, camera));
+      }, camera, size));
     }
   };
 
@@ -484,7 +496,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
 
   const objectPosition = (item: { id: string; xPct: number; yPct: number }) =>
     objectPreview?.id === item.id ? objectPreview : item;
-  return <div className="relative w-full h-full overflow-hidden bg-[#101b16] text-[#f3e5c5]"
+  const groundBackdrop = (worldGroundPalette(groundTheme) ??
+    PARK_GROUND_PALETTES[worldGroundRenderTheme(groundTheme)]).base;
+  return <div className="relative w-full h-full overflow-hidden text-[#f3e5c5]"
+    style={{ backgroundColor: groundBackdrop }}
     data-testid="world-scene-editor">
     <div ref={viewportRef} data-testid="world-scene-draft-viewport"
       className="absolute inset-0 overflow-hidden" style={{ touchAction: "none", cursor: "grab" }}
@@ -546,9 +561,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       onPointerUp={endTouch} onPointerCancel={endTouch}
       onLostPointerCapture={endTouch}
       onWheel={event => {
-        if (!event.ctrlKey && !event.shiftKey) return;
+        // Match Pet Park: plain trackpad/wheel zoom and pointer-centered focus,
+        // without requiring Ctrl or Shift on a desktop editing browser.
+        event.preventDefault();
         const rect = event.currentTarget.getBoundingClientRect();
-        changeZoom(zoom * (event.deltaY > 0 ? 0.92 : 1.08), {
+        changeZoom(zoom * (event.deltaY > 0 ? 0.94 : 1.06), {
           x: (event.clientX - rect.left) * size.width / Math.max(1, rect.width),
           y: (event.clientY - rect.top) * size.height / Math.max(1, rect.height),
         });
@@ -627,7 +644,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 {p.kind === "terrain" && !connected && !garden && isParkTerrainDetail(p.effectType) &&
                   <PetParkTerrainDetail type={p.effectType} />}
               </span>
-              {p.kind === "building" && p.isShop && <span className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 rounded bg-[#153421]/90 px-1 text-[9px] text-[#ffe1a1]">Shop</span>}
             </button>;
           })}
         </div>
@@ -741,42 +757,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           </button>}
       </div>
     </header>
-    {!activeBuilding && !paintMode && <div
-      className="pointer-events-none absolute right-3 z-30 flex flex-col items-end gap-2"
-      style={{ top: "max(68px, calc(env(safe-area-inset-top, 0px) + 58px))" }}>
-      <div className="pointer-events-auto flex items-center gap-1">
-        <button type="button" aria-label="Zoom out" onClick={() => changeZoom(zoom - 0.15)}
-          className="h-9 w-9 rounded-full border border-amber-500/35 bg-black/75 text-base text-[#f5cf64]">−</button>
-        <button type="button" aria-label="Zoom in" onClick={() => changeZoom(zoom + 0.15)}
-          className="h-9 w-9 rounded-full border border-amber-500/35 bg-black/75 text-base text-[#f5cf64]">+</button>
-        <button type="button" data-testid="button-world-options" aria-expanded={showWorldOptions}
-          onClick={() => setShowWorldOptions(value => !value)}
-          className="min-h-9 rounded-full border border-amber-500/35 bg-black/75 px-3 text-xs font-semibold text-[#f5cf64]">
-          World Options
-        </button>
-      </div>
-      {showWorldOptions && <section aria-label="World editor settings" data-testid="world-options-panel"
-        className="pointer-events-auto w-[min(270px,calc(100vw-24px))] max-h-[min(46dvh,330px)] overflow-y-auto rounded-xl border border-amber-500/45 bg-[#10291d]/95 p-3 text-[#f5cf64] shadow-xl"
-        onPointerDown={event => event.stopPropagation()}>
-        <div className="mb-2 flex items-center justify-between">
-          <strong className="text-sm">World Settings</strong>
-          <span className="text-[11px] opacity-80">{draft.data?.hasSavedDraft ? "Private draft" : "New draft"}</span>
-        </div>
-        <label htmlFor="world-ground-theme" className="mb-1 block text-xs">Ground theme</label>
-        <select id="world-ground-theme" aria-label="Ground theme" data-testid="select-world-draft-ground-theme"
-          value={groundTheme} disabled={saveDraft.isPending}
-          className="mb-2 w-full rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-2 py-2 text-xs"
-          onChange={event => setEdited({ groundLevel, groundTheme: event.target.value as WorldGroundTheme })}>
-          {WORLD_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
-        </select>
-        <button type="button" data-testid="button-save-world-draft"
-          disabled={saveDraft.isPending || draft.isLoading || draft.isError}
-          onClick={() => saveDraft.mutate({ groundLevel, groundTheme })}
-          className="mb-2 w-full rounded-lg border border-[#b99a4c]/65 bg-[#245037] px-3 py-2.5 text-xs font-semibold disabled:opacity-50">
-          {saveDraft.isPending ? "Saving…" : "Save Ground Theme"}
-        </button>
-      </section>}
-    </div>}
     {!paintMode && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
       style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
       <span className="rounded-lg bg-black/70 px-3 py-1.5 text-[11px] text-amber-200">
@@ -797,7 +777,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
         onSelect={setSelectedId} onSelectInterior={setSelectedInteriorId}
         onEnter={id => { setActiveBuildingId(id); setSelectedInteriorId(null); setPan(null); }}
-        onExit={() => { setActiveBuildingId(null); setSelectedInteriorId(null); }}
-        onPaint={() => setPaintMode(true)} />}
+        onPaint={() => setPaintMode(true)}
+        groundTheme={groundTheme}
+        zoom={zoom} minZoom={minZoom}
+        onZoom={value => changeZoom(value)}
+        onResetZoom={() => changeZoom(1)}
+        onSaveGroundTheme={async theme => {
+          const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
+            { groundLevel, groundTheme: theme });
+          cache.setQueryData(queryKey, await response.json());
+          setEdited(null);
+        }} />}
   </div>;
 }
