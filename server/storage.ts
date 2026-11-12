@@ -143,7 +143,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUsername(id: string, username: string): Promise<User>;
   setWatcherShoutoutsEnabled(userId: string, enabled: boolean): Promise<void>;
-  updateProfileImage(id: string, profileImage: string): Promise<User>;
+  updateProfileImage(id: string, profileImage: string | null): Promise<User>;
   updateActivePet(id: string, activePetId: string | null): Promise<User>;
   getAllUsers(): Promise<User[]>;
   banUser(id: string, days?: number): Promise<User>;
@@ -486,7 +486,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateProfileImage(id: string, profileImage: string): Promise<User> {
+  async updateProfileImage(id: string, profileImage: string | null): Promise<User> {
     const [user] = await db
       .update(users)
       .set({ profileImage, lastProfilePicChange: new Date() })
