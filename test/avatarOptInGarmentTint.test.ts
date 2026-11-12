@@ -38,9 +38,12 @@ test("one garment's flag cannot recolor another garment of the same category", (
     { inventoryId: "bottom-no", category: "bottom", colorPickerEnabled: false,
       colorTint: "#345678", segments: [image("left_leg",1)] },
   ];
-  const equipped = [owned[0],owned[2]].map(item=>({...item}));
+  const eligible = owned.map(item => ({
+    ...item, quantity: 1, isListed: false, compatible: true,
+  }));
+  const equipped = [eligible[0],eligible[2]].map(item=>({...item}));
   const avatar = {
-    created: true, base: {name:"Fem"}, ownedClothing:owned, equipped,
+    created: true, base: {name:"Fem"}, ownedClothing:eligible, equipped,
     unavailableEquipmentSlots:[],
   } as any;
   const layers = wardrobeLayers(avatar);
@@ -49,7 +52,7 @@ test("one garment's flag cannot recolor another garment of the same category", (
   assert.equal(layers.find(x=>x.category==="top")?.segments.length,3);
   assert.equal(layers.find(x=>x.category==="bottom")?.segments.length,2);
   const disabled = {
-    ...avatar, equipped: [owned[1],owned[3]],
+    ...avatar, equipped: [eligible[1],eligible[3]],
   };
   const original = wardrobeLayers(disabled);
   assert.equal(original.find(x=>x.category==="top")?.colorTint,null);
