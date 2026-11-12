@@ -89,8 +89,9 @@ try {
         assert.ok(!old || old.revision === body.expectedRevision,
           size.name + ": optimistic save revision");
         const universal = ["hair", "face", "back", "accessories"].includes(body.category);
-        assert.equal(body.colorPickerEnabled, body.category === "hair",
-          size.name + ": only hairstyles are saved with color capability");
+        assert.equal(body.colorPickerEnabled, body.category === "hair" ||
+          (["top", "bottom"].includes(body.category) && body.colorPickerEnabled === true),
+          size.name + ": only Hair or admin-enabled Tops/Bottoms may expose color");
         assert.equal(!!body.bodyVariants, !universal,
           size.name + ": only fitted clothing needs two upload sets");
         const fromParts = (partSet, source) => {
@@ -190,6 +191,15 @@ try {
     }
 
     await newItem("Three Part Blouse", "top");
+    const clothingColorFlag=page.getByTestId("avatar-clothing-color-picker-enabled");
+    assert.equal(await clothingColorFlag.isChecked(),false,
+      size.name+": new tops start with original art only");
+    await clothingColorFlag.check();
+    assert.equal(await page.getByTestId("avatar-clothing-color-preview-controls").count(),1,
+      size.name+": checked Tops get a temporary preview color selector");
+    await page.getByTestId("avatar-clothing-preview-color").fill("#744d8d");
+    assert.equal(await page.getByTestId("avatar-clothing-composite").count(),0,
+      size.name+": no composite until artwork is uploaded");
     await addPart("top"); await addPart("left_arm"); await addPart("right_arm");
     assert.equal(await page.locator('[data-clothing-slot]').count(), 3);
     assert.equal(await page.getByTestId("avatar-clothing-uploaded-parts")
@@ -211,12 +221,16 @@ try {
     await saveItem();
     assert.equal(rows.at(-1).universal, true);
     assert.equal(rows.at(-1).price, 0, size.name + ": free item auto-available");
+    assert.equal(rows.at(-1).colorPickerEnabled,true,
+      size.name+": colored blouse is opted-in on the item, not globally");
     assert.ok(rows.at(-1).shopImageUrl, size.name + ": free items also retain main art");
     assert.notEqual(rows.at(-1).shopImageUrl, rows.at(-1).draftSegments[0].imageUrl,
       size.name + ": main art is separate from worn clothing");
     assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["top", "left_arm", "right_arm"]);
 
     await newItem("Expressive Face", "face");
+    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").count(),0,
+      size.name+": Face has no color checkbox");
     assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true);
     for (const [index, slot] of ["face_open_eyes", "face_closed_eyes", "face_mouth"].entries()) {
       await page.getByTestId("avatar-clothing-upload-" + slot).setInputFiles({
@@ -268,6 +282,8 @@ try {
       size.name + ": the saved multi-piece hairstyle includes hair recoloring");
 
     await newItem("Boots", "shoes");
+    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").count(),0,
+      size.name+": Shoes keep the artist's original colors");
     await addPart("left_foot"); await addPart("right_foot");
     await page.getByTestId("avatar-shoes-over-pants").click();
     await showBody("masc");
@@ -307,6 +323,8 @@ try {
 
     // Editing preserves media through previousSlot and cannot create duplicates.
     await page.getByTestId("avatar-clothing-view").getByRole("button", { name: /Three Part Blouse/ }).click();
+    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").isChecked(),true,
+      size.name+": editing an existing blouse restores its per-item color permission");
     assert.equal(await page.getByTestId("avatar-clothing-main-image-preview").count(), 1,
       size.name + ": main item image remains visible when editing");
     await page.getByTestId("avatar-new-clothing-name").fill("Blouse Updated");
