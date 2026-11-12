@@ -345,9 +345,14 @@ try {
     await page.getByTestId("world-create-decor-effects").locator("summary").click();
     assert.equal(await page.getByTestId("world-decor-add-effect").isVisible(), true,
       name+": creating a decoration retains its attached-effect authoring controls");
-    await page.getByTestId("world-create-water-source").locator("summary").click();
-    assert.equal(await page.getByLabel("Water Source").isVisible(), true,
-      name+": water refill tools remain available after one disclosure tap");
+    assert.equal(await page.getByTestId("world-create-decor-behavior").isVisible(), true,
+      name+": all decor behavior options are legible without an extra disclosure");
+    assert.equal(await page.getByLabel("Water Source", { exact: true }).isVisible(), true,
+      name+": water refill source remains a visible option");
+    await page.getByLabel("Grass", { exact: true }).check();
+    assert.equal(await page.getByLabel("Grass", { exact: true }).isChecked(), true,
+      name+": Grass can be selected without losing the other editor controls");
+    await page.getByLabel("Barrier", { exact: true }).check();
     assert.equal(await page.getByText("Artwork Library").count(), 0,
       name + ": creating a decoration must not require a separate asset library");
     await page.getByLabel("Scene item artwork").setInputFiles({
