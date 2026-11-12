@@ -1,3 +1,5 @@
+import { useId } from "react";
+import { playerCharacterColorMatrix } from "@/lib/playerCharacterColorMatrix";
 import type { PlayerCharacterPart, PlayerCharacterPartType } from "@shared/playerCharacter";
 import {
   PLAYER_CLOTHING_CATEGORIES,
@@ -82,6 +84,14 @@ export default function PlayerCharacterRenderer({
         a.segment.renderPlane === "behind_character" ? "hair_back" : a.segment.slot, a.segment.shoesLayer, topTucked)
       - clothingLayerDepth(b.category, b.category === "hair" &&
         b.segment.renderPlane === "behind_character" ? "hair_back" : b.segment.slot, b.segment.shoesLayer, topTucked));
+  const uniqueId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const tintPrefix = `avatar-tint-${uniqueId}`;
+  const tintColors = Array.from(new Set(
+    [skinTone, ...layers.map(layer => layer.colorTint)]
+      .filter((color): color is string => !!color),
+  ));
+  const tintFilter = (color: string | null) =>
+    color ? `url("#${tintPrefix}-${tintColors.indexOf(color)}")` : undefined;
   return (
     <div data-testid="player-character-renderer"
       data-coordinate-space="character-relative"
@@ -89,6 +99,22 @@ export default function PlayerCharacterRenderer({
       data-preview-eyes-closed={previewEyesClosed}
       role="img" aria-label={ariaLabel}
       className="player-character-renderer">
+      <svg className="player-character-renderer__tint-definitions" aria-hidden="true" focusable="false">
+        <defs>
+          {tintColors.map((color, index) => (
+            <filter key={color} id={`${tintPrefix}-${index}`} colorInterpolationFilters="sRGB"
+              x="-20%" y="-20%" width="140%" height="140%">
+              <feColorMatrix type="matrix" values={playerCharacterColorMatrix(color)} />
+            </filter>
+          ))}
+        </defs>
+      </svg>
+      {/* Filter the COMPLETE body silhouette, after all eight sprites are
+          composited. The original alpha overlaps and artist-authored shading
+          remain intact. No per-limb mask or independent tint surfaces. */}
+      <div className={`player-character-renderer__body${skinTone ? " player-character-renderer__skin-tint" : ""}`}
+        data-testid={skinTone ? "avatar-skin-tint" : undefined}
+        style={{ filter: tintFilter(skinTone) }}>
       {sorted.map(part => (
         <div key={part.partType} data-character-part={part.partType}
           className="player-character-renderer__anchor"
@@ -108,20 +134,10 @@ export default function PlayerCharacterRenderer({
                 filter: part.partType === selectedPartType ? "drop-shadow(0 0 4px #f3d08e)" : undefined,
                 opacity: part.partType === selectedPartType ? 0.96 : 1,
               }}/>
-            {skinTone && (
-              <span aria-hidden="true" className="player-character-renderer__skin-tint"
-                data-testid="avatar-skin-tint"
-                style={{
-                  backgroundColor: skinTone,
-                  // The source PNG is its own alpha mask. Preserve original
-                  // line work, highlights and soft painted shadow values.
-                  maskImage: `url("${part.imageUrl}")`,
-                  WebkitMaskImage: `url("${part.imageUrl}")`,
-                }} />
-            )}
           </div>
         </div>
       ))}
+      </div>
       {/* Legacy part-local garments are independent siblings of body anchors,
           so a sleeve or pant leg cannot be obscured by a higher-z torso.
           They keep the exact same part pivot, resize and motion as before. */}
@@ -159,14 +175,10 @@ export default function PlayerCharacterRenderer({
                   transformOrigin: `${layer.segment.fit.pivotXPct}% ${layer.segment.fit.pivotYPct}%`,
                   transform: `translate(-${layer.segment.fit.pivotXPct}%, -${layer.segment.fit.pivotYPct}%) rotate(${layer.segment.fit.rotationDeg}deg)`,
                   zIndex: 1,
+                  filter: tintFilter(layer.colorTint),
                 }}>
                 <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
                   draggable={false} className="player-character-renderer__legacy-image" />
-                {layer.colorTint && <span aria-hidden="true" data-testid="avatar-clothing-tint"
-                  className="player-character-renderer__legacy-tint"
-                  style={{ backgroundColor: layer.colorTint,
-                    maskImage: `url("${layer.segment.imageUrl}")`,
-                    WebkitMaskImage: `url("${layer.segment.imageUrl}")` }} />}
               </div>
             </div>
           </div>
@@ -191,15 +203,11 @@ export default function PlayerCharacterRenderer({
           style={{
             transformOrigin: attachment ? `${attachment.xPct}% ${attachment.yPct}%` : "50% 50%",
             zIndex: garmentDepth(layer),
+            filter: tintFilter(layer.colorTint),
           }}>
           <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
             draggable={false}
             className={`player-character-renderer__canvas-image${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}/>
-           {layer.colorTint && <span aria-hidden="true" data-testid="avatar-clothing-tint"
-             className={`player-character-renderer__canvas-tint${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}
-             style={{ backgroundColor: layer.colorTint,
-               maskImage: `url("${layer.segment.imageUrl}")`,
-               WebkitMaskImage: `url("${layer.segment.imageUrl}")` }} />}
         </div>
         );
       })}
