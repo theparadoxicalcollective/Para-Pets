@@ -136,9 +136,15 @@ export default function LonelleQuestOverlay() {
   });
 
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
+  // Map is a direct Home shortcut now. Keep the old fan target for every
+  // other world page: removing those controls breaks existing quest pointers.
+  const homeMapShortcut = pathname === "/" && !mainNavOpen &&
+    !!document.querySelector<HTMLElement>('[data-testid="home-shortcut-map"]');
   // The fan-out begins at opacity 0. Let the spotlight observe its animation
   // instead of freezing this route choice on the first frame of menu opening.
   const mapOpen = mainNavOpen && !!navMap;
+  const mapTarget = homeMapShortcut ? '[data-testid="home-shortcut-map"]'
+    : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
   const adornmentPicker = document.querySelector<HTMLElement>('[data-testid="adornment-inventory-picker"]');
   const guiding = state && (["accepted", "found", "taken"].includes(state.status));
   let target: string | null = null;
@@ -148,7 +154,8 @@ export default function LonelleQuestOverlay() {
     target = `[data-testid="location-${ELYSIAN_BAYOU_CLEARING_ID}"]`;
     instruction = "The Clearing is here!";
   } else if (guiding && state.status === "taken" && !state.scarfOwned) {
-    target = inBayou ? lonelle ? '[data-testid="button-talk-lonelle"]' : null : pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
+    target = inBayou ? lonelle ? '[data-testid="button-talk-lonelle"]' : null
+      : pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapTarget;
     instruction = inBayou ? "Ask Lonelle to recover her scarf" : "Return to Lonelle for the quest scarf";
   } else if (guiding && state.status === "taken" && pathname === "/" && !state.scarfEquipped) {
     target = actionMenuOpen ? '[data-testid="button-action-equip-accessories"]' : '[data-testid="button-open-pet-menu"]';
@@ -175,10 +182,12 @@ export default function LonelleQuestOverlay() {
   } else if (guiding && state.status === "taken" && state.scarfEquipped && inBayou && lonelle) {
     target = `[data-testid="button-talk-lonelle"]`; instruction = "Talk to Lonelle";
   } else if (guiding && state.status === "taken" && state.scarfEquipped) {
-    target = mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
-    instruction = mapOpen ? "Tap World Map to return to Lonelle" : "Open main navigation to return to Lonelle";
+    target = mapTarget;
+    instruction = homeMapShortcut || mapOpen ? "Tap World Map to return to Lonelle"
+      : pathname === "/" && mainNavOpen ? "Close main navigation to use World Map"
+      : "Open main navigation to return to Lonelle";
   } else if (guiding && state.status === "accepted" && !inBayou && pathname !== CLEARING) {
-    target = pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
+    target = pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapTarget;
     instruction = "Travel to the Elysian Bayou";
   }
   const guideMode = target && (

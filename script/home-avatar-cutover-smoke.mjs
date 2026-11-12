@@ -109,6 +109,7 @@ try {
     const page=await context.newPage();
     const errors=[],writes=[],xpAnchorWrites=[];
     let savedXpAnchor=null;
+    let currentTeamIds=["pet-owned"];
     page.on("pageerror",e=>errors.push(e.message));
     page.setDefaultTimeout(18000);
     const user={id:"home-avatar-fixture",username:"QA",email:"qa@example.invalid",
@@ -134,13 +135,26 @@ try {
         savedXpAnchor=anchor;
         return fulfill(route,{anchor});
       }
-      if(path==="/api/inventory")return fulfill(route,[playerPet]);
+      if(path==="/api/inventory")return fulfill(route,[
+        playerPet,
+        {...playerPet,inventoryId:"pet-second",id:"pet-second",petTemplateId:null,
+          name:"Second Companion",petNickname:"Luna",rarity:3,starRarity:3},
+      ]);
       if(path==="/api/player/progression")
         return fulfill(route,sc.zeroXp
           ? {level:1,totalXp:0,cycleXp:0,stars:1,nextLevelTotalXp:80,xpToNextLevel:80}
           : {level:3,totalXp:240,cycleXp:240,stars:1,nextLevelTotalXp:330,xpToNextLevel:90});
-      if(path==="/api/player/pet-team")
-        return fulfill(route,{petInventoryIds:["pet-owned"],attackPower:100});
+      if(path==="/api/player/pet-team"){
+        if(method==="PUT"){
+          const next=route.request().postDataJSON().petInventoryIds;
+          assert.ok(Array.isArray(next),sc.name+": team save keeps the shared ID list");
+          currentTeamIds=[...next];
+          // A real delayed write exposes the saving state in which the row
+          // previously jumped as status text added height beneath it.
+          await new Promise(resolve=>setTimeout(resolve,350));
+        }
+        return fulfill(route,{petInventoryIds:currentTeamIds,attackPower:100});
+      }
       if(path==="/api/pet-template-parts/pet-template" && method==="GET")
         return fulfill(route,{
           facing:"front",canFly:false,
@@ -236,7 +250,7 @@ try {
         watcher: rect('[data-testid="button-open-world-chat"]'),
         watcherArt: rect('[data-testid="home-watcher-art"]'),
         watcherDock: rect('[data-testid="viewport-hud-watcher-dock"]'),
-        xpText: rect('[data-testid="home-player-total-xp"]'),
+        xpTextCount: document.querySelectorAll('svg [data-testid="home-player-total-xp"]').length,
         playerLevel: rect('[data-testid="home-player-level"]'),
         levelCurve: rect('.home-player-hud__level-curved'),
         navButton: rect('[data-testid="button-floating-nav"]'),
@@ -261,8 +275,9 @@ try {
       sc.name+": compact companion uses layered body and blinking eye art");
     const animBounds=await composite.locator('[data-testid="pet-animator"]').first().boundingBox();
     const slotBounds=await page.getByTestId("home-player-team-slot-1").boundingBox();
-    assert.ok(animBounds && slotBounds && animBounds.width<=slotBounds.width+8,
-      sc.name+": pet renderer does not overgrow its slot: "+JSON.stringify({animBounds,slotBounds}));
+    assert.ok(animBounds && slotBounds && animBounds.width<=slotBounds.width*1.5,
+      sc.name+": enlarged pet art is allowed to extend beyond its shadow oval: "+
+        JSON.stringify({animBounds,slotBounds}));
     assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"static",
       sc.name+": equipped Mini Pet is visible without introducing animations");
     assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
@@ -278,32 +293,33 @@ try {
       sc.name+": player XP centered below actor");
     assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-24,
       sc.name+": semicircular XP stays near the avatar's feet");
-    assert.ok(homeLayout.xp.height>=52 && homeLayout.xp.height<=139 &&
+    assert.ok(homeLayout.xp.height>=52 && homeLayout.xp.height<=210 &&
       homeLayout.xp.width<=Math.min(350,sc.width-24),
       sc.name+": semicircular XP arc fits the mobile viewport");
     const xpArc=await page.getByTestId("home-player-xp-track").evaluate(el=>({
       paths:el.querySelectorAll("svg path").length,
-      curve:el.querySelector("svg path")?.getAttribute("d"),
+      curve:el.querySelector(".home-player-hud__xp-arc-rim")?.getAttribute("d"),
       innerTrack: getComputedStyle(el.querySelector(".home-player-hud__xp-arc-track")).stroke,
       rimWidth: parseFloat(getComputedStyle(el.querySelector(".home-player-hud__xp-arc-rim")).strokeWidth),
       fillCount:el.querySelectorAll(".home-player-hud__xp-arc-fill").length,
       value:Number(el.getAttribute("aria-valuenow")),
       text:document.querySelector('[data-testid="home-player-total-xp"]')?.textContent,
     }));
-    assert.ok(xpArc.paths>=(sc.zeroXp?4:5) && xpArc.curve?.includes(" Q "),
-      sc.name+": XP follows the outlined SVG arc below the avatar");
-    assert.ok(xpArc.innerTrack.includes("18, 43, 29") && xpArc.rimWidth<=5,
-      sc.name+": XP is a dark empty groove with a slim gold outline: "+JSON.stringify(xpArc));
+    assert.ok(xpArc.paths>=(sc.zeroXp?4:5) && xpArc.curve?.includes(" C "),
+      sc.name+": one rounded cubic U curves the glowing XP groove under the avatar");
+    assert.ok(xpArc.innerTrack.includes("18, 59, 39") && xpArc.rimWidth>=9,
+      sc.name+": XP has a thick gold glowing rim and recessed green track: "+JSON.stringify(xpArc));
     assert.equal(xpArc.fillCount,sc.zeroXp?0:1,
       sc.name+": 0 XP has NO painted fill; earned XP paints the proportional fill");
     if(sc.zeroXp){
       assert.equal(xpArc.value,0,sc.name+": empty XP progress has zero value");
-      assert.match(xpArc.text,/0\/80/,sc.name+": empty track labels next level at the left");
+      assert.equal(homeLayout.xpTextCount,0,
+        sc.name+": visual XP count is hidden; accessible progressbar label retains it");
     } else {
       assert.ok(xpArc.value>0 && xpArc.value<100,sc.name+": partial XP stays partially filled");
     }
-    assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
-      sc.name+": team panel not overlapping player XP");
+    assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-42,
+      sc.name+": the deeper curved rim stays near the pet row without covering its controls");
     if(sc.name==="saved character phone"){
       const adjust=page.getByTestId("button-home-adjust-xp");
       await adjust.click();
@@ -323,16 +339,28 @@ try {
       await page.waitForFunction(previous=>
         Math.abs(document.querySelector(".home-player-hud__progress").getBoundingClientRect().left-previous)>5,
         before.x);
+      const curve=page.getByTestId("input-home-xp-curve");
+      const originalShape=await page.locator(".home-player-hud__xp-arc-rim").getAttribute("d");
+      const depthSaved=page.waitForResponse(r=>
+        r.url().endsWith("/api/admin/settings/home-xp-anchor") &&
+        r.request().method()==="PUT");
+      await curve.focus();
+      await curve.press("End");
+      await depthSaved;
+      assert.ok(savedXpAnchor && savedXpAnchor.curveDepth===220,
+        sc.name+": admin curve slider persists with the existing artwork anchor");
+      const adjustedShape=await page.locator(".home-player-hud__xp-arc-rim").getAttribute("d");
+      assert.notEqual(adjustedShape,originalShape,sc.name+": curve control changes the actual glowing SVG path");
       const reset=page.waitForResponse(r=>
         r.url().endsWith("/api/admin/settings/home-xp-anchor") &&
         r.request().method()==="PUT");
       await page.getByTestId("button-home-reset-xp").click();
       await reset;
-      assert.equal(savedXpAnchor,null,sc.name+": reset restores the platform default");
+      assert.equal(savedXpAnchor,null,sc.name+": reset restores both curve and position");
       await page.getByTestId("button-home-adjust-xp").click();
     }
     assert.ok(homeLayout.profile && homeLayout.headerName &&
-      homeLayout.coins && homeLayout.essence && homeLayout.xpText && homeLayout.playerLevel,
+      homeLayout.coins && homeLayout.essence && homeLayout.playerLevel,
       sc.name+": top profile/resources and level labels all render");
     assert.ok(homeLayout.headerName.left >= homeLayout.profile.right - 5,
       sc.name+": player name is to the right of the profile");
@@ -383,8 +411,8 @@ try {
       sc.name+": Home mini pet no longer has extra hard gold outlines");
     const teamSlot = await page.getByTestId("home-player-team-slot-1").boundingBox();
     const centerSlot = await page.getByTestId("home-player-team-slot-3").boundingBox();
-    assert.ok(teamSlot && centerSlot && teamSlot.width >= (sc.height <= 690 ? 48 : 56),
-      sc.name+": pet portraits enlarged without losing the five slots");
+    assert.ok(teamSlot && centerSlot && teamSlot.width >= (sc.height <= 690 ? 54 : 62),
+      sc.name+": larger companions retain all five independent touch targets");
     assert.ok(teamSlot.y < centerSlot.y - (sc.height<=690?9:18),
       sc.name+": occupied and empty slots arc noticeably around the player");
     const slotChrome = await page.getByTestId("home-player-team-slot-1").evaluate(el=>({
@@ -402,18 +430,58 @@ try {
       sc.name+": empty slot only shows a plus");
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
-    assert.ok(homeLayout.xpText.top >= homeLayout.xp.top+4 &&
-      homeLayout.xpText.bottom <= homeLayout.xp.bottom-15,
-      sc.name+": XP amount is inside the left portion of the groove");
-    assert.ok(homeLayout.xpText.centerX < homeLayout.xp.centerX-homeLayout.xp.width*.2,
-      sc.name+": XP count is left-aligned in the arc, not centered below it");
+    assert.equal(homeLayout.xpTextCount,0,
+      sc.name+": Home shows no visual XP numbers while retaining progression aria label");
     assert.ok(homeLayout.levelCurve &&
       homeLayout.levelCurve.width >= 24 && homeLayout.levelCurve.height >= 10,
       sc.name+": level label is curved, not inside an old rectangular pill");
     assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 12,
       sc.name+": player level follows the center under the arc");
-    assert.ok(homeLayout.levelCurve.bottom <= homeLayout.party.top + 8,
-      sc.name+": player level stays above the editable pet team");
+    assert.ok(homeLayout.levelCurve.bottom <= homeLayout.party.top + 35,
+      sc.name+": curved player level stays near the platform and above the companion art");
+    if(sc.name==="saved character phone" || sc.name==="saved character tablet"){
+      // Profile settings are opened from the existing portrait and retain
+      // every control while switching the sheet's paint to forest and gold.
+      await page.getByTestId("button-profile").tap();
+      const panel=page.getByTestId("player-settings-panel");
+      await panel.waitFor({state:"visible"});
+      const theme=await panel.evaluate(el=>{
+        const style=getComputedStyle(el);
+        const rect=el.getBoundingClientRect();
+        return {gradient:style.backgroundImage,border:style.borderColor,
+          right:rect.right,left:rect.left};
+      });
+      assert.ok(theme.gradient.includes("40, 81, 58") &&
+        theme.border.includes("235, 203, 125"),
+        sc.name+": settings popup has forest green surfaces and gold trim: "+JSON.stringify(theme));
+      assert.ok(theme.left>=-2 && theme.right<=sc.width+2,
+        sc.name+": settings popup stays inside mobile/tablet viewport");
+      for(const id of ["button-save-username","profile-time-zone-settings",
+        "button-toggle-change-password","button-toggle-feedback","button-logout"])
+        assert.equal(await page.getByTestId(id).count(),1,sc.name+": settings keeps "+id);
+      await page.getByTestId("button-close-profile").tap();
+      await panel.waitFor({state:"detached"});
+    }
+    if(sc.name==="saved character phone"){
+      const slots=page.locator('[data-testid^="home-player-team-slot-"]');
+      const positions=async()=>slots.evaluateAll(nodes=>
+        nodes.map(node=>{const r=node.getBoundingClientRect();return {left:r.left,top:r.top};}));
+      const beforeSwap=await positions();
+      await page.getByTestId("home-player-team-slot-1").tap();
+      await page.getByTestId("home-player-picker-pet-pet-second").tap();
+      await page.getByText("Saving your team…",{exact:true}).waitFor({state:"visible"});
+      const duringSwap=await positions();
+      const maxMovement=(a,b)=>Math.max(...a.map((x,i)=>
+        Math.abs(x.top-b[i].top)+Math.abs(x.left-b[i].left)));
+      assert.ok(maxMovement(beforeSwap,duringSwap)<1,
+        sc.name+": showing the saving message does not move any pet space");
+      await page.waitForFunction(()=>document.querySelector(
+        '[data-testid="home-player-team-slot-1"]')?.getAttribute("aria-label")?.includes("Luna") &&
+        !document.querySelector(".home-player-hud__status")?.textContent?.includes("Saving"));
+      const afterSwap=await positions();
+      assert.ok(maxMovement(beforeSwap,afterSwap)<1,
+        sc.name+": new pet replaces only slot content without moving the row");
+    }
     assert.ok(homeLayout.navButton && homeLayout.navButton.width === 52,
       sc.name+": Home navigation launcher maintains its tap area");
     const navStyle = await page.getByTestId("button-floating-nav").evaluate(el => ({
@@ -432,10 +500,45 @@ try {
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // Main opens five alpha-outlined icons across each of three translucent rows.
+    // The three moved routes are persistent, one-tap Home shortcuts beside
+    // the main emblem, outside the account/resource and companion areas.
+    const quickIds=["map","quest","pvp"];
+    assert.equal(await page.getByTestId("home-realm-shortcuts").isVisible(),true,
+      sc.name+": Home shows the relocated quick destinations");
+    const quickButtons=await page.evaluate(()=>{
+      return Array.from(document.querySelectorAll('[data-testid^="home-shortcut-"]'))
+        .map(el=>{
+          const r=el.getBoundingClientRect();
+          const front=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+          return {name:el.getAttribute("data-testid"),left:r.left,right:r.right,
+            top:r.top,bottom:r.bottom,hit:front===el||el.contains(front)};
+        });
+    });
+    assert.deepEqual(quickButtons.map(q=>q.name),quickIds.map(id=>"home-shortcut-"+id),
+      sc.name+": Map, Quest and PvP appear in shortcut order");
+    for(const q of quickButtons){
+      assert.ok(q.left>=sc.width-100 && q.right<=sc.width+1 &&
+        q.top>=homeLayout.navButton.bottom+5 && q.bottom<=sc.height-6,
+        sc.name+": Home shortcut stays in the right-hand free space: "+JSON.stringify(q));
+      assert.ok(q.hit,sc.name+": shortcut is actually tappable: "+q.name);
+    }
+    for(let i=1;i<quickButtons.length;i++)
+      assert.ok(quickButtons[i].top>=quickButtons[i-1].bottom-1,
+        sc.name+": vertical shortcuts don't cover one another");
+    await page.getByTestId("home-shortcut-quest").tap();
+    await page.getByTestId("quest-log-viewport-overlay").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("home-realm-shortcuts").count(),0,
+      sc.name+": shortcuts disappear while Quest is open");
+    await page.getByTestId("quest-log-viewport-backdrop").tap({position:{x:4,y:4}});
+    await page.getByTestId("home-realm-shortcuts").waitFor({state:"visible"});
+
+    // Main now shows the ten remaining routes in frequency-first order,
+    // five columns over two rows. Support is still the very last tile.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
     await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("home-realm-shortcuts").count(),0,
+      sc.name+": relocated shortcut buttons are not duplicated inside open menu");
     await page.waitForTimeout(240);
     const panelGeometry = await page.getByTestId("home-realm-nav-panel").evaluate(el => {
       const r = el.getBoundingClientRect(), style=getComputedStyle(el);
@@ -469,16 +572,20 @@ try {
           top:r.top,bottom:r.bottom,hit:el===atCenter||el.contains(atCenter)};
       });
     });
-    assert.equal(navigation.length,13,sc.name+": twelve original routes and Support remain");
-    assert.equal(new Set(navigation.map(item=>item.id)).size,13,
+    assert.equal(navigation.length,10,sc.name+": nine common destinations plus Support remain");
+    assert.equal(new Set(navigation.map(item=>item.id)).size,10,
       sc.name+": no duplicated destinations");
-    assert.equal(navigation[0].id,"nav-item-home",sc.name+": Main is first priority");
+    assert.deepEqual(navigation.map(item=>item.id),[
+      "nav-item-home","nav-item-inventory","nav-item-bag","nav-item-keepers",
+      "nav-item-pethouse","nav-item-market","nav-item-aquarium",
+      "nav-item-cards","nav-item-badges","nav-item-support",
+    ],sc.name+": frequently used actions lead and Support remains last");
     assert.equal(navigation[navigation.length-1].id,"nav-item-support",
       sc.name+": Support is always the last navigation action");
     const columns=[...new Set(navigation.map(item=>Math.round(item.left)))].sort((x,y)=>x-y);
     const rows=[...new Set(navigation.map(item=>Math.round(item.top)))].sort((x,y)=>x-y);
     assert.equal(columns.length,5,sc.name+": five horizontal icon columns");
-    assert.equal(rows.length,3,sc.name+": three compact rows");
+    assert.equal(rows.length,2,sc.name+": two compact rows");
     assert.ok(Math.abs(navigation[0].left - panelGeometry.left)<=19,
       sc.name+": first navigation icon starts on the left");
     for(const item of navigation){
@@ -503,6 +610,18 @@ try {
     await page.getByTestId("button-close-support-modal").tap();
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="button-floating-nav"]')?.getAttribute("aria-expanded") === "false");
+    await page.getByTestId("home-realm-shortcuts").waitFor({state:"visible"});
+    // Map and PvP use the original navigation handlers without adding duplicate
+    // dialogs or new route logic. The isolated fixture exposes their path changes.
+    for(const id of ["map","pvp"]){
+      await page.getByTestId("home-shortcut-"+id).tap();
+      await page.waitForURL("**/"+id,{timeout:9000});
+      assert.equal(new URL(page.url()).pathname,"/"+id,
+        sc.name+": relocated "+id+" shortcut opens the original route");
+      await page.goBack({waitUntil:"domcontentloaded"});
+      await page.waitForURL(url=>url.pathname==="/",{timeout:9000});
+      await page.getByTestId("home-realm-shortcuts").waitFor({state:"visible"});
+    }
     assert.equal(homeLayout.equippedDots,0,
       sc.name+": selected party pets have no duplicate dot indicators");
     await page.getByTestId("display-coin-balance").tap();

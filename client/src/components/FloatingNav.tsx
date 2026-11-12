@@ -67,7 +67,8 @@ interface QuestResponse {
   hasUnseenCompletion: boolean;
 }
 
-// ── Left arc: Badges, Quest, PvP, Pet Inventory, Map ─────────────────────────
+// Preserve the existing fan and world quest pointers on non-Home pages.
+// Only Home promotes Map, Quest and PvP out of its opened navigation panel.
 const LEFT_ITEMS = [
   { id: "badges",    label: "Badges",    icon: badgesIcon },
   { id: "quest",     label: "Quest",     icon: questIcon  },
@@ -76,28 +77,34 @@ const LEFT_ITEMS = [
   { id: "map",       label: "Map",       icon: mapIcon },
 ];
 
-// ── Right column: Cards, Bag, Pet House, Market, Aquarium, Pet Park, Main
 const RIGHT_ITEMS = [
-  { id: "cards",    label: "Cards",   icon: cardsIcon      },
-  { id: "bag",      label: "Bag",     icon: bagNavIcon     },
-  { id: "pethouse", label: "House",   icon: petHouseIcon   },
-  { id: "market",   label: "Market",  icon: marketIcon     },
-  { id: "aquarium", label: "Aquarium",icon: fishbowlIcon   },
-  { id: "keepers",  label: "Pet Park", icon: globeIcon      },
-  { id: "home",     label: "Main",    icon: activePetIcon  },
+  { id: "cards",    label: "Cards",    icon: cardsIcon },
+  { id: "bag",      label: "Bag",      icon: bagNavIcon },
+  { id: "pethouse", label: "House",    icon: petHouseIcon },
+  { id: "market",   label: "Market",   icon: marketIcon },
+  { id: "aquarium", label: "Aquarium", icon: fishbowlIcon },
+  { id: "keepers",  label: "Pet Park", icon: globeIcon },
+  { id: "home",     label: "Main",     icon: activePetIcon },
 ];
 
-// Home expands into a compact, horizontal three-row menu on the real
-// viewport. Leave every route, badge, and Support handoff unchanged.
+// Same icon assets and existing actions as before; no duplicate Quest state.
+const HOME_SHORTCUT_ITEMS = [
+  { id: "map",   label: "Map",   icon: mapIcon },
+  { id: "quest", label: "Quest", icon: questIcon },
+  { id: "pvp",   label: "PvP",   icon: pvpIcon },
+] as const;
+
+// Common destinations first; progress/collections later; Support always last.
+// Ten entries fit two rows without a largely empty third row.
 const HOME_NAV_ORDER = [
-  "home", "inventory", "map", "pethouse", "quest", "keepers",
-  "bag", "market", "aquarium", "cards", "pvp", "badges", "support",
+  "home", "inventory", "bag", "keepers", "pethouse",
+  "market", "aquarium", "cards", "badges", "support",
 ] as const;
 const HOME_NAV_COLUMNS = 5;
-const HOME_NAV_ROWS = 3;
+const HOME_NAV_ROWS = 2;
 
-/** Reading order is left-to-right, then down; Support remains the final
- * destination in the lower-right position of the menu. */
+/** Reading order is left-to-right, then down; Support remains last,
+ * occupying the lower-right slot of the two-row Home menu. */
 function homeNavPosition(index: number) {
   if (index === HOME_NAV_ORDER.length - 1) {
     return { gridColumn: HOME_NAV_COLUMNS, gridRow: HOME_NAV_ROWS };
@@ -381,7 +388,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         ref={homeAnchorRef}
         className="absolute"
         style={{
-          // Home menu grows across the upper viewport in three rows.
+          // Home menu grows across the upper viewport in two rows.
           // Other pages retain the original bottom-right fan anchor.
           top: isHome ? "clamp(108px, calc(env(safe-area-inset-top, 0px) + 94px), 128px)" : undefined,
           bottom: isHome ? undefined : 16,
@@ -392,8 +399,30 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           pointerEvents: "auto",
         }}
       >
-        {/* Home navigation uses a compact translucent forest-green panel;
-            preserve destinations, badge positions, and menu handoffs. */}
+        {/* These frequently used routes are always within one tap on Home.
+            Their actions are shared with the original menu handlers. */}
+        {isHome && !isOpen && !anyPanelOpen && (
+          <nav className="home-realm-shortcuts" aria-label="Home quick destinations"
+            data-testid="home-realm-shortcuts">
+            {HOME_SHORTCUT_ITEMS.map(item => (
+              <button key={item.id} type="button" aria-label={item.label}
+                data-testid={`home-shortcut-${item.id}`}
+                className="home-realm-shortcuts__tile"
+                onClick={() => handleLeft(item.id)}>
+                <span className="home-realm-shortcuts__icon">
+                  <img src={item.icon} alt="" aria-hidden="true" draggable={false} />
+                </span>
+                <span className="home-realm-shortcuts__label">{item.label}</span>
+                {item.id === "quest" && questRewardReady && (
+                  <QuestRewardBadge style={{ top: -4, right: -3 }} />
+                )}
+              </button>
+            ))}
+          </nav>
+        )}
+
+        {/* Home navigation now has two concise rows of the remaining destinations.
+            All original page actions, badges and the Support handoff are reused. */}
         {isHome && isOpen && (
           <nav id="home-realm-nav-panel" data-testid="home-realm-nav-panel"
             aria-label="Realm navigation" className="home-realm-nav"
@@ -412,7 +441,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                   label={isSupport ? "Support" : item!.label}
                   testId={`nav-item-${id}`}
                   position={homeNavPosition(index)}
-                  showQuestReward={id === "quest" && questRewardReady}
+                  showQuestReward={false}
                   onClick={() => isSupport ? handleRight("support")
                     : leftItem ? handleLeft(id) : handleRight(id)}
                 />
@@ -487,7 +516,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             }}
           />
           {/* Quest notification badge — visible on main button when nav is closed */}
-          {questRewardReady && !isOpen && (
+          {questRewardReady && !isHome && !isOpen && (
             <QuestRewardBadge
               testId="badge-quest-notification"
               style={{ top: -5, right: -5, zIndex: 100 }}

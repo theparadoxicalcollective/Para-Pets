@@ -20,25 +20,25 @@ test("Home enlarges and raises the avatar's five Elevation stars, not the pet ra
 
 test("Home XP forms a more semicircular arc with accessible proportional progress", () => {
   assert.match(homeHud, /className="home-player-hud__xp-arc"/);
-  assert.match(homeHud, /d="M 10 10 Q 160 154 310 10"/);
-  assert.match(homeHud, /viewBox="0 0 320 130"/);
+  assert.match(homeHud, /d=\{xpArc\.path\}/);
+  assert.match(homeHud, /xpArc\.viewHeight/);
   assert.match(homeHud, /className="home-player-hud__level-curved"/);
   assert.match(homeHud, /<textPath href="#home-player-level-curve" startOffset="50%">/);
-  assert.match(homeHud, /x="37" y="39" textAnchor="middle"/);
+  assert.doesNotMatch(homeHud, /<text data-testid="home-player-total-xp"/);
   assert.doesNotMatch(homeHud, /home-player-hud__level-pill/);
   assert.match(homeHud, /strokeDashoffset=\{100 - xpFillPct\}/);
   assert.match(homeHud, /xpFillPct !== null && xpFillPct > 0/);
   assert.match(homeHud, /className="home-player-hud__xp-arc-rim"/);
-  assert.match(homeCss, /\.home-player-hud__xp-arc-track \{\s*stroke: #122b1d/);
-  assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: rgba\(210, 181, 113, \.72\)/);
-  assert.match(homeHud, /xpEarnedThisLevel\.toLocaleString\(\)/);
+  assert.match(homeCss, /\.home-player-hud__xp-arc-track \{ stroke: #123b27/);
+  assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: #eed28e/);
+  assert.match(homeHud, /xpEarnedThisLevel \/ xpNeededThisLevel/);
   assert.match(homeHud, /pathLength=\{100\}/);
   assert.match(homeHud, /role="progressbar"/);
   assert.match(homeHud, /aria-valuenow=\{xpFillPct === null/);
   assert.match(homeHud, /totalXpRequiredForPlayerLevel\(player\.level\)/);
   assert.match(homeHud, /: <span aria-hidden="true" style=\{xpFillPct === null/);
   assert.match(homeCss, /--home-xp-art-width, 220px/);
-  assert.match(homeCss, /drop-shadow\(0 0 3px rgba\(238, 198, 101, \.48\)\)/);
+  assert.match(homeCss, /drop-shadow\(0 0 5px rgba\(255, 226, 140, \.75\)\)/);
 });
 
 test("pet team keeps five editable hit targets but no circular frames or helper copy", () => {
@@ -71,7 +71,7 @@ test("compact blinking pet thumbnails retain equipped adornments and mini pets",
   const miniCss = homeCss.split(".home-player-hud__mini-companion {")[1].split("}")[0];
   assert.doesNotMatch(miniCss, /drop-shadow\(1px 0 0|drop-shadow\(-1px 0 0/);
   assert.match(miniCss, /drop-shadow\(0 2px 2px rgba/);
-  assert.match(homeCss, /transform: scale\(1\.02\)/);
+  assert.match(homeCss, /transform: scale\(1\.31\)/);
 });
 
 test("Home keeps username above smaller Watcher without changing its tap target or messages", () => {
@@ -98,6 +98,45 @@ test("only Home navigation uses a translucent forest panel with outlined icon si
   assert.match(navCss, /border: 0;\s*border-radius: 0;\s*background: transparent/);
   assert.match(navCss, /filter: drop-shadow\(1px 0 0/);
   assert.match(navCss, /\.home-realm-nav__tile:focus-visible/);
-  assert.match(nav, /const HOME_NAV_ROWS = 3/);
+  assert.match(nav, /const HOME_NAV_ROWS = 2/);
   assert.match(nav, /const HOME_NAV_COLUMNS = 5/);
+});
+
+
+test("Home promotes Map, Quest and PvP outside the reordered navigation", () => {
+  const menu = nav.match(/const HOME_NAV_ORDER = \[([\s\S]*?)\] as const;/)?.[1];
+  assert.ok(menu, "Home menu order is defined");
+  const order = [...menu.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(order, [
+    "home", "inventory", "bag", "keepers", "pethouse",
+    "market", "aquarium", "cards", "badges", "support",
+  ]);
+  assert.equal(order.at(-1), "support");
+  for (const route of ["map", "quest", "pvp"]) {
+    assert.ok(!order.includes(route), route + " no longer clutters Main Navigation");
+    assert.match(nav, new RegExp('id: "' + route + '"'));
+    assert.match(nav, new RegExp('home-shortcut-'));
+  }
+  assert.match(nav, /HOME_SHORTCUT_ITEMS\.map\(item =>/);
+  assert.match(nav, /onClick=\{\(\) => handleLeft\(item\.id\)\}/);
+  assert.match(nav, /questRewardReady && \(/);
+  assert.match(nav, /questRewardReady && !isHome && !isOpen/);
+  assert.match(navCss, /\.home-realm-shortcuts \{/);
+  assert.match(navCss, /\.home-realm-shortcuts__tile:focus-visible/);
+  assert.match(navCss, /min-height: 44px/);
+});
+
+test("non-Home navigation keeps existing World Map and quest pointers", () => {
+  const left = nav.split("const LEFT_ITEMS = [")[1].split("];")[0];
+  const right = nav.split("const RIGHT_ITEMS = [")[1].split("];")[0];
+  for (const id of ["map", "quest", "pvp"]) {
+    assert.match(left + right, new RegExp('id: "' + id + '"'));
+  }
+  assert.match(nav, /!isHome && LEFT_ITEMS\.map/);
+  assert.match(nav, /if \(id === "map"\)/);
+  assert.match(nav, /if \(id === "quest"\)/);
+  assert.match(nav, /if \(id === "pvp"\)/);
+  const guide=readFileSync("client/src/components/LonelleQuestOverlay.tsx","utf8");
+  assert.match(guide, /home-shortcut-map/);
+  assert.match(guide, /mapTarget/);
 });

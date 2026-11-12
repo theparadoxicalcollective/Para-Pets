@@ -183,11 +183,19 @@ try{
   await page.waitForURL('http://127.0.0.1:4177/');
   // The new direct handoff must survive a fresh page mount after equip.
   await page.reload({waitUntil:'domcontentloaded'});
-  // Exercise the actual animated menu as well as the direct recovery action.
+  // On Home the Map now has its own visible shortcut. The quest spotlight
+  // must follow that real target, without sending players into the menu.
+  await page.getByTestId('home-shortcut-map').waitFor({state:'visible'});
+  await page.getByTestId('lonelle-guide-spotlight-hint')
+    .getByText('Tap World Map to return to Lonelle').waitFor({state:'visible'});
+  // Opening the main menu hides quick shortcuts; guides must not point to a
+  // nonexistent Map tile until that menu is closed again.
   await activate(page.getByTestId('button-floating-nav'));
-  await page.getByTestId('lonelle-guide-spotlight-hint').getByText('Tap World Map to return to Lonelle').waitFor({state:'visible'});
+  await page.getByTestId('lonelle-guide-spotlight-hint')
+    .getByText('Close main navigation to use World Map').waitFor({state:'visible'});
   await activate(page.getByTestId('button-floating-nav'));
-  await page.getByTestId('lonelle-guide-spotlight-hint').getByText('Open main navigation to return to Lonelle').waitFor({state:'visible'});
+  await page.getByTestId('lonelle-guide-spotlight-hint')
+    .getByText('Tap World Map to return to Lonelle').waitFor({state:'visible'});
   await activate(page.getByTestId('button-return-to-lonelle'));
   await page.waitForURL('http://127.0.0.1:4177/world/swamp');
   await activate(page.getByTestId('button-talk-lonelle'));

@@ -1,4 +1,4 @@
-/* Home-only three-row horizontal menu. Each icon remains a full tappable
+/* Home-only two-row horizontal menu. Each icon remains a full tappable
    target, while the translucent background reveals the forest beneath. */
 .home-realm-nav {
   position: absolute;
@@ -7,7 +7,7 @@
   display: grid;
   width: min(calc(100vw - 16px), 460px);
   height: auto;
-  min-height: 203px;
+  min-height: 146px;
   box-sizing: border-box;
   padding: 7px 6px;
   border: 1px solid rgba(218, 180, 97, .44);
@@ -91,12 +91,89 @@
   .home-realm-nav { animation: none; }
 }
 
-/* Five columns fit narrow phones while staying a light three-row folio.
-   On tablets the menu remains near its launcher, not stretched widescreen. */
+/* Map / Quest / PvP sit under the Home nav emblem at the right edge,
+   away from the avatar, five pet spaces, balances and coin button.
+   Their backing tiles are transparent: only icon artwork gets a gold contour. */
+.home-realm-shortcuts {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: -2px;
+  z-index: 97;
+  width: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  pointer-events: none;
+}
+.home-realm-shortcuts__tile {
+  position: relative;
+  width: 52px;
+  min-width: 44px;
+  height: 56px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #f7dea3;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.home-realm-shortcuts__tile:nth-child(2) { transform: translateX(-8px); }
+.home-realm-shortcuts__tile:nth-child(3) { transform: translateX(-3px); }
+.home-realm-shortcuts__tile:active { scale: .94; }
+.home-realm-shortcuts__tile:focus-visible {
+  outline: 2px solid #f7d989;
+  outline-offset: 1px;
+}
+.home-realm-shortcuts__icon {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 37px;
+  flex: 0 0 37px;
+}
+.home-realm-shortcuts__icon img {
+  width: 38px;
+  height: 37px;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(1px 0 0 rgba(239, 204, 129, .8))
+    drop-shadow(-1px 0 0 rgba(239, 204, 129, .75))
+    drop-shadow(0 1px 0 rgba(239, 204, 129, .75))
+    drop-shadow(0 2px 4px rgba(0, 0, 0, .8));
+}
+.home-realm-shortcuts__label {
+  font: 700 10px/12px Georgia, serif;
+  text-shadow: 0 1px 3px #051409, 0 0 5px #051409;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Five columns still fit narrow phones, in just two rows.
+   On tablets the navigation remains near its launcher. */
 @media (max-width: 360px) {
-  .home-realm-nav { min-height: 188px; padding: 6px 3px; }
+  .home-realm-nav { min-height: 134px; padding: 6px 3px; }
   .home-realm-nav__tile { height: 60px; gap: 0; }
   .home-realm-nav__icon { width: 37px; height: 36px; flex-basis: 36px; }
   .home-realm-nav__icon img { width: 35px; height: 35px; }
   .home-realm-nav__tile-label { font-size: 9px; line-height: 11px; }
+}
+
+@media (max-width: 360px) {
+  .home-realm-shortcuts { right: 0; gap: 4px; }
+  .home-realm-shortcuts__tile { width: 48px; height: 52px; }
+  .home-realm-shortcuts__icon { width: 36px; height: 35px; flex-basis: 35px; }
+  .home-realm-shortcuts__icon img { width: 35px; height: 35px; }
+  .home-realm-shortcuts__label { font-size: 9px; }
 }
