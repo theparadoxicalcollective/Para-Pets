@@ -9,10 +9,18 @@ const fixture = [
   'import React from "react";',
   'import { createRoot } from "react-dom/client";',
   'import { QueryClient, QueryClientProvider } from "@tanstack/react-query";',
+  'import { useLocation } from "wouter";',
   'import PlayerAvatarPage from "@/pages/PlayerAvatarPage";',
+  'import { Toaster } from "@/components/ui/toaster";',
   'import "@/index.css";',
   'const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });',
-  'createRoot(document.getElementById("root")).render(<QueryClientProvider client={qc}><PlayerAvatarPage userId="wardrobe-fixture-user" /></QueryClientProvider>);',
+  'function Fixture(){',
+  ' const [location,navigate]=useLocation();',
+  ' return <><div>{location.startsWith("/player-avatar")',
+  '   ? <PlayerAvatarPage userId="wardrobe-fixture-user"/>',
+  '   : <button data-testid="return-open-editor" onClick={()=>navigate("/player-avatar?from=home")}>Edit Character</button>}</div><Toaster/></>;',
+  '}',
+  'createRoot(document.getElementById("root")).render(<QueryClientProvider client={qc}><Fixture /></QueryClientProvider>);',
 ].join("\n");
 const server = await createServer({
   server: { host: "127.0.0.1", port: 4197, strictPort: true },
@@ -154,7 +162,7 @@ try {
       return route.fulfill({ status: 404, json: { message: "Unknown fixture route" } });
     });
 
-    await page.goto("http://127.0.0.1:4197/avatar-wardrobe-fixture", { waitUntil: "commit" });
+    await page.goto("http://127.0.0.1:4197/player-avatar?from=home", { waitUntil: "commit" });
     await page.getByTestId("avatar-character-viewer").waitFor({ state: "visible" });
     const opening = await page.evaluate(() => {
       const box = selector => document.querySelector(selector)?.getBoundingClientRect();
@@ -263,10 +271,15 @@ try {
       name + ": first save blocked until Top, Bottoms and Face are selected");
     await page.getByTestId("avatar-category-top").tap();
     await page.getByTestId("avatar-clothing-plain-top").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"true",
+      name + ": first tap selects a Top without saving");
+    await page.getByTestId("avatar-clothing-plain-top").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"false",
+      name + ": second tap unselects the Top in the first-save preview");
     assert.equal(await page.getByTestId("avatar-clothing-color-controls").count(), 0,
       name + ": ordinary Tops do not offer a clothing color picker");
     assert.equal(await page.getByTestId("avatar-create-button").isDisabled(), true,
-      name + ": only selecting Top is not enough");
+      name + ": selecting then removing Top still leaves Bottoms and Face required");
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-canvas-pants").tap();
     assert.equal(await page.getByTestId("avatar-create-button").isDisabled(), true,
@@ -274,16 +287,35 @@ try {
     await page.getByTestId("avatar-category-face").tap();
     await page.getByTestId("avatar-clothing-face").tap();
     assert.equal(await page.getByTestId("avatar-create-button").isEnabled(), true,
-      name + ": three required categories unlock character creation");
+      name + ": Masc permits first save with Bottoms and Face but no Top");
+    await page.getByTestId("avatar-choose-fem").tap();
+    assert.equal(await page.getByTestId("avatar-create-button").isDisabled(), true,
+      name + ": Fem still requires a Top before saving");
+    assert.equal(await page.getByTestId("avatar-category-top").locator(".player-avatar-page__required-dot").count(),1,
+      name + ": Fem displays a gold required marker on missing Top");
+    await page.getByTestId("avatar-choose-masc").tap();
+    assert.equal(await page.getByTestId("avatar-create-button").isEnabled(), true,
+      name + ": switching back to Masc removes the Top requirement");
+    // Add the optional Top again so the rest of the fixture can verify
+    // existing outfits and Tuck persistence exactly as before.
+    await page.getByTestId("avatar-category-top").tap();
+    await page.getByTestId("avatar-clothing-plain-top").tap();
     await page.getByTestId("avatar-create-button").tap();
-    await page.getByTestId("avatar-save-confirmation").waitFor({ state: "visible" });
-    assert.equal(await page.getByRole("dialog", { name: "Character Saved" }).count(), 1,
-      name + ": themed save popup is accessible");
+    await page.getByTestId("return-open-editor").waitFor({ state: "visible" });
+    assert.equal(new URL(page.url()).pathname, "/",name + ": successful first save closes editor to Home");
+    await page.getByText("Character saved",{exact:true}).waitFor({state:"visible"});
+    const toastTheme=await page.getByText("Character saved",{exact:true}).evaluate(el=>({
+      title:el.textContent, colors:getComputedStyle(el.closest("[data-state]")).backgroundColor,
+      border:getComputedStyle(el.closest("[data-state]")).borderColor,
+    }));
+    assert.ok(toastTheme.colors.includes("16, 39, 28") && toastTheme.border.includes("203, 163, 75"),
+      name + ": compact save notification uses existing forest-green/gold toast: "+JSON.stringify(toastTheme));
     assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(), 0,
-      name + ": saving closes clothing");
+      name + ": successful first save unmounts the wardrobe");
     assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
-      name + ": saving closes skin picker");
-    await page.getByTestId("avatar-save-confirmation-close").tap();
+      name + ": saving closes the editor and its skin picker");
+    await page.getByTestId("return-open-editor").tap();
+    await page.getByTestId("avatar-character-viewer").waitFor({state:"visible"});
     assert.equal(writes[0].kind, "create", name + ": save is explicit");
     assert.equal(writes[0].body.topTucked, true,
       name + ": first-save tuck preference persisted");
@@ -303,7 +335,18 @@ try {
       name + ": compact clothing tray fits or scrolls without clipping");
 
     const initialOutfitCount = avatar.equipped.length;
-    assert.equal(initialOutfitCount, 4, name + ": initial required outfit and Back persisted");
+    assert.equal(initialOutfitCount, 4, name + ": initial chosen Top and optional Back persisted");
+    await page.getByTestId("avatar-category-top").tap();
+    await page.getByTestId("avatar-clothing-plain-top").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"false",
+      name + ": tapping the already-saved Top previews removing it");
+    assert.equal(await page.locator('[data-clothing-part="top"]').count(),1,
+      name + ": other garment layers still render while Top is removed");
+    assert.equal(writes.length,1,name + ": unselecting clothing makes no API writes");
+    await page.getByTestId("avatar-clothing-plain-top").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"true",
+      name + ": tapping it again restores the previously saved garment");
+    await page.getByTestId("avatar-category-top").tap();
     const editStartWrites = writes.length;
     const footer = page.getByTestId("avatar-save-character-button");
     await footer.waitFor({state:"visible"});
@@ -336,6 +379,10 @@ try {
 
     // Trying items is reversible and local. Even body, tuck and hair color
     // edits must not send independent API mutations.
+    await page.getByTestId("avatar-clothing-hat").tap();
+    await page.getByTestId("avatar-clothing-hat").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-hat").getAttribute("aria-pressed"),"false",
+      name + ": optional hat toggles off immediately in the preview");
     await page.getByTestId("avatar-clothing-hat").tap();
     assert.equal(avatar.equipped.length, initialOutfitCount,
       name + ": tapping Hat only changes the on-screen preview");
@@ -388,9 +435,16 @@ try {
       name + ": body, tone, clothing, hair and Tuck are all preview-only");
 
     await footer.tap();
-    await page.waitForFunction(() => document.querySelector('[data-testid="avatar-choose-fem"]')
-      ?.getAttribute("aria-pressed")==="true" &&
-      !document.querySelector('[data-testid="avatar-clothing-category-panel"]'));
+    await page.getByTestId("return-open-editor").waitFor({state:"visible"});
+    assert.equal(new URL(page.url()).pathname, "/",name + ": edit Save returns Home");
+    assert.equal(await page.getByText("Character saved",{exact:true}).isVisible(),true,
+      name + ": edit Save also shows the same small gold/green message");
+    await page.getByTestId("return-open-editor").tap();
+    await page.getByTestId("avatar-character-viewer").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("avatar-choose-fem").getAttribute("aria-pressed"),"true",
+      name + ": reentered editor reads saved Fem selection");
+    assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(),0,
+      name + ": reentered editor starts with category closed");
     assert.equal(writes.length,editStartWrites+1,
       name + ": exactly one full-character transaction");
     const saved = writes.at(-1);
@@ -417,8 +471,12 @@ try {
     assert.equal(await page.locator('[data-clothing-key]').count(),0,
       name + ": reset previews bare body");
     await footer.tap();
-    await page.waitForFunction(() => document.querySelectorAll('[data-clothing-key]').length===0 &&
-      !document.querySelector('[data-testid="avatar-clothing-category-panel"]'));
+    await page.getByTestId("return-open-editor").waitFor({state:"visible"});
+    await page.getByTestId("return-open-editor").tap();
+    await page.getByTestId("avatar-character-viewer").waitFor({state:"visible"});
+    assert.equal(await page.locator('[data-clothing-key]').count(),0,
+      name + ": saved reset stays empty after reopening the character editor");
+    assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(),0);
     assert.equal(writes.length,writesBeforeReset+1);
     assert.deepEqual(Object.values(writes.at(-1).body.outfit),Array(8).fill(null),
       name + ": reset commits all eight empty slots atomically");
