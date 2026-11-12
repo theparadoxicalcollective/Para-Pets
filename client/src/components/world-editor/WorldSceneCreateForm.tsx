@@ -4,6 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
+import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
+import { decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
 import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import type { WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
@@ -35,7 +37,7 @@ export default function WorldSceneCreateForm({
   const [size, setSize] = useState(kind === "building" ? 300 : 100);
   const [isShop, setIsShop] = useState(false);
   const [legacyLocationId, setLegacyLocationId] = useState<string | null>(null);
-  const [waterSource, setWaterSource] = useState(false);
+  const [newDecorRole, setNewDecorRole] = useState<DecorRole>("barrier");
   const [effects, setEffects] = useState<ParkDecorEffect[]>([]);
   const [saving, setSaving] = useState(false);
   const isBuilding = kind === "building";
@@ -76,7 +78,7 @@ export default function WorldSceneCreateForm({
         kind, assetId: asset.id, effectType: null,
         xPct: creationPosition.xPct, yPct: creationPosition.yPct,
         size, flipped: false, layer: 0, decorEffects: effects,
-        isWaterSource: isBuilding ? false : waterSource,
+        ...(isBuilding ? decorRoleUpdate("barrier") : decorRoleUpdate(newDecorRole)),
         isShop: isBuilding ? isShop : false,
         legacyLocationId: isBuilding ? legacyLocationId : null, shopItemIds: [],
       };
@@ -244,19 +246,9 @@ export default function WorldSceneCreateForm({
           Size is saved when the object is placed. Depth follows ground position automatically.
         </p>
       </div>
-      {!inside && <details className={optionGroup} data-testid="world-create-water-source">
-        <summary>Garden water refill source (optional)</summary>
-      <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3 text-xs text-[#f4d795]">
-        <input aria-label="Water Source" type="checkbox" checked={waterSource}
-          onChange={event => setWaterSource(event.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[#d8bc67]"/>
-        <span><strong className="block text-sm">Water Source</strong>
-          <span className="block text-[11px] text-amber-100/75">
-            Allow refillable garden tools to collect water from this decoration.
-          </span>
-        </span>
-      </label>
-      </details>}
+      {!inside && <DecorSurfaceSelector
+        name="world-new-decoration-role" testId="world-create-decor-behavior"
+        value={newDecorRole} onChange={setNewDecorRole} disabled={saving} />}
     </>}
 
     <button type="button" disabled={saving || !pendingImage || (isBuilding && !name.trim())}
