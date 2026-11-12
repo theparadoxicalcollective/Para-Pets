@@ -7,6 +7,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import HomeCapacityIndicator from "@/components/HomeCapacityIndicator";
+import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
+import type { HomeBundleGardenPlot } from "@shared/homeBundleGardenPlots";
 import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import type { HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
@@ -587,6 +589,18 @@ export default function VisitPetHousePage() {
     refetchOnWindowFocus: true,
   });
 
+  // Visitors see the same read-only garden soil layout as the Home owner.
+  const { data: homeBundleGardenPlots = [] } = useQuery<HomeBundleGardenPlot[]>({
+    queryKey: ["/api/house-bundles", activeBundle?.id, "garden-plots"],
+    enabled: !!activeBundle?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/house-bundles/${activeBundle!.id}/garden-plots`, { credentials: "include" });
+      if (!res.ok) throw new Error("Could not load Home Garden Plots");
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+
   const outdoorLighting = useHomeOutdoorLighting(activeBundle?.playerLighting?.outdoorMode ?? "auto");
 
   const toggleVisitorItemEffect = useCallback((item: PlacedDecorItem) => {
@@ -854,6 +868,24 @@ export default function VisitPetHousePage() {
         ) : null}
         <div className="absolute inset-0" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
       </div>
+
+      {/* Read-only bundle-authored soil, below buildings and decor for visitors. */}
+      {!openInterior && imgWidth > 0 && homeBundleGardenPlots.length > 0 && (
+        <div data-testid="visitor-home-garden-plot-layer"
+          className="pointer-events-none absolute inset-0" style={{ zIndex: 3 }}>
+          {homeBundleGardenPlots.map(plot => (
+            <div key={plot.id} data-testid={`visitor-home-garden-plot-${plot.id}`}
+              className="pointer-events-none absolute"
+              style={{
+                left: panX + plot.xPct * imgWidth, top: plot.yPct * containerH,
+                width: plot.size, height: plot.size / 2,
+                transform: "translate(-50%, -50%)",
+              }}>
+              <PetParkTerrainDetail type="garden_plot" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Buildings layer */}
       {!openInterior && imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
