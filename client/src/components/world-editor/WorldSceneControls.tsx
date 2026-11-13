@@ -385,7 +385,7 @@ export default function WorldSceneControls(props: Props) {
             className="w-full min-h-9 accent-[#e6c575]"/>
           <div className="grid grid-cols-4 gap-1.5">
             <button type="button" data-testid="button-world-fit"
-              aria-label="Fit entire world" className={control}
+              aria-label="Fit world to screen" className={control}
               disabled={props.zoom <= props.minZoom + .001}
               onClick={() => props.onZoom(props.minZoom)}>Fit</button>
             <button type="button" aria-label="Zoom out" className={control}
@@ -397,7 +397,7 @@ export default function WorldSceneControls(props: Props) {
             <button type="button" aria-label="Reset world zoom" className={control}
               onClick={props.onResetZoom}>100%</button>
           </div>
-          <p className="text-[11px] text-[#d3bc8e]">Pinch the map to zoom; drag the background to pan. Fit shows the entire ground.</p>
+          <p className="text-[11px] text-[#d3bc8e]">Pinch to zoom or drag to pan. Fit shows the widest view without exposing the ground edges.</p>
         </div>
         <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523]/90 p-3">
           <label htmlFor="world-ground-theme" className="block text-xs text-[#f4d69b]">Ground theme</label>

@@ -1,20 +1,21 @@
-import { parkCameraGeometry, PARK_ZOOM_MAX } from "./petParkCamera";
+import { parkCameraGeometry, PARK_ZOOM_MAX, PARK_ZOOM_MIN } from "./petParkCamera";
 
-/** Only the private World Editor can zoom out to see an entire authored world.
- * Pet Park keeps its own 0.6 floor and camera logic unchanged. */
-export const WORLD_EDITOR_ZOOM_MIN = 0.08;
+/** A scene must cover the visible viewport just as it does in Pet Park.
+ * Keep authored coordinates unchanged and reuse its safe zoom floor. */
+export const WORLD_EDITOR_ZOOM_MIN = PARK_ZOOM_MIN;
 
-/** Best fit for the WHOLE world, not merely enough to cover the viewport.
- * The surrounding viewport is painted in the same ground palette; it never
- * stretches saved scene geometry or changes authored placement percentages.
+/** "Fit" must COVER both viewport axes, not fit the entire world inside
+ * the screen. The previous Math.min left empty margins on the other axis
+ * when the world and phone/tablet aspect ratios differed.
+ * Keep the Pet Park minimum to avoid a tiny, difficult-to-edit world.
  */
 export function worldEditorMinZoom(width: number, height: number, groundLevel: number): number {
   const base = parkCameraGeometry(width, height, groundLevel, 1);
-  const fit = Math.min(
+  const cover = Math.max(
     Math.max(1, width) / Math.max(1, base.sceneWidth),
     Math.max(1, height) / Math.max(1, base.sceneHeight),
   );
-  return Math.min(PARK_ZOOM_MAX, Math.max(WORLD_EDITOR_ZOOM_MIN, fit));
+  return Math.min(PARK_ZOOM_MAX, Math.max(WORLD_EDITOR_ZOOM_MIN, cover));
 }
 
 export function worldEditorClampZoom(value: number, width: number, height: number, groundLevel: number): number {
@@ -22,7 +23,7 @@ export function worldEditorClampZoom(value: number, width: number, height: numbe
     Math.min(PARK_ZOOM_MAX, Number.isFinite(value) ? value : 1));
 }
 
-/** Reuse Pet Park geometry, but allow the World Editor to show the entire map. */
+/** Reuse Pet Park geometry and its viewport-cover minimum on all devices. */
 export function worldEditorCameraGeometry(width: number, height: number, groundLevel: number, zoom = 1) {
   return parkCameraGeometry(width, height, groundLevel,
     worldEditorClampZoom(zoom, width, height, groundLevel),

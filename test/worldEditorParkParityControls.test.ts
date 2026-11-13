@@ -36,12 +36,12 @@ test("Being a shop changes functionality, not an on-map badge or label", () => {
   // The shelf itself is rendered by the entered-building page, not the toolbar.
   assert.match(page, /<WorldShopShelf/);
 });
-test("Overview is viewport-relative and does not change Pet Park geometry", () => {
-  assert.equal(WORLD_EDITOR_ZOOM_MIN,.08);
+test("World Editor Fit keeps ground behind every pixel of the viewport", () => {
+  assert.equal(WORLD_EDITOR_ZOOM_MIN,0.6);
   const wide=worldEditorCameraGeometry(390,844,4,worldEditorMinZoom(390,844,4));
   const pan=worldEditorClampCamera({x:0,y:0},wide,{width:390,height:844});
-  assert.ok(wide.sceneWidth<=392 && wide.sceneHeight<=846);
-  assert.ok(pan.x>=-1 && pan.y>=-1);
+  assert.ok(wide.sceneWidth>=390 && wide.sceneHeight>=844);
+  assert.deepEqual(pan,{x:0,y:0});
   const controls=read("client/src/components/world-editor/WorldSceneControls.tsx");
   assert.match(controls,/props\.onZoom\(props\.minZoom\)/);
   assert.match(controls,/max=\{1\.6\}/);
