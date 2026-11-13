@@ -67,7 +67,7 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(css, /transition: left 270ms ease, bottom 270ms ease, width 270ms ease/);
   assert.match(css, /pointer-events: none;\s*touch-action: pan-y/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot \{[^}]*pointer-events: auto/s);
-  assert.match(css, /width: 38%/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__mini-companion \{[\s\S]*?width: 38%/);
   assert.match(css, /slot--position-2 \.home-player-hud__slot-stars \{ top: -48px/);
   assert.doesNotMatch(css, /clamp\(58px, 17vw, 68px\)|clamp\(65px, 19vw, 88px\)|clamp\(58px, 17\.5vw, 69px\)/);
   assert.match(css, /prefers-reduced-motion: reduce/);
@@ -91,9 +91,9 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
   assert.match(css, /position-1,\s*\n\s*\.home-player-hud--avatar-home \.home-player-hud__slot--position-3 \{ bottom: 27px/);
   assert.match(css, /position-2 \{ bottom: -7px/);
   assert.match(css, /bottom: calc\(10px \+ env\(safe-area-inset-bottom, 0px\)\)/);
-  assert.match(css, /\.home-player-hud__mini-companion \{[\s\S]*?left: -12%;[\s\S]*?right: auto;[\s\S]*?width: 38%/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__mini-companion \{[\s\S]*?left: -12%;[\s\S]*?right: auto;[\s\S]*?width: 38%/);
   assert.match(css, /position-0 \.home-player-hud__mini-companion \{\s*left: 2%;/);
-  assert.match(hud, /mode="house" lowMemory size=\{58\}\s*fillContainer fitVisible view="front"/);
+  assert.match(hud, /mode="house" lowMemory size=\{58\}\s*fillContainer fitVisible=\{avatarHome\} view="front"/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot--vacant \{\s*z-index: 0;/);
   assert.match(css, /animation: homeTeamQuietBreath 4\.8s ease-in-out infinite/);
@@ -111,7 +111,7 @@ test("Home scales only through five stable slot sizes, never image metadata or c
   const css = read("client/src/components/HomePlayerHud.css");
   const renderer = read("client/src/components/PetAnimatorCore.tsx");
   const hud = read("client/src/components/HomePlayerHud.tsx");
-  assert.match(hud, /fillContainer fitVisible view="front"/);
+  assert.match(hud, /fillContainer fitVisible=\{avatarHome\} view="front"/);
   assert.match(hud, /mode="house" lowMemory size=\{58\}/);
   assert.match(renderer, /const ab = lowMemory \? FULL_BOUNDS : \(getAlphaBoundsSync\(part\.imageUrl\) \?\? FULL_BOUNDS\)/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__pet-renderer \{[\s\S]*?scale\(1\.10\)/);
