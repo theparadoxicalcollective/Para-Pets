@@ -381,7 +381,11 @@ export default function HomePlayerHud({
                       <PetAnimator petTemplateId={pet.petTemplateId}
                         petInventoryId={pet.inventoryId}
                         artworkForm={pet.isEvolved ? "evolution" : undefined}
-                        mode="idle" lowMemory size={58}
+                        /* Small Home companions use the built-in calm House idle:
+                           blink, ears, tail and wings stay alive without body/
+                           head translation that can exaggerate tall deer antlers.
+                           Other pet pages keep their normal full idle motion. */
+                        mode="house" lowMemory size={58}
                         fillContainer view="front" />
                     </span>
                   )}
