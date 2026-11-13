@@ -12,9 +12,9 @@ const at = (hour: number) => new Date(2026, 10, 7, hour, 0);
 
 test("Pet Park and World Editor darken more at night without changing home lighting", () => {
   assert.equal(parkSceneDarkness(0), 0);
-  assert.equal(parkSceneDarkness(.5), 44);
-  assert.equal(parkSceneDarkness(1), 88);
-  assert.equal(parkSceneDarkness(5), 88);
+  assert.equal(parkSceneDarkness(.5), 42);
+  assert.equal(parkSceneDarkness(1), 84);
+  assert.equal(parkSceneDarkness(5), 84);
   assert.equal(parkSceneDarkness(-5), 0);
   assert.equal(parkSceneDarkness(Number.NaN), 0);
   const home = source("client/src/lib/homeOutdoorLighting.ts");
@@ -100,9 +100,11 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
     "existing Pet Home outdoor lighting retains its original fallback");
   assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
   assert.match(atmosphere, /parkSceneLampMaskChannel\(safeLamp, falloff\)/);
-  assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.38);
-  assert.match(atmosphere, /mixBlendMode: "darken"/,
-    "overlapping lamp cuts should use the strongest local illumination");
+  assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.66);
+  assert.doesNotMatch(atmosphere, /mixBlendMode: "darken"/,
+    "neutral lamps use plain gradient alpha, not unreliable CSS blending inside SVG masks");
+  assert.match(atmosphere, /stopColor="black" stopOpacity=\{\(255 - channel\) \/ 255\}/,
+    "the lamp cuts the existing darkness using regular black alpha in both browser engines");
   assert.match(atmosphere, /park-outdoor-lamp-neutral-cutout/);
   assert.doesNotMatch(atmosphere, /park-outdoor-lamp-warm-spill|stopColor="#f7c168"/,
     "a separate yellow wash must not tint the ground");
@@ -154,26 +156,28 @@ test("overlapping lamp cutouts are neutral, capped and preserve nighttime darkne
   const atmosphere = source("client/src/components/HomeOutdoorAtmosphere.tsx");
   const scene = source("client/src/lib/parkSceneLighting.ts");
   assert.match(atmosphere, /PARK_LAMP_FALLOFF_STOPS/);
-  assert.match(atmosphere, /mixBlendMode: "darken"/);
+  assert.doesNotMatch(atmosphere, /mixBlendMode: "darken"/);
   assert.doesNotMatch(atmosphere, /park-outdoor-lamp-warm-spill/);
-  assert.match(scene, /PARK_SCENE_NIGHT_DARKNESS = 88/);
-  assert.equal(parkSceneLampMaskChannel(1, 1), Math.round(255 * (1 - 0.38)),
-    "at night, even the lamp center retains substantial darkness");
+  assert.match(scene, /PARK_SCENE_NIGHT_DARKNESS = 84/);
+  assert.equal(parkSceneLampMaskChannel(1, 1), Math.round(255 * (1 - 0.66)),
+    "lamps now reveal surrounding scene art clearly without erasing all darkness");
   assert.equal(parkSceneLampMaskChannel(1, 0), 255,
     "lamp edge returns to the original night mask");
   assert.equal(parkSceneLampMaskChannel(0, 1), 255,
     "during daytime lamp cutouts disappear automatically");
-  assert.equal(parkSceneLampMaskChannel(1, 0.5), Math.round(255 * (1 - 0.19)));
+  assert.equal(parkSceneLampMaskChannel(1, 0.5), Math.round(255 * (1 - 0.33)));
   assert.equal(parkSceneLampMaskChannel(Number.NaN, 1), 255);
-  for (const count of [1, 2, 6, 20]) {
-    // Opaque grayscale with darken composition uses the lowest mask value
-    // of overlapping lamps, not product-of-alpha accumulation.
-    const gray = parkSceneLampMaskChannel(1, 1) / 255;
-    const maskBrightness = Math.min(...Array.from({ length: count }, () => gray));
-    const remainingDarkness = 0.88 * maskBrightness;
-    assert.ok(remainingDarkness >= 0.45 && remainingDarkness < 0.88,
-      "a row of lights must still look like night, not full daylight");
-  }
+  // Ordinary SVG alpha composition is monotonic: real nearby lights can
+  // reinforce each other, but a single light remains within its fixed peak.
+  const gray = parkSceneLampMaskChannel(1, 1) / 255;
+  const singleDarkness = 0.84 * gray;
+  const twoLightsDarkness = 0.84 * gray * gray;
+  assert.ok(singleDarkness > 0.25 && singleDarkness < 0.35);
+  assert.ok(twoLightsDarkness > 0 && twoLightsDarkness < singleDarkness);
+  assert.ok(parkSceneLampMaskChannel(1, 0.1) > parkSceneLampMaskChannel(1, 0.8),
+    "the falloff approaches full darkness away from the lantern");
+  assert.ok(parkSceneLampMaskChannel(1, 1) > 0,
+    "a single lamp never produces fully unshaded daylight");
 });
 
 test("campfire flame, animation, and original light radius are preserved", () => {
