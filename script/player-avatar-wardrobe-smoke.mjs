@@ -275,10 +275,21 @@ try {
     await page.getByTestId("avatar-clothing-plain-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"true",
       name + ": first tap selects a Top without saving");
+    assert.equal(await page.getByTestId("avatar-clothing-color-controls").count(),0,
+      name + ": a selected Top has no permanent color row below its items");
+    await page.getByTestId("avatar-clothing-color-toggle").tap();
     await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
-    assert.match(await page.getByTestId("avatar-clothing-color-controls").textContent(),/Clothing Color/,
-      name + ": admin-enabled Top offers an actual clothing color picker");
+    assert.match(await page.getByTestId("avatar-clothing-color-controls").textContent(),/Original Color/,
+      name + ": the popup contains the original-color option");
     await page.getByTestId("avatar-clothing-custom-color").fill("#547e52");
+    assert.equal(await page.getByTestId("avatar-clothing-reset-color").isEnabled(),true);
+    await page.getByTestId("avatar-clothing-reset-color").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-reset-color").isDisabled(),true,
+      name + ": Original Color restores the artist's untinted Top preview");
+    await page.getByTestId("avatar-clothing-custom-color").fill("#547e52");
+    await page.getByTestId("avatar-clothing-color-toggle").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-color-controls").count(),0,
+      name + ": tapping the small color square closes its popup");
     assert.equal(await page.getByTestId("avatar-clothing-composite").count(), 1,
       name + ": colored Top renders as one composited garment");
     await page.getByTestId("avatar-clothing-plain-top").tap();
@@ -290,6 +301,7 @@ try {
       name + ": selecting then removing Top still leaves Bottoms and Face required");
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-canvas-pants").tap();
+    await page.getByTestId("avatar-clothing-color-toggle").tap();
     await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
     await page.getByTestId("avatar-clothing-custom-color").fill("#4c7180");
     assert.equal(await page.getByTestId("avatar-clothing-composite").count(), 1,
@@ -351,6 +363,10 @@ try {
     await page.getByTestId("avatar-category-head").tap();
     await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
     const shelfFitsOrScrolls = await page.getByTestId("avatar-owned-inventory").evaluate(el => {
+      const style = getComputedStyle(el);
+      const rows = [...el.querySelectorAll("button")].map(item => Math.round(item.getBoundingClientRect().top));
+      if (style.flexWrap !== "nowrap" || style.overflowX !== "auto" ||
+          style.overflowY !== "hidden" || new Set(rows).size > 1) return false;
       if (el.scrollWidth > el.clientWidth + 1) {
         el.scrollLeft = el.scrollWidth;
         return el.scrollLeft > 0;
@@ -423,6 +439,7 @@ try {
       name + ": pending Hat and the saved Face render together");
     await page.getByTestId("avatar-category-hair").tap();
     await page.getByTestId("avatar-clothing-hair").tap();
+    await page.getByTestId("avatar-clothing-color-toggle").tap();
     await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
     await page.getByTestId("avatar-clothing-custom-color").evaluate(el => {
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -448,6 +465,7 @@ try {
     assert.equal(await page.locator('[data-clothing-part="left_leg"]').count(), 0,
       name + ": removing pending Bottoms immediately changes the preview");
     await page.getByTestId("avatar-clothing-canvas-pants").tap();
+    await page.getByTestId("avatar-clothing-color-toggle").tap();
     await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
     await page.getByTestId("avatar-clothing-custom-color").fill("#7b5a3e");
     await page.getByTestId("avatar-category-top").tap();
