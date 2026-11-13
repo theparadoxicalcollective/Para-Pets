@@ -194,9 +194,11 @@ export function HomeDayNightToggle({
 }
 
 /**
- * Neutral scenery reveal, not a yellow overlay. Each source contributes at
- * most its strongest cutout even when many fence lamps overlap.
- * The campfire uses its existing unmodified SVG gradient below.
+ * Neutral scenery reveal, not a colored wash. Lamps now use ordinary
+ * transparent-black gradients in the existing luminance mask. This avoids
+ * fragile CSS mix-blend-mode inside SVG masks on mobile WebKit. Each lamp
+ * keeps an authored-size-proportional reach and neighboring lamps can
+ * naturally combine. Fireflies and the campfire retain their own gradients.
  */
 const PARK_LAMP_FALLOFF_STOPS = [
   [0, 1], [15, 0.94], [32, 0.75], [52, 0.46],
@@ -362,12 +364,12 @@ export function HomeOutdoorAtmosphereLayer({
                 r={radius}
               >
                 {isNeutralLamp ? PARK_LAMP_FALLOFF_STOPS.map(([offset, falloff]) => {
-                  // Opaque grayscale allows 'darken' composition in the mask:
-                  // adjacent lamps reveal the stronger local light, rather
-                  // than summing into a near-daylight patch.
+                  // Black-opacity gradients cut directly through the existing
+                  // white mask. Browser-native alpha composition is reliable
+                  // on Safari/WebKit without mix-blend-mode on mask circles.
                   const channel = parkSceneLampMaskChannel(safeLamp, falloff);
                   return <stop key={offset} offset={`${offset}%`}
-                    stopColor={`rgb(${channel}, ${channel}, ${channel})`} />;
+                    stopColor="black" stopOpacity={(255 - channel) / 255} />;
                 }) : soft ? <>
                   <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
                   <stop offset="14%" stopColor="black" stopOpacity={cutoutStrength * 0.96} />
@@ -409,8 +411,6 @@ export function HomeOutdoorAtmosphereLayer({
                   fill={`url(#${maskId}-light-${index})`}
                   data-testid={parkLampFalloff && effect.type === "lamp_light"
                     ? "park-outdoor-lamp-neutral-cutout" : undefined}
-                  style={parkLampFalloff && effect.type === "lamp_light"
-                    ? { mixBlendMode: "darken" } : undefined}
                 />
               );
             })}

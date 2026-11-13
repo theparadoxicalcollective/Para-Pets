@@ -56,9 +56,10 @@ test("lamp size controls its light radius; fire and home lighting remain separat
   const smaller = parkOutdoorLightRadius({id:"a",type:"lamp_light",x:.5,y:.5,size:2},1000,true);
   const larger = parkOutdoorLightRadius({id:"b",type:"lamp_light",x:.5,y:.5,size:8},1000,true);
   assert.ok(smaller < larger);
-  assert.ok(smaller < 100 && larger < 300);
-  assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.38);
-  assert.ok(parkSceneLampMaskChannel(1, 1) > 100);
+  assert.ok(smaller < 100 && larger <= 320,
+    "larger scene lamps reach farther but never exceed the 32% scene-height cap");
+  assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.66);
+  assert.ok(parkSceneLampMaskChannel(1, 1) > 60);
   assert.match(source("client/src/components/ParkEffectVisual.tsx"), /type === "colored_light"/,
     "previously saved colored-light objects still render");
   assert.match(source("server/routes/worldSceneContent.routes.ts"), /effectType !== "lamp_light"/,

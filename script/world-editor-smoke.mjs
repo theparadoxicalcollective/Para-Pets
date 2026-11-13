@@ -489,8 +489,8 @@ try {
     assert.equal(await page.getByTestId("park-outdoor-lamp-warm-spill").count(), 0,
       name + ": no extra amber wash should tint an entire section of the ground");
     assert.ok(await lampCutouts.evaluateAll(circles =>
-      circles.every(circle => circle.style.mixBlendMode === "darken")),
-      name + ": overlapping fence lamps must not stack brightness toward daylight");
+      circles.every(circle => !circle.style.mixBlendMode)),
+      name + ": lamp masks no longer require CSS blending");
     assert.ok(await page.getByTestId("home-lamp-light-core").count() >= 1,
       name + ": attached lantern uses the amber lamp artwork");
     const coloredCore = page.getByTestId("world-scene-placement-" + ids.colored)
@@ -520,12 +520,14 @@ try {
     const fadeColors = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("stop-color")));
     assert.ok(fadeColors.every(color => {
-      const channels = String(color).match(/[0-9]+/g)?.map(Number);
-      return channels?.length === 3 && channels.every(channel => channel === channels[0]);
+      return color === "black";
     }),
       name + ": scene brightness must be neutral, not yellow-brown");
-    assert.equal(fadeColors.at(-1), "rgb(255, 255, 255)",
-      name + ": light edges return smoothly to the original night darkness");
+    const alphaStops = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
+      .evaluateAll(stops => stops.map(stop => Number(stop.getAttribute("stop-opacity"))));
+    assert.ok(alphaStops[0] > 0.6 && alphaStops[0] < 0.7 &&
+      alphaStops.at(-1) === 0 && alphaStops.every((opacity, i) => i === 0 || opacity <= alphaStops[i - 1]),
+      name + ": neutral lamp alpha fades smoothly into night darkness");
 
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
     const atNormalZoom = await worldSprite.boundingBox();
