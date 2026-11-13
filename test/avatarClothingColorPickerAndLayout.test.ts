@@ -84,8 +84,6 @@ test("mobile wardrobe removes duplicate original skin button and uses a compact 
 test("clothing palette is a compact popover beside Tuck, not a row under inventory", () => {
   const creator = file("client/src/pages/PlayerAvatarPage.tsx");
   const css = file("client/src/pages/PlayerAvatarPage.css");
-  const header = creator.split('className="player-avatar-page__wardrobe-header"')[1]
-    .split('data-testid="avatar-clothing-category-panel"')[0] ?? "";
   assert.match(creator, /data-testid="avatar-clothing-color-toggle"/);
   assert.match(creator, /aria-expanded=\{clothingPickerOpen\}/);
   assert.match(creator, /id="avatar-clothing-color-popup"/);
