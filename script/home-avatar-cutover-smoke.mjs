@@ -511,6 +511,7 @@ try {
         document.querySelector('[data-testid="home-player-team-slot-3"]')
           ?.getAttribute("data-visual-position")==="2");
       assert.deepEqual(currentTeamIds,beforeTeam);
+      await page.waitForTimeout(340); // allow the pet to finish returning to its oval
       // Also exercise holding and dragging RIGHT on a pet. A swipe in
       // either direction rotates the visual order without rewriting the
       // PvP/Raid roster or moving any floor ovals.
