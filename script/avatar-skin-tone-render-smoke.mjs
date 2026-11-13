@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import sharp from "sharp";
 import { createServer } from "vite";
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 
 // Isolated visual regression of the REAL shared renderer: no database, scene
 // editor changes, saved player data, or network images. Examine rendered RGB,
@@ -105,7 +105,8 @@ const vite = await createServer({
   }],
 });
 await vite.listen();
-const browser = await chromium.launch({ headless: true });
+const engine = process.env.AVATAR_BROWSER === "webkit" ? webkit : chromium;
+const browser = await engine.launch({ headless: true });
 function rgbAt(raw, info, x, y) {
   const at = (Math.round(y) * info.width + Math.round(x)) * info.channels;
   return [...raw.subarray(at, at + 3)];
@@ -137,7 +138,8 @@ try {
     const original = await sample(130,135);
     await page.getByTestId("skin-light").click();
     const lightFilter = await page.getByTestId("avatar-skin-tint").evaluate(el=>getComputedStyle(el).filter);
-    assert.match(lightFilter,/url\(/,viewport.name+": composited body uses a real color filter");
+    assert.match(lightFilter,/grayscale\(1\).*sepia\(1\).*hue-rotate\(/,viewport.name+": composited body uses native CSS color filters");
+    assert.doesNotMatch(lightFilter,/url\(/,viewport.name+": no SVG URL filter dependency");
     const light = await sample(130,135);
     await page.getByTestId("skin-deep").click();
     const deep = await sample(130,135);
