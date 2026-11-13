@@ -484,7 +484,9 @@
    position has an explicit scene-relative width and bottom anchor so the
    center pet is visibly larger on phones AND tablets. */
 .home-player-hud--avatar-home .home-player-hud__party-panel {
-  bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+  /* Retain a physical bottom pixel of clearance even with no iOS safe area:
+     the lowered center oval must not disappear off-screen on Android. */
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   width: min(calc(100% - 8px), 560px);
   padding: 0;
 }
@@ -640,6 +642,13 @@
   z-index: 3;
   pointer-events: none;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
+}
+/* Right-side slots mirror Mini Pets inward. Otherwise right:-12% pushes
+   companions outside the viewport when the outermost pet is equipped. */
+.home-player-hud--avatar-home .home-player-hud__slot--position-3 .home-player-hud__mini-companion,
+.home-player-hud--avatar-home .home-player-hud__slot--position-4 .home-player-hud__mini-companion {
+  left: -12%;
+  right: auto;
 }
 .home-player-hud__slot-placeholder {
   position: absolute;
