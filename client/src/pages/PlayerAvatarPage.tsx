@@ -57,6 +57,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   // No wardrobe is expanded until a player taps its category icon.
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
+  // One compact swatch opens the color choices for the currently selected
+  // garment; changing category/item never leaves a stale palette behind.
+  const [clothingPickerOpen, setClothingPickerOpen] = useState(false);
   // Show the finished character celebration only for the account whose save
   // was confirmed by the server; never show it on a failed/stale mutation.
   const [savedCelebration, setSavedCelebration] = useState<{ accountId: string } | null>(null);
@@ -280,6 +283,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
   const chooseClothing = (item: OwnedAvatarClothing) => {
     if (busy || !canWearOnBody(item)) return;
+    setClothingPickerOpen(false);
     setPreviewSelections(current => {
       // Undefined means "unchanged saved garment"; tapping that garment
       // again must also unequip it. Keep the entire choice local until Save.
@@ -300,11 +304,13 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     setWardrobeOpen(open => next === category ? !open : true);
     setCategory(next);
     setSkinPickerOpen(false);
+    setClothingPickerOpen(false);
     showSparkle();
   };
   const toggleSkinPicker = () => {
     setSkinPickerOpen(open => !open);
     setWardrobeOpen(false);
+    setClothingPickerOpen(false);
     showSparkle();
   };
   const resetCharacter = () => {
@@ -317,6 +323,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     setTuckChoice({ accountId: userId, value: false });
     setWardrobeOpen(false);
     setSkinPickerOpen(false);
+    setClothingPickerOpen(false);
     setResetPending(!!avatar?.created);
     showSparkle();
     // Preserve the chosen Fem/Masc base while resetting all appearance parts.
@@ -473,22 +480,63 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 data-testid="avatar-clothing-category-panel"
                 aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                 <div className="player-avatar-page__wardrobe-header">
+                  <div className="player-avatar-page__wardrobe-tools">
+                    {category === "top" && (
+                      <label className="player-avatar-page__tuck-toggle">
+                        <input type="checkbox" checked={topTucked}
+                          data-testid="avatar-top-tuck"
+                          disabled={busy} onChange={event => toggleTuck(event.target.checked)} />
+                        <span className="player-avatar-page__tuck-check" aria-hidden="true">
+                          {topTucked && <Check size={15} strokeWidth={3.2} />}
+                        </span>
+                        <span>Tuck</span>
+                      </label>
+                    )}
+                    {selected && playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) && (
+                      <button type="button" className="player-avatar-page__clothing-color-toggle"
+                        data-testid="avatar-clothing-color-toggle"
+                        aria-label={`Choose color for ${selected.name}`}
+                        aria-expanded={clothingPickerOpen}
+                        aria-controls="avatar-clothing-color-popup"
+                        disabled={busy}
+                        onClick={() => setClothingPickerOpen(open => !open)}>
+                        <span aria-hidden="true" className="player-avatar-page__clothing-color-square"
+                          style={selectedTint ? { backgroundColor: selectedTint } : undefined} />
+                      </button>
+                    )}
+                  </div>
                   <h2>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</h2>
-                  {category === "top" && (
-                    <label className="player-avatar-page__tuck-toggle">
-                      <input type="checkbox" checked={topTucked}
-                        data-testid="avatar-top-tuck"
-                        disabled={busy} onChange={event => toggleTuck(event.target.checked)} />
-                      <span className="player-avatar-page__tuck-check" aria-hidden="true">
-                        {topTucked && <Check size={15} strokeWidth={3.2} />}
-                      </span>
-                      <span>Tuck</span>
-                    </label>
-                  )}
                   <button type="button" className="player-avatar-page__wardrobe-close"
                     aria-label={`Close ${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}
                     data-testid="avatar-close-clothing-category"
-                    onClick={() => setWardrobeOpen(false)}>×</button>
+                    onClick={() => { setWardrobeOpen(false); setClothingPickerOpen(false); }}>×</button>
+                  {clothingPickerOpen && selected &&
+                    playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) && (
+                    <div className="player-avatar-page__clothing-color-popup" role="group"
+                      id="avatar-clothing-color-popup"
+                      data-testid="avatar-clothing-color-controls"
+                      aria-label={`Change color of ${selected.name}`}
+                      onKeyDown={event => {
+                        if (event.key === "Escape") setClothingPickerOpen(false);
+                      }}>
+                      <label htmlFor="avatar-clothing-color" className="player-avatar-page__color-popup-choice">
+                        <span className="sr-only">
+                          {selected.category === "hair" ? "Hair Color" : "Clothing Color"}
+                        </span>
+                        <input id="avatar-clothing-color" type="color"
+                          aria-label={selected.category === "hair" ? "Hair Color" : "Clothing Color"}
+                          data-testid="avatar-clothing-custom-color"
+                          value={selectedTint ?? "#d39a71"} disabled={busy}
+                          onChange={event => setPreviewTint(selected.inventoryId, event.target.value)}
+                          onPointerUp={() => showSparkle()} />
+                      </label>
+                      <button type="button" disabled={busy || selectedTint === null}
+                        data-testid="avatar-clothing-reset-color"
+                        onClick={() => { setPreviewTint(selected.inventoryId, null); showSparkle(); }}>
+                        Original Color
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {unavailableEquipped && (
@@ -536,24 +584,6 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     No {PLAYER_CLOTHING_CATEGORY_LABELS[category].toLowerCase()} clothing is available yet.
                   </div>
                 )}
-                 {selected && playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) && (
-                   <div className="player-avatar-page__clothing-colors" role="group"
-                     data-testid="avatar-clothing-color-controls" aria-label={`Change color of ${selected.name}`}>
-                     <label htmlFor="avatar-clothing-color">
-                       {selected.category === "hair" ? "Hair Color" : "Clothing Color"}
-                       <input id="avatar-clothing-color" type="color"
-                         data-testid="avatar-clothing-custom-color"
-                         value={selectedTint ?? "#d39a71"} disabled={busy}
-                         onChange={event => setPreviewTint(selected.inventoryId, event.target.value)}
-                         onPointerUp={() => showSparkle()} />
-                     </label>
-                     <button type="button" disabled={busy || selectedTint === null}
-                       data-testid="avatar-clothing-reset-color"
-                       onClick={() => { setPreviewTint(selected.inventoryId, null); showSparkle(); }}>Original Color</button>
-                   </div>
-                 )}
-
-
                  {avatar.created && (
                   <div className="player-avatar-page__actions">
                     <button type="button" data-testid="avatar-unequip-button"
