@@ -65,7 +65,7 @@ test("admin publication and avatar saves store color metadata without altering c
   assert.match(renderer, /filter: grouped \? undefined : tintFilter\(layer\.colorTint\)/);
   assert.match(renderer, /data-testid="avatar-clothing-composite"/);
   assert.match(renderer, /filter: tintFilter\(garment\.color\)/);
-  assert.match(renderer, /playerCharacterColorMatrix\(color\)/);
+  assert.match(renderer, /playerCharacterCssTint\(color\)/);
   assert.doesNotMatch(renderer, /player-character-renderer__legacy-tint|player-character-renderer__canvas-tint/);
   assert.match(renderer, /clothingLayerDepth\(/);
 });
