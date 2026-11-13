@@ -489,8 +489,8 @@ try {
     assert.equal(await page.getByTestId("park-outdoor-lamp-warm-spill").count(), 0,
       name + ": no extra amber wash should tint an entire section of the ground");
     assert.ok(await lampCutouts.evaluateAll(circles =>
-      circles.every(circle => circle.style.mixBlendMode === "darken")),
-      name + ": overlapping fence lamps must not stack brightness toward daylight");
+      circles.every(circle => !circle.style.mixBlendMode)),
+      name + ": lamp masks no longer require CSS blending");
     assert.ok(await page.getByTestId("home-lamp-light-core").count() >= 1,
       name + ": attached lantern uses the amber lamp artwork");
     const coloredCore = page.getByTestId("world-scene-placement-" + ids.colored)
@@ -521,10 +521,10 @@ try {
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("stop-color")));
     assert.ok(fadeColors.every(color => {
       const channels = String(color).match(/[0-9]+/g)?.map(Number);
-      return channels?.length === 3 && channels.every(channel => channel === channels[0]);
+      return color === "black";
     }),
       name + ": scene brightness must be neutral, not yellow-brown");
-    assert.equal(fadeColors.at(-1), "rgb(255, 255, 255)",
+    assert.equal(fadeColors.at(-1), "black",
       name + ": light edges return smoothly to the original night darkness");
 
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
