@@ -526,14 +526,15 @@
   box-shadow: 0 1px 4px rgba(219,183,100,.25);
 }
 .player-avatar-page__create { margin-top: auto; padding: 10px; }
-.player-avatar-page__wardrobe { padding: 11px 12px; flex: 0 0 auto; }
+.player-avatar-page__wardrobe { padding: 8px 10px 9px; flex: 0 0 auto; }
 .player-avatar-page__wardrobe-header {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) 38px;
   align-items: center;
-  gap: 5px;
-  min-height: 38px;
-  margin-bottom: 7px;
+  column-gap: 7px;
+  min-height: 40px;
+  margin-bottom: 5px;
 }
 .player-avatar-page__wardrobe-header h2 {
   grid-column: 2;
@@ -543,55 +544,117 @@
   text-align: center;
   white-space: nowrap;
 }
+.player-avatar-page__wardrobe-tools {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
 .player-avatar-page__wardrobe-header .player-avatar-page__tuck-toggle {
-  grid-column: 1; grid-row: 1; justify-self: start;
-  margin-left: 0; padding: 6px 4px;
+  flex: 0 0 auto;
+  margin-left: 0;
+  padding: 4px 2px;
+  min-height: 40px;
+  gap: 5px;
 }
 .player-avatar-page__wardrobe-close {
-  grid-column: 3; grid-row: 1; justify-self: end;
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
 }
-.player-avatar-page__inventory { gap: 7px; padding: 3px 1px 8px; }
-.player-avatar-page__item {
-  flex: 0 0 clamp(64px, 18vw, 84px);
-  width: clamp(64px, 18vw, 84px);
-  padding: 4px;
-  border-radius: 11px;
+.player-avatar-page__clothing-color-toggle {
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border: 1px solid #d7b46f;
+  border-radius: 10px;
+  background: #23432e;
+  box-shadow: inset 0 0 0 1px #ffffff18, 0 2px 6px #0005;
+  touch-action: manipulation;
 }
-.player-avatar-page__clothing-colors {
+.player-avatar-page__clothing-color-toggle[aria-expanded="true"] {
+  border-color: #ffe3a0;
+  box-shadow: 0 0 0 2px #b99350, 0 0 10px #d4ac6266;
+}
+.player-avatar-page__clothing-color-toggle:focus-visible {
+  outline: 2px solid #ffebac;
+  outline-offset: 2px;
+}
+.player-avatar-page__clothing-color-toggle:disabled { opacity: .6; }
+.player-avatar-page__clothing-color-square {
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #f3dfb4 0 50%, #3a7354 50% 100%);
+  box-shadow: inset 0 0 0 1px #0005;
+}
+.player-avatar-page__clothing-color-popup {
+  /* Floats over the single-row shelf, never adding another permanent row
+     or pushing the anchored Save Character button below the viewport. */
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 15;
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 10px;
-  margin-top: 7px;
-  padding: 7px 9px;
-  border: 1px solid #907a4a;
-  border-radius: 11px;
-  color: #f0d59a;
-  font: 600 12px Georgia, serif;
+  width: min(232px, calc(100vw - 58px));
+  padding: 10px;
+  border: 1px solid #d0aa69;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #254b35, #112d21);
+  box-shadow: 0 8px 22px #000b;
 }
-.player-avatar-page__clothing-colors label {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-}
-.player-avatar-page__clothing-colors input {
-  width: 40px; height: 36px; padding: 2px;
+.player-avatar-page__color-popup-choice { display: block; flex: 0 0 auto; }
+.player-avatar-page__color-popup-choice input {
+  display: block;
+  width: 48px;
+  height: 44px;
+  padding: 3px;
   border: 1px solid #c7a667;
-  border-radius: 8px;
+  border-radius: 9px;
   background: #183c28;
   touch-action: manipulation;
 }
-.player-avatar-page__clothing-colors button {
-  min-height: 36px;
-  padding: 5px 11px;
+.player-avatar-page__clothing-color-popup button {
+  flex: 1;
+  min-height: 44px;
+  padding: 7px 9px;
   border: 1px solid #b49b64;
-  border-radius: 15px;
+  border-radius: 13px;
   background: #264e33;
   color: #f5dea8;
   font: 600 12px Georgia, serif;
   touch-action: manipulation;
 }
+.player-avatar-page__clothing-color-popup button:disabled { opacity: .52; }
+.player-avatar-page__inventory {
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 3px 2px 7px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+.player-avatar-page__item {
+  flex: 0 0 clamp(60px, 17vw, 78px);
+  width: clamp(60px, 17vw, 78px);
+  padding: 4px;
+  border-radius: 11px;
+}
+.player-avatar-page__wardrobe .player-avatar-page__actions { margin-top: 6px; }
 /* The measured iOS visual viewport may stop above the home-indicator area:
    paint the owning shell in the page's dark green instead of showing black. */
 body:has(.player-avatar-page) { background: #071810; }
