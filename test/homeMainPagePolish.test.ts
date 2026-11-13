@@ -30,7 +30,7 @@ test("Home pets rotate over fixed ground ovals with stars along each oval and ca
   assert.match(hud, /mode="house" lowMemory size=\{58\}/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
   assert.match(hud, /home-player-team-ground-/);
-  assert.match(css, /transform: translateY\(10px\) scale\(1\.10\)/);
+  assert.match(css, /transform: translateY\(4px\) scale\(1\.10\)/);
   assert.match(css, /home-player-hud__slot--position-2 \.home-player-hud__pet-renderer/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-ground::before/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot::before \{ content: none; \}/);
