@@ -20,7 +20,11 @@ test("account HUD uses the existing progression and shared team endpoints, not p
   assert.match(hud, /Number\.isSafeInteger\(data\.level\)/);
   assert.match(hud, /Number\.isSafeInteger\(data\.totalXp\)/);
   assert.match(hud, /Player progression response was invalid/);
-  assert.doesNotMatch(hud, /petLevelPoints|petLevel\b|petRarity|activePetId|playerXpAward|localStorage/);
+  assert.doesNotMatch(hud, /petLevelPoints|petRarity|activePetId|playerXpAward|localStorage/);
+  // Pet level is read only for the companion inventory card. Player XP and
+  // the curved Home level still come exclusively from /api/player/progression.
+  assert.match(hud, /const level = typeof pet\.petLevel === "number"/);
+  assert.match(hud, /const player = progression\.data/);
   const withCurve = playerProgressionResponse({ level: 3, totalXp: 175 });
   assert.deepEqual([withCurve.level, withCurve.totalXp, withCurve.nextLevelTotalXp, withCurve.xpToNextLevel], [2,175,190,15]);
   assert.match(hud, /totalXpRequiredForPlayerLevel/);

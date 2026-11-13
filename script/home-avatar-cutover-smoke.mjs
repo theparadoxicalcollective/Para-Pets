@@ -138,7 +138,7 @@ try {
       if(path==="/api/inventory")return fulfill(route,[
         playerPet,
         {...playerPet,inventoryId:"pet-second",id:"pet-second",petTemplateId:null,
-          name:"Second Companion",petNickname:"Luna",rarity:3,starRarity:3},
+          name:"Second Companion",petNickname:"Luna",rarity:3,starRarity:3,petLevel:7},
       ]);
       if(path==="/api/player/progression")
         return fulfill(route,sc.zeroXp
@@ -283,6 +283,23 @@ try {
       const scale = canvas?.style.transform.match(/scale\(([\d.]+)\) translate/);
       return !!scale && Number(scale[1]) > 3.35;
     }, undefined, { timeout: 15000 });
+    await page.waitForFunction(() => {
+      const pet = document.querySelector('[data-testid="home-player-team-slot-1"]');
+      const renderer = pet?.querySelector(".home-player-hud__pet-renderer");
+      return pet?.querySelector('[data-visible-fit-ready="true"]') &&
+        renderer && Number(getComputedStyle(renderer).opacity) >= .99;
+    });
+    const finalFirstPaint = await page.getByTestId("home-player-team-slot-1").evaluate(el => ({
+      ready: el.querySelector('[data-visible-fit-ready]')?.getAttribute("data-visible-fit-ready"),
+      compositeOpacity: getComputedStyle(el.querySelector(".home-player-hud__pet-renderer")).opacity,
+      fallbackVisibility: getComputedStyle(el.querySelector(".home-player-hud__fallback-pet")).visibility,
+      touchAction: getComputedStyle(el).touchAction,
+    }));
+    assert.equal(finalFirstPaint.ready, "true", sc.name + ": all padded layers are analyzed before first visible pet frame");
+    assert.ok(Number(finalFirstPaint.compositeOpacity) >= .99,
+      sc.name + ": the final-size composition is visible without any small-first-frame flash");
+    assert.equal(finalFirstPaint.fallbackVisibility, "hidden", sc.name + ": no smaller still-image flashes before the full pet");
+    assert.equal(finalFirstPaint.touchAction, "none", sc.name + ": iOS touch swipes belong to the pet, not page panning");
     const visibleFit = await page.getByTestId("home-player-team-composite-1")
       .locator('[data-testid="pet-animator"] > div').first()
       .evaluate(node => node.style.transform);
@@ -556,6 +573,45 @@ try {
         sc.name+": dragging right rotates pets without moving the five ovals");
       assert.deepEqual(currentTeamIds,beforeTeam,
         sc.name+": left and right drags never change the saved team");
+
+      // Exercise a real mobile touchscreen gesture, not only mouse events.
+      // Capture must start on an occupied pet so iOS-style pointer movement
+      // continues even when the finger leaves its small visual footprint.
+      const cdp = await context.newCDPSession(page);
+      const touchDrag = async direction => {
+        const slot = await page.getByTestId("home-player-team-slot-1").boundingBox();
+        assert.ok(slot);
+        const x = slot.x + slot.width / 2, y = slot.y + slot.height / 2;
+        const original = await page.getByTestId("home-player-team-slot-1").getAttribute("data-visual-position");
+        await cdp.send("Input.dispatchTouchEvent", {
+          type:"touchStart",touchPoints:[{x,y,id:7}],
+        });
+        await page.waitForTimeout(100); // a deliberate press-and-hold
+        for(let i=1;i<=6;i++){
+          await cdp.send("Input.dispatchTouchEvent",{
+            type:"touchMove",touchPoints:[{x:x+direction*i*12,y,id:7}],
+          });
+        }
+        await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+        await page.waitForFunction(previous =>
+          document.querySelector('[data-testid="home-player-team-slot-1"]')
+            ?.getAttribute("data-visual-position") !== previous, original);
+        await page.waitForTimeout(320);
+        assert.equal(await page.getByTestId("home-player-team-picker").count(),0,
+          sc.name+": a real touch swipe rotates instead of opening the picker");
+      };
+      await touchDrag(-1);
+      await touchDrag(1);
+      const groundsAfterTouch = await groundOvals.evaluateAll(elements =>
+        elements.map(el => {
+          const rect = el.getBoundingClientRect();
+          return {x:rect.x,y:rect.y,width:rect.width,height:rect.height};
+        }));
+      assert.deepEqual(groundsAfterTouch,ovalPositionsBefore,
+        sc.name+": left/right touchscreen swipes rotate pets over five STATIONARY ovals");
+      assert.deepEqual(currentTeamIds,beforeTeam,
+        sc.name+": touchscreen carousel never saves a changed PvP/Raid roster");
+      await cdp.detach();
     }
     const slotChrome = await page.getByTestId("home-player-team-slot-1").evaluate(el=>({
       border:getComputedStyle(el).borderStyle,
@@ -577,8 +633,11 @@ try {
       sc.name+": empty slot contains a greyed-out pet image");
     assert.equal((await page.getByTestId("home-player-team-slot-4").textContent()).trim(),"+",
       sc.name+": empty slot only shows a plus");
-    assert.ok(homeLayout.avatarStarSize >= 32,
-      sc.name+": player stars enlarged over the avatar");
+    assert.ok(homeLayout.avatarStarSize >= 41,
+      sc.name+": player stars have grown slightly without leaving their upper arc");
+    const raritySize = await page.getByTestId("home-player-team-stars-1").locator("img").first()
+      .evaluate(img => img.getBoundingClientRect().height);
+    assert.ok(raritySize >= 12, sc.name+": rarity stars are larger along the same oval lip");
     assert.equal(homeLayout.xpTextCount,0,
       sc.name+": Home shows no visual XP numbers while retaining progression aria label");
     assert.ok(homeLayout.levelCurve &&
@@ -669,7 +728,18 @@ try {
         nodes.map(node=>{const r=node.getBoundingClientRect();return {left:r.left,top:r.top};}));
       const beforeSwap=await positions();
       await page.getByTestId("home-player-team-slot-1").tap();
-      await page.getByTestId("home-player-picker-pet-pet-second").tap();
+      const picker = page.getByTestId("home-player-team-picker");
+      await picker.waitFor({state:"visible"});
+      assert.equal(await picker.locator("h2").textContent(), "Your Pets",
+        sc.name+": one tap opens the simplified companion inventory");
+      const selection = page.getByTestId("home-player-picker-pet-pet-second");
+      assert.match(await selection.textContent(), /Luna/,
+        sc.name+": pet inventory shows the chosen pet's name");
+      assert.match(await selection.textContent(), /Lvl 7/,
+        sc.name+": pet inventory shows its current level");
+      assert.equal(await selection.locator(".home-player-hud__picker-rarity img").count(),3,
+        sc.name+": pet inventory displays the correct rarity stars");
+      await selection.tap();
       await page.getByText("Saving your team…",{exact:true}).waitFor({state:"visible"});
       const duringSwap=await positions();
       const maxMovement=(a,b)=>Math.max(...a.map((x,i)=>

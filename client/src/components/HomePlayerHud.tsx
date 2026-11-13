@@ -27,6 +27,7 @@ export interface HomeHudPet {
   isListed?: boolean;
   petTemplateId?: string | null;
   isEvolved?: boolean;
+  petLevel?: number | null;
   imageUrl: string | null;
   hatchedImageUrl: string | null;
 }
@@ -192,38 +193,38 @@ export default function HomePlayerHud({
     }
     void saveXpAnchor({ ...base, curveDepth: depth });
   };
-  const beginTeamSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+  // Capture on the actual pet button as soon as contact starts. Waiting for
+  // a 38px drag before capturing let Safari cancel or redirect the gesture,
+  // making the five-pet carousel seem unresponsive to hold-and-swipe.
+  const beginTeamSwipe = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!avatarHome || pickerSlot !== null || !event.isPrimary ||
         (event.pointerType === "mouse" && event.button !== 0)) return;
-    teamSwipe.current = { pointerId: event.pointerId,
-      startX: event.clientX, startY: event.clientY, moved: false };
+    suppressTeamClick.current = false;
+    teamSwipe.current = {
+      pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false,
+    };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
   };
-  const moveTeamSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const moveTeamSwipe = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = teamSwipe.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
-    if (!drag.moved && homeTeamSwipeStep(dx, dy) !== 0) {
-      drag.moved = true;
-      // Capture only once a deliberate horizontal swipe is recognized.
-      // Normal taps keep reaching their own edit buttons.
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
-    }
+    if (Math.hypot(dx, dy) >= 10) drag.moved = true;
     if (drag.moved) event.preventDefault();
   };
-  const finishTeamSwipe = (event: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
+  const finishTeamSwipe = (event: ReactPointerEvent<HTMLButtonElement>, cancelled = false) => {
     const drag = teamSwipe.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     teamSwipe.current = null;
-    if (drag.moved) {
-      // A synthetic click sometimes follows a touch drag on iOS; do not
-      // turn that swipe into an unintended team-slot edit.
+    const step = homeTeamSwipeStep(event.clientX - drag.startX,
+      event.clientY - drag.startY);
+    if (drag.moved || step !== 0) {
+      // Consume only the synthetic click belonging to this drag. Clearing it
+      // on the next pointer-down means a quick subsequent tap still works.
       suppressTeamClick.current = true;
-      window.setTimeout(() => { suppressTeamClick.current = false; }, 0);
-      if (!cancelled) {
-        const step = homeTeamSwipeStep(event.clientX - drag.startX,
-          event.clientY - drag.startY);
-        if (step !== 0) setTeamOffset(previous => homeTeamOffset(previous + step));
+      if (!cancelled && step !== 0) {
+        setTeamOffset(previous => homeTeamOffset(previous + step));
       }
       event.stopPropagation();
     }
@@ -340,12 +341,8 @@ export default function HomePlayerHud({
       </div>
 
       <div className="home-player-hud__party-panel">
-      <div className="home-player-hud__team" aria-label="Your five companion team slots. Swipe left or right to rotate."
+      <div className="home-player-hud__team" aria-label="Your five companion team slots. Hold and swipe a pet left or right to rotate."
         data-testid="home-player-team-slots" tabIndex={avatarHome ? 0 : undefined}
-        onPointerDown={beginTeamSwipe} onPointerMove={moveTeamSwipe}
-        onPointerUp={event => finishTeamSwipe(event)}
-        onPointerCancel={event => finishTeamSwipe(event, true)}
-        onLostPointerCapture={event => finishTeamSwipe(event, true)}
         onKeyDown={event => {
           if (!avatarHome || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
           event.preventDefault();
@@ -369,13 +366,22 @@ export default function HomePlayerHud({
           return (
             <button key={index} type="button"
               data-testid={`home-player-team-slot-${index + 1}`}
-              className={`home-player-hud__slot ${pet ? "home-player-hud__slot--occupied" : "home-player-hud__slot--vacant"}${avatarHome ? " home-player-hud__slot--position-" + visualPosition : ""}`}
+              className={`home-player-hud__slot ${pet ? "home-player-hud__slot--occupied" : "home-player-hud__slot--vacant"}${pet?.petTemplateId && avatarHome ? " home-player-hud__slot--templated" : ""}${avatarHome ? " home-player-hud__slot--position-" + visualPosition : ""}`}
               data-visual-position={visualPosition}
               disabled={!isReady || isSaving || inventoryLoading || !inventoryReady}
-              aria-label={`Team slot ${index + 1}: ${name}. Edit companion`}
+              aria-label={`Team slot ${index + 1}: ${name}. Open pet inventory`}
               title={name}
-              onClick={() => {
-                if (suppressTeamClick.current) return;
+              onPointerDown={beginTeamSwipe}
+              onPointerMove={moveTeamSwipe}
+              onPointerUp={event => finishTeamSwipe(event)}
+              onPointerCancel={event => finishTeamSwipe(event, true)}
+              onLostPointerCapture={event => finishTeamSwipe(event, true)}
+              onClick={event => {
+                if (suppressTeamClick.current && event.detail !== 0) {
+                  suppressTeamClick.current = false;
+                  return;
+                }
+                suppressTeamClick.current = false;
                 setPickerSlot(index);
               }}>
               {id && pet ? (
@@ -437,8 +443,8 @@ export default function HomePlayerHud({
             className="home-player-hud__picker-sheet" onClick={event => event.stopPropagation()}>
             <div className="home-player-hud__picker-heading">
               <div>
-                <h2>Choose a Companion</h2>
-                <p>Team slot {pickerSlot + 1} · Shared with PvP and Raids</p>
+                <h2>Your Pets</h2>
+                <p>Choose a pet for this spot</p>
               </div>
               <button type="button" aria-label="Close team picker" onClick={() => setPickerSlot(null)}>
                 <X size={20} aria-hidden="true" />
@@ -454,6 +460,10 @@ export default function HomePlayerHud({
                 const alreadyInOtherSlot = selectedPetIds.some((id, i) =>
                   id === pet.inventoryId && i !== pickerSlot);
                 const selected = selectedPetIds[pickerSlot] === pet.inventoryId;
+                const stars = typeof pet.rarity === "number" && Number.isFinite(pet.rarity)
+                  ? Math.max(0, Math.min(5, Math.trunc(pet.rarity))) : 0;
+                const level = typeof pet.petLevel === "number" && Number.isFinite(pet.petLevel)
+                  ? Math.max(1, Math.trunc(pet.petLevel)) : null;
                 return (
                   <button key={pet.inventoryId} type="button"
                     data-testid={`home-player-picker-pet-${pet.inventoryId}`}
@@ -461,7 +471,14 @@ export default function HomePlayerHud({
                     disabled={alreadyInOtherSlot || !isReady || isSaving}
                     onClick={() => changePet(pet.inventoryId)}>
                     <img src={pet.hatchedImageUrl || pet.imageUrl || petPawIcon} alt="" draggable={false} />
-                    <span>{pet.petNickname || pet.name}</span>
+                    <span className="home-player-hud__picker-name">{pet.petNickname || pet.name}</span>
+                    <span className="home-player-hud__picker-rarity" role="img"
+                      aria-label={`${stars} star${stars === 1 ? "" : "s"}`}>
+                      {Array.from({ length: stars }, (_, i) => (
+                        <img key={i} src={cardStarImg} alt="" draggable={false} />
+                      ))}
+                    </span>
+                    <span className="home-player-hud__picker-level">{level === null ? "Level —" : `Lvl ${level}`}</span>
                     <small>{alreadyInOtherSlot ? "On team" : selected ? "Selected" : "Choose"}</small>
                   </button>
                 );

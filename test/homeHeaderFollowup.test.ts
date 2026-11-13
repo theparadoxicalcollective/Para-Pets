@@ -60,8 +60,8 @@ test("Home keeps curved level text on an artwork-relative XP bar with quantity h
 });
 
 test("player avatar stars are larger; party portraits keep rarity stars but no dots", () => {
-  assert.match(hudCss, /width: clamp\(37px, 10vw, 51px\)/);
-  assert.match(hudCss, /height: clamp\(37px, 10vw, 51px\)/);
+  assert.match(hudCss, /width: clamp\(41px, 11vw, 55px\)/);
+  assert.match(hudCss, /height: clamp\(41px, 11vw, 55px\)/);
   assert.match(hudCss, /opacity: \.42/);
   assert.match(hud, /home-player-hud__slot-stars/);
   assert.doesNotMatch(hud, /home-player-hud__slot-dot/);
