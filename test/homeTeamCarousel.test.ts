@@ -24,15 +24,15 @@ test("a horizontal swipe rotates five visual spots, never saved roster identitie
   }
 });
 
-test("Home carousel uses pointer capture only once a real swipe is established", () => {
+test("Home carousel captures touch on the pet immediately and suppresses only the drag click", () => {
   const hud = read("client/src/components/HomePlayerHud.tsx");
   assert.match(hud, /const \[teamOffset, setTeamOffset\] = useState\(0\)/);
-  assert.match(hud, /onPointerDown=\{beginTeamSwipe\} onPointerMove=\{moveTeamSwipe\}/);
+  assert.match(hud, /onPointerDown=\{beginTeamSwipe\}[\s\S]*?onPointerMove=\{moveTeamSwipe\}/);
   assert.match(hud, /onPointerUp=\{event => finishTeamSwipe\(event\)\}/);
-  assert.match(hud, /if \(!drag\.moved && homeTeamSwipeStep\(dx, dy\) !== 0\)/);
+  assert.match(hud, /if \(Math\.hypot\(dx, dy\) >= 10\) drag\.moved = true/);
   assert.match(hud, /event\.currentTarget\.setPointerCapture\(event\.pointerId\)/);
   assert.match(hud, /suppressTeamClick\.current = true/);
-  assert.match(hud, /if \(suppressTeamClick\.current\) return/);
+  assert.match(hud, /if \(suppressTeamClick\.current && event\.detail !== 0\)/);
   assert.match(hud, /data-visual-position=\{visualPosition\}/);
   assert.match(hud, /homeTeamVisualPosition\(index, teamOffset\)/);
   assert.match(hud, /onKeyDown=\{event => \{/);
@@ -57,11 +57,11 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(p(1), /left: 25%/);
   assert.match(p(1), /bottom: 34px/);
   assert.match(p(0), /left: clamp\(64px, 16%, 84px\)/);
-  assert.match(p(0), /bottom: 86px/);
+  assert.match(p(0), /bottom: 110px/);
   assert.match(p(3), /left: 75%/);
   assert.match(p(3), /bottom: 34px/);
   assert.match(p(4), /left: calc\(100% - clamp\(64px, 16%, 84px\)\)/);
-  assert.match(p(4), /bottom: 86px/);
+  assert.match(p(4), /bottom: 110px/);
   assert.match(css, /slot--position-0 \{ z-index: 1; \}/);
   assert.match(css, /slot--position-4 \{ z-index: 1; \}/);
   assert.match(css, /slot--position-1 \{ z-index: 3; \}/);
@@ -93,7 +93,7 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
     assert.ok(Math.abs((panelWidth - (panelWidth - outerCenter)) - outerCenter) < 1e-9,
       "mirrored outer position tolerates ordinary floating-point rounding");
   }
-  assert.match(css, /slot-ground--position-0,[\s\S]*?slot-ground--position-4 \{ bottom: 72px/);
+  assert.match(css, /slot-ground--position-0,[\s\S]*?slot-ground--position-4 \{ bottom: 96px/);
   assert.match(css, /slot-ground--position-1,[\s\S]*?slot-ground--position-3 \{ bottom: 27px/);
   assert.match(css, /slot-ground--position-2 \{ bottom: -7px/);
   assert.match(css, /bottom: calc\(10px \+ env\(safe-area-inset-bottom, 0px\)\)/);
@@ -128,8 +128,8 @@ test("Home keeps five stable slot sizes while alpha-fitting padded pet artwork",
   assert.match(renderer, /\(lowMemory && !preciseLowMemoryFit\) \|\| !allParts\.length/);
   assert.match(renderer, /ANIM_ONLY_PARTS\.has\(p\.partType\.replace/);
   assert.match(read("client/src/components/PetAnimator.tsx"), /preciseLowMemoryFit=\{preciseLowMemoryFit\}/);
-  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__pet-renderer \{[\s\S]*?translateY\(10px\) scale\(1\.10\)/);
-  assert.match(css, /position-2 \.home-player-hud__pet-renderer \{[\s\S]*?translateY\(10px\) scale\(1\.12\)/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__pet-renderer \{[\s\S]*?translateY\(4px\) scale\(1\.10\)/);
+  assert.match(css, /position-2 \.home-player-hud__pet-renderer \{[\s\S]*?translateY\(4px\) scale\(1\.12\)/);
   assert.doesNotMatch(css, /scale\(1\.24\)|scale\(1\.17\)/);
   // The artwork size ladder is deliberate but modest; the middle shouldn't
   // become twice the size of an equally fitted pet placed at either edge.
@@ -166,4 +166,32 @@ test("XP retains its saved cover-art coordinates but no longer offers position d
   assert.match(hud, /const effectiveAnchor = anchorQuery\.data\?\.anchor \?\? null/);
   assert.match(hud, /data-testid="input-home-xp-curve"/);
   assert.doesNotMatch(hud, /startXpDrag|moveXpDrag|finishXpDrag|movingXp|button-home-adjust-xp|button-home-reset-xp/);
+});
+
+test("Home first paint waits for every transparent part, then reveals the whole pet and Mini Pet only once", () => {
+  const hud = read("client/src/components/HomePlayerHud.tsx");
+  const css = read("client/src/components/HomePlayerHud.css");
+  const core = read("client/src/components/PetAnimatorCore.tsx");
+  assert.match(core, /const homeVisibleFitReady = !preciseLowMemoryFit/);
+  assert.match(core, /viewParts\.every\(part =>[\s\S]*?getAlphaBoundsSync\(part\.imageUrl\) !== null/);
+  assert.match(core, /data-visible-fit-ready=\{preciseLowMemoryFit \? String\(homeVisibleFitReady\) : undefined\}/);
+  assert.match(hud, /home-player-hud__slot--templated/);
+  assert.match(css, /\.home-player-hud__slot--templated \.home-player-hud__fallback-pet \{\s*visibility: hidden;/);
+  assert.match(css, /\.home-player-hud__slot--templated:has\(\[data-visible-fit-ready="true"\]\) \.home-player-hud__pet-renderer/);
+  assert.match(css, /\.home-player-hud__slot--templated:has\(\[data-visible-fit-ready="true"\]\) \.home-player-hud__mini-companion/);
+  assert.match(css, /\.home-player-hud__slot--templated \.home-player-hud__pet-renderer,[\s\S]*?opacity: 0;/);
+  assert.match(css, /transition: opacity 160ms ease-out/);
+});
+test("Home stars grow without changing their positions and a tap opens a concise pet roster", () => {
+  const css = read("client/src/components/HomePlayerHud.css");
+  const hud = read("client/src/components/HomePlayerHud.tsx");
+  assert.match(css, /home-player-hud--avatar-home \.home-player-hud__stars img \{\s*width: clamp\(41px, 11vw, 55px\)/);
+  assert.match(css, /home-player-hud__slot-stars img \{[\s\S]*?width: clamp\(12px, 3\.2vw, 16px\)/);
+  assert.match(css, /slot-stars \{[\s\S]*?bottom: -4%/);
+  assert.match(css, /home-player-hud--avatar-home \.home-player-hud__slot \{[\s\S]*?touch-action: none/);
+  assert.match(hud, /<h2>Your Pets<\/h2>/);
+  assert.match(hud, /pet\.petLevel/);
+  assert.match(hud, /home-player-hud__picker-rarity/);
+  assert.match(hud, /home-player-hud__picker-level/);
+  assert.match(hud, /if \(suppressTeamClick\.current && event\.detail !== 0\)/);
 });
