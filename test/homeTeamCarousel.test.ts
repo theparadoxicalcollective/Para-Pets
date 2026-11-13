@@ -94,6 +94,7 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
   assert.match(css, /position-3 \.home-player-hud__mini-companion,[\s\S]*?position-4 \.home-player-hud__mini-companion \{[\s\S]*?left: -12%;[\s\S]*?right: auto/);
   assert.match(hud, /mode="house" lowMemory size=\{58\}/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot--vacant \{\s*z-index: 0;/);
   assert.match(css, /animation: homeTeamQuietBreath 4\.8s ease-in-out infinite/);
   assert.match(css, /@keyframes homeTeamQuietBreath \{[\s\S]*?scaleY\(1\.008\)/);
   assert.match(css, /prefers-reduced-motion: reduce\)[\s\S]*?home-player-hud__pet-renderer > \[data-testid="pet-animator-with-costumes"\] \{ animation: none/);
