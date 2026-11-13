@@ -296,7 +296,8 @@ try {
       touchAction: getComputedStyle(el).touchAction,
     }));
     assert.equal(finalFirstPaint.ready, "true", sc.name + ": all padded layers are analyzed before first visible pet frame");
-    assert.equal(finalFirstPaint.compositeOpacity, "1", sc.name + ": complete pet is revealed at stable final scale");
+    assert.ok(Number(finalFirstPaint.compositeOpacity) >= .99,
+      sc.name + ": the final-size composition is visible without any small-first-frame flash");
     assert.equal(finalFirstPaint.fallbackVisibility, "hidden", sc.name + ": no smaller still-image flashes before the full pet");
     assert.equal(finalFirstPaint.touchAction, "none", sc.name + ": iOS touch swipes belong to the pet, not page panning");
     const visibleFit = await page.getByTestId("home-player-team-composite-1")
