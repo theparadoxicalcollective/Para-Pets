@@ -412,6 +412,26 @@ try {
     const nearLeft = await page.getByTestId("home-player-team-slot-2").boundingBox();
     const nearRight = await page.getByTestId("home-player-team-slot-4").boundingBox();
     const farRight = await page.getByTestId("home-player-team-slot-5").boundingBox();
+    const teamFrame = await page.getByTestId("home-player-team-slots").boundingBox();
+    assert.ok(teamFrame && nearLeft && nearRight && farRight &&
+      teamSlot.x >= -1 && farRight.x + farRight.width <= sc.width + 1,
+      sc.name + ": outer companion slot footprints stay in the viewport");
+    const midX = box => box.x + box.width / 2;
+    assert.ok(teamFrame && nearLeft && nearRight && farRight &&
+      Math.abs(midX(teamSlot) + midX(farRight) - 2 * midX(teamFrame)) <= 3 &&
+      Math.abs(midX(nearLeft) + midX(nearRight) - 2 * midX(teamFrame)) <= 3 &&
+      midX(nearLeft) < midX(teamFrame) - teamFrame.width * .21 &&
+      midX(nearRight) > midX(teamFrame) + teamFrame.width * .21,
+      sc.name + ": inner companions spread outward and mirrored edges stay balanced");
+    const calmHomeIdle = await page.getByTestId("home-player-team-composite-1")
+      .locator('[data-testid="pet-animator-with-costumes"]').evaluate(el => ({
+        name: getComputedStyle(el).animationName,
+        duration: getComputedStyle(el).animationDuration,
+      }));
+    assert.equal(calmHomeIdle.name, "homeTeamQuietBreath",
+      sc.name + ": Home uses one calm whole-sprite breath, not full-page idle lurches");
+    assert.equal(calmHomeIdle.duration, "4.8s",
+      sc.name + ": Home uses the intended quiet idle pacing");
     assert.ok(nearLeft && nearRight && farRight && centerSlot.width > nearLeft.width + 22 &&
       nearLeft.width > teamSlot.width + 12 && Math.abs(nearRight.width - nearLeft.width) <= 1 &&
       Math.abs(farRight.width - teamSlot.width) <= 1,
