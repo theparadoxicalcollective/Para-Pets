@@ -544,6 +544,15 @@ try {
       await panel.waitFor({state:"detached"});
     }
     if(sc.name==="saved character phone"){
+      // A near-left EMPTY slot overlaps the first pet's button rectangle.
+      // Its transparent pixels must never steal taps from occupied artwork.
+      const ownerAtPetCenter=await page.getByTestId("home-player-team-slot-1").evaluate(el=>{
+        const rect=el.getBoundingClientRect();
+        const target=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+        return target?.closest('[data-testid^="home-player-team-slot-"]')?.getAttribute("data-testid");
+      });
+      assert.equal(ownerAtPetCenter,"home-player-team-slot-1",
+        "filled far-left pet remains the touch target when an empty inner slot overlaps");
       const slots=page.locator('[data-testid^="home-player-team-slot-"]');
       const positions=async()=>slots.evaluateAll(nodes=>
         nodes.map(node=>{const r=node.getBoundingClientRect();return {left:r.left,top:r.top};}));
