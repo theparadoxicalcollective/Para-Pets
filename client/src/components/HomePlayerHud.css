@@ -528,8 +528,19 @@
   pointer-events: auto;
   transition: left 270ms ease, bottom 270ms ease, width 270ms ease;
 }
-/* Each oval is at its pet's feet, not centered behind its body. */
-.home-player-hud--avatar-home .home-player-hud__slot::before {
+/* Five independent ground stations remain fixed as players drag pets. */
+.home-player-hud--avatar-home .home-player-hud__slot-ground {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  box-sizing: border-box;
+  width: clamp(85px, 23vw, 112px);
+  aspect-ratio: 1 / 1.07;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.home-player-hud--avatar-home .home-player-hud__slot-ground::before {
   content: "";
   position: absolute;
   bottom: 0;
@@ -543,40 +554,47 @@
   z-index: 0;
   pointer-events: none;
 }
+/* Pet buttons no longer carry their ground oval when swiped in modern Home. */
+.home-player-hud--avatar-home .home-player-hud__slot::before { content: none; }
 /* Grounded five-pet arc, ordered left-to-right by VISUAL position.
    Outer pets rise above the nearer pair to remain visible behind them, but
    widths stay close enough to avoid huge cross-slot scale differences.
    All positions remain viewport-relative, with no fixed device stage. */
-.home-player-hud--avatar-home .home-player-hud__slot--position-0 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-0,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-0 {
   left: clamp(64px, 16%, 84px);
   bottom: 86px;
   width: clamp(96px, 27vw, 132px);
-  z-index: 1;
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-1 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-0 { z-index: 1; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-1,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-1 {
   left: 25%;
   bottom: 34px;
   width: clamp(105px, 29vw, 150px);
-  z-index: 3;
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-2 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-1 { z-index: 3; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-2,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-2 {
   left: 50%;
   bottom: -9px;
   width: clamp(124px, 34vw, 174px);
-  z-index: 5;
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-3 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-2 { z-index: 5; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-3,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-3 {
   left: 75%;
   bottom: 34px;
   width: clamp(105px, 29vw, 150px);
-  z-index: 3;
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-4 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-3 { z-index: 3; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-4,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-4 {
   left: calc(100% - clamp(64px, 16%, 84px));
   bottom: 86px;
   width: clamp(96px, 27vw, 132px);
-  z-index: 1;
 }
+.home-player-hud--avatar-home .home-player-hud__slot--position-4 { z-index: 1; }
 /* Vacant slots have large transparent button rectangles. At the staggered
    edges these rectangles overlap the actual artwork of adjacent pets.
    Keep blanks underneath occupied pets so the player can tap the visible
@@ -689,12 +707,13 @@
   text-shadow: 0 2px 4px #001b10, 0 0 8px #001b10;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-stars {
-  top: -38px;
+  /* Rarity follows its owner and rests along the base of its current oval. */
+  top: auto;
+  bottom: 2%;
+  width: 84%;
+  gap: 1px;
   z-index: 6;
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__slot-stars { top: -48px; }
-.home-player-hud--avatar-home .home-player-hud__slot--position-0 .home-player-hud__slot-stars,
-.home-player-hud--avatar-home .home-player-hud__slot--position-4 .home-player-hud__slot-stars { top: -30px; }
 .home-player-hud--avatar-home .home-player-hud__slot:disabled {
   opacity: 1;
   cursor: progress;
@@ -714,10 +733,15 @@
     height: clamp(138px, calc(21dvh - 5px), 173px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot--position-0,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-4 { bottom: 72px; }
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-0,
+  .home-player-hud--avatar-home .home-player-hud__slot--position-4,
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-4 { bottom: 72px; }
   .home-player-hud--avatar-home .home-player-hud__slot--position-1,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-3 { bottom: 27px; }
-  .home-player-hud--avatar-home .home-player-hud__slot--position-2 { bottom: -7px; }
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-1,
+  .home-player-hud--avatar-home .home-player-hud__slot--position-3,
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-3 { bottom: 27px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-2,
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-2 { bottom: -7px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud--avatar-home .home-player-hud__slot { transition: none; }
