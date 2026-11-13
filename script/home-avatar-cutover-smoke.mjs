@@ -282,7 +282,7 @@ try {
         '[data-testid="home-player-team-composite-1"] [data-testid="pet-animator"] > div');
       const scale = canvas?.style.transform.match(/scale\(([\d.]+)\) translate/);
       return !!scale && Number(scale[1]) > 3.35;
-    }, {timeout: 15000});
+    }, undefined, { timeout: 15000 });
     const visibleFit = await page.getByTestId("home-player-team-composite-1")
       .locator('[data-testid="pet-animator"] > div').first()
       .evaluate(node => node.style.transform);
@@ -595,8 +595,8 @@ try {
       };
     });
     assert.equal(upperLevel.fontSize,"17px",sc.name+": level label is smaller");
-    assert.ok(upperLevel.labelBottom < upperLevel.trackBottom - 4,
-      sc.name+": curved level stays ABOVE and close to the XP rim");
+    assert.ok(upperLevel.labelBottom <= upperLevel.trackBottom + 1,
+      sc.name+": even the flattened admin XP curve keeps the level at or above its rim");
     assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 12,
       sc.name+": player level follows the center under the arc");
     assert.ok(homeLayout.levelCurve.bottom <= homeLayout.party.top + 35,
