@@ -118,7 +118,7 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
 });
 
 
-test("Home scales only through five stable slot sizes, never image metadata or cached alpha", () => {
+test("Home keeps five stable slot sizes while alpha-fitting padded pet artwork", () => {
   const css = read("client/src/components/HomePlayerHud.css");
   const renderer = read("client/src/components/PetAnimatorCore.tsx");
   const hud = read("client/src/components/HomePlayerHud.tsx");
