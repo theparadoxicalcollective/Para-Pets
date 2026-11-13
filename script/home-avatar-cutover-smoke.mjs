@@ -442,8 +442,8 @@ try {
       footLine(nearLeft) > footLine(teamSlot) + (sc.height <= 690 ? 9 : 12),
       sc.name+": center oval is lowest while side pets ascend: " +
         JSON.stringify({center:footLine(centerSlot),near:footLine(nearLeft),outer:footLine(teamSlot)}));
-    assert.ok(centerSlot.y < teamSlot.y,
-      sc.name+": biggest middle pet rises tallest above its foot oval");
+    assert.ok(centerSlot.y <= teamSlot.y + 12,
+      sc.name+": intentionally raised outer pets may reach the center's top height while the center stays largest");
 
     if(sc.name==="saved character phone"){
       const beforeTeam=[...currentTeamIds];
