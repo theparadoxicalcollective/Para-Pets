@@ -12,6 +12,7 @@ const fixture = [
   'import {createRoot} from "react-dom/client";',
   'import {HomeOutdoorAtmosphereLayer} from "@/components/HomeOutdoorAtmosphere";',
   'import {parkSceneDarkness} from "@/lib/parkSceneLighting";',
+  'import "@/index.css";',
   'const lamp=(id,x)=>({id,type:"lamp_light",x,y:0.5,size:8});',
   'function Fixture(){',
   ' const [mode,setMode]=useState("off");',
@@ -20,7 +21,7 @@ const fixture = [
   ' const panX=mode==="pan"?32:0;',
   ' return <><div style={{display:"flex",gap:8}}>',
   '  {["off","one","two","pan","day"].map(key=><button key={key} data-testid={"mode-"+key} onClick={()=>setMode(key)}>{key}</button>)}',
-  ' </div><div data-testid="scene-lamp-fixture" style={{position:"relative",width:360,height:360,background:"#91be9d",overflow:"hidden"}}>',
+  ' </div><div data-testid="scene-lamp-fixture" data-scene-lamp-mode={mode} style={{position:"relative",width:360,height:360,background:"#91be9d",overflow:"hidden"}}>',
   ' <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(night)} nightStrength={night} lampStrength={night}',
   '   effects={effects} panX={panX} panY={0} imgWidth={360} sceneHeight={360} transitionMs={0} zIndex={2} />',
   ' </div></>;',
@@ -70,7 +71,7 @@ try {
         const scene = document.querySelector('[data-testid="scene-lamp-fixture"]');
         const cutouts = scene?.querySelectorAll('[data-testid="park-outdoor-lamp-neutral-cutout"]').length ?? 0;
         const expectedCount = expected==="one"||expected==="pan" ? 1 : expected==="two" ? 2 : 0;
-        return cutouts === expectedCount;
+        return cutouts === expectedCount && scene?.getAttribute("data-scene-lamp-mode")===expected;
       },mode);
       const screenshot = await page.getByTestId("scene-lamp-fixture").screenshot({animations:"disabled"});
       return sharp(screenshot).removeAlpha().raw().toBuffer({resolveWithObject:true});
