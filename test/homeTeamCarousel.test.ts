@@ -65,7 +65,7 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(css, /slot--position-0 \{ z-index: 1; \}/);
   assert.match(css, /slot--position-4 \{ z-index: 1; \}/);
   assert.match(css, /slot--position-1 \{ z-index: 3; \}/);
-  assert.match(p(3), /z-index: 3/);
+  assert.match(css, /slot--position-3 \{ z-index: 3; \}/);
   assert.match(css, /transition: left 270ms ease, bottom 270ms ease, width 270ms ease/);
   assert.match(css, /pointer-events: none;\s*touch-action: pan-y/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot \{[^}]*pointer-events: auto/s);
