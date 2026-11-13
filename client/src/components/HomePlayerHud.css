@@ -661,7 +661,7 @@
    0/1. The far-left pet is already near the screen edge, so tuck only its
    Mini Pet inward to avoid clipping outside the viewport. */
 .home-player-hud--avatar-home .home-player-hud__slot--position-0 .home-player-hud__mini-companion {
-  left: 2%;
+  left: -6%;
 }
 .home-player-hud__slot-placeholder {
   position: absolute;
