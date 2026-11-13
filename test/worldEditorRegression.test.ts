@@ -94,32 +94,42 @@ test("world terrain grid keys remain valid when the author expands the ground", 
   }
 });
 
-test("World Editor Fit reveals the full authored ground and centers small scenes", () => {
-  assert.equal(WORLD_EDITOR_ZOOM_MIN, 0.08);
-  for (const [width, height] of [[390, 844], [834, 1194], [320, 768], [768, 1024]]) {
+test("World Editor Fit covers the viewport at Pet Park-safe zoom on phones and tablets", () => {
+  assert.equal(WORLD_EDITOR_ZOOM_MIN, 0.6);
+  const viewports = [
+    [320, 768], [360, 800], [390, 844], [430, 932],
+    [768, 1024], [834, 1194], [900, 1300], [1440, 900],
+  ] as const;
+  for (const [width, height] of viewports) {
     for (const groundLevel of [1, 2, 4]) {
       const minimum = worldEditorMinZoom(width, height, groundLevel);
-      assert.ok(minimum >= WORLD_EDITOR_ZOOM_MIN && minimum < .6,
-        "Overview must show farther out than the original Pet Park view");
-      assert.equal(worldEditorClampZoom(0, width, height, groundLevel), minimum);
-      const overview = worldEditorCameraGeometry(width, height, groundLevel, minimum);
-      assert.ok(overview.sceneWidth <= width + 2 && overview.sceneHeight <= height + 2,
-        "Fit must reveal all authored terrain at "+width+"×"+height+", level "+groundLevel);
-      const centered = worldEditorClampCamera({ x: -100000, y: 100000 }, overview, { width, height });
-      assert.ok(Math.abs(centered.x - (width - overview.sceneWidth) / 2) < 2);
-      assert.ok(Math.abs(centered.y - (height - overview.sceneHeight) / 2) < 2);
-      const full = worldEditorCameraGeometry(width, height, groundLevel, 1);
+      assert.ok(minimum >= .6 && minimum <= 1,
+        "World Editor should not zoom out past Pet Park's minimum");
+      assert.equal(worldEditorClampZoom(-10, width, height, groundLevel), minimum);
+      assert.equal(worldEditorClampZoom(Number.NaN, width, height, groundLevel), 1);
+      const fitted = worldEditorCameraGeometry(width, height, groundLevel, minimum);
+      assert.ok(fitted.sceneWidth >= width - .001 && fitted.sceneHeight >= height - .001,
+        "ground must COVER the viewport on " + width + "×" + height + ", level " + groundLevel);
+      assert.equal(fitted.worldWidth, parkGroundSize(groundLevel).width);
+      assert.equal(fitted.worldHeight, parkGroundSize(groundLevel).height);
+      // The camera never reveals beyond any of the four terrain edges.
+      const topLeft = worldEditorClampCamera({ x: 100000, y: 100000 }, fitted, { width, height });
+      const bottomRight = worldEditorClampCamera({ x: -100000, y: -100000 }, fitted, { width, height });
+      assert.deepEqual(topLeft, { x: 0, y: 0 });
+      assert.deepEqual(bottomRight, { x: -fitted.limitX, y: -fitted.limitY });
+      const prior = worldEditorCameraGeometry(width, height, groundLevel, 1);
+      const anchor = { x: width / 2, y: height / 2 };
       const focal = worldEditorZoomAnchorPan(
-        worldEditorClampCamera({ x: -full.limitX/2, y: -full.limitY/2 }, full, { width, height }),
-        full.scale, overview.scale, { x: width / 2, y: height / 2 }, overview, { width, height },
+        worldEditorClampCamera({ x: -prior.limitX / 2, y: -prior.limitY / 2 }, prior, { width, height }),
+        prior.scale, fitted.scale, anchor, fitted, { width, height },
       );
-      assert.ok(Number.isFinite(focal.x) && Number.isFinite(focal.y));
-      assert.equal(worldEditorClampCamera(focal, overview, { width, height }).x, focal.x);
+      const clamped = worldEditorClampCamera(focal, fitted, { width, height });
+      assert.deepEqual(clamped, focal);
+      assert.ok(focal.x <= 0 && focal.x >= -fitted.limitX);
+      assert.ok(focal.y <= 0 && focal.y >= -fitted.limitY);
     }
   }
-  assert.equal(worldEditorCameraGeometry(390, 844, 4, .01).scale,
-    worldEditorCameraGeometry(390, 844, 4, worldEditorMinZoom(390, 844, 4)).scale);
-  // The public Pet Park camera remains untouched, including its 0.6 floor.
+  // Pet Park is not modified by this World Editor-only restriction.
   assert.equal(parkCameraGeometry(390, 844, 1, 0.1).scale,
     parkCameraGeometry(390, 844, 1, 0.6).scale);
   const page = readFileSync("client/src/pages/WorldSceneEditorPage.tsx", "utf8");
