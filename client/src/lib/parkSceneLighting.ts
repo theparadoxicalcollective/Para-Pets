@@ -1,12 +1,16 @@
 import { getHouseInteriorLightCutoutStrength } from "@shared/housing";
 
 /**
- * The scene-only lamp mask uses opaque *neutral* grays. Gray 255 means no
- * illumination; lower values reveal more of the original night-darkened art.
- * Unlike overlapping translucent black circles, opaque grays can be combined
- * with SVG darken blending without adding their brightness together.
+ * Maximum local night-darkness reduction of a Pet Park / World Editor lamp.
+ * Stronger than before so nearby trees, paths and buildings stay readable,
+ * without tinting the scenery or changing light artwork / saved sizes.
+ *
+ * The neutral SVG mask uses ordinary black alpha gradients instead of
+ * mix-blend-mode inside a luminance mask: the latter can fail in WebKit.
+ * Overlapping real lamps naturally contribute more light; darkness elsewhere
+ * is unchanged, and the mask cannot become brighter than the original art.
  */
-export const PARK_SCENE_LAMP_MAX_REVEAL = 0.38;
+export const PARK_SCENE_LAMP_MAX_REVEAL = 0.66;
 /** An individual firefly reveals only a tiny patch of the original scene. */
 export const PARK_SCENE_FIREFLY_MAX_REVEAL = 0.36;
 export function parkSceneFireflyMaskChannel(strength: number, falloff: number): number {
@@ -23,7 +27,7 @@ export function parkSceneLampMaskChannel(nightStrength: number, falloff: number)
 }
 
 /** Outdoor night for Pet Park and authored worlds, without changing Pet Home lighting. */
-export const PARK_SCENE_NIGHT_DARKNESS = 88;
+export const PARK_SCENE_NIGHT_DARKNESS = 84;
 
 export function parkSceneDarkness(nightStrength: number): number {
   const strength = Number.isFinite(nightStrength) ? Math.max(0, Math.min(1, nightStrength)) : 0;
