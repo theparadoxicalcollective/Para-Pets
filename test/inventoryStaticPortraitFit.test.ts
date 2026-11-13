@@ -10,7 +10,11 @@ test("static visible-fit portraits measure their real slot and still analyze tra
   assert.match(measurement, /if \(!fillContainer \|\| \(performanceStatic && !fitVisible\)\) return/);
   assert.match(measurement, /Math\.min\(el\.clientWidth, el\.clientHeight\)/);
   assert.match(measurement, /new ResizeObserver/);
-  assert.match(measurement, /if \(\(performanceStatic && !fitVisible\) \|\| lowMemory \|\| !allParts\.length\) return/);
+  // Other low-memory consumers still skip image scanning. Only Home's
+  // explicit preciseLowMemoryFit opt-in may perform bounded alpha scans.
+  assert.match(measurement, /\(lowMemory && !preciseLowMemoryFit\) \|\| !allParts\.length\) return/);
+  assert.match(core, /const ab = lowMemory && !preciseLowMemoryFit/);
+  assert.match(core, /preciseLowMemoryFit = false/);
   assert.match(measurement, /getAlphaBounds\(p\.imageUrl\)/);
 });
 
