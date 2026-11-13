@@ -66,6 +66,8 @@ export interface PetAnimatorProps {
   size?: number;
   fillContainer?: boolean;
   fitVisible?: boolean;
+  /** Home-only opt-in: alpha-tight fit with bounded scans even when lowMemory. */
+  preciseLowMemoryFit?: boolean;
   expression?: "neutral" | "happy" | "petted";
   className?: string;
   style?: React.CSSProperties;
@@ -675,6 +677,7 @@ export default function PetAnimator({
   size = 200,
   fillContainer = false,
   fitVisible = false,
+  preciseLowMemoryFit = false,
   expression = "neutral",
   className = "",
   style,
@@ -879,6 +882,7 @@ export default function PetAnimator({
             size={size}
             fillContainer={fillContainer}
             fitVisible={fitVisible}
+            preciseLowMemoryFit={preciseLowMemoryFit}
             expression={expression}
             fireReaction={fireReaction}
             performanceStatic={performanceStatic}
