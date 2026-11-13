@@ -1659,6 +1659,19 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     onCanvasLayout?.({ templateId: petTemplateId, innerSize, innerOffset, transform: fitTransform });
   }, [onCanvasLayout, petTemplateId, innerSize, innerOffset, fitTransform]);
 
+  // The Home team's transparent-padded parts must not visibly render at the
+  // provisional FULL_BOUNDS scale and then snap larger after async scans.
+  // Keep the actual DOM mounted (so images decode and the existing bounded
+  // scan can finish), but expose readiness only when ALL visible part bounds
+  // have settled. This is opt-in; other pet pages retain their first paint.
+  const homeVisibleFitReady = !preciseLowMemoryFit || (
+    viewParts.length > 0 && viewParts.every(part =>
+      !part.imageUrl ||
+      ANIM_ONLY_PARTS.has(part.partType.replace(/^h[23]_/, "")) ||
+      getAlphaBoundsSync(part.imageUrl) !== null
+    )
+  );
+
   if (viewParts.length === 0) return null;
 
   // Build head groups (each head gets its own associated face parts by proximity).
@@ -2122,6 +2135,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
         ...externalStyle,
       }}
       data-testid="pet-animator"
+      data-visible-fit-ready={preciseLowMemoryFit ? String(homeVisibleFitReady) : undefined}
     >
       <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: fitTransform, transformOrigin: "center center", "--pet-motion-pixel-scale": (isLargeStyle ? .3 : 1) / partScale } as React.CSSProperties}>
 
