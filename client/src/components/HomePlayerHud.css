@@ -648,6 +648,11 @@
 .home-player-hud--avatar-home .home-player-hud__slot--templated .home-player-hud__fallback-pet {
   visibility: hidden;
 }
+/* If a template is unavailable, use the original image rather than a blank
+   slot. This does not affect the normal first-paint readiness transition. */
+.home-player-hud--avatar-home .home-player-hud__slot--templated:has([data-visible-fit-ready="unavailable"]) .home-player-hud__fallback-pet {
+  visibility: visible;
+}
 .home-player-hud--avatar-home .home-player-hud__slot--templated .home-player-hud__pet-renderer,
 .home-player-hud--avatar-home .home-player-hud__slot--templated .home-player-hud__mini-companion {
   opacity: 0;
