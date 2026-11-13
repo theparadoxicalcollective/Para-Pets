@@ -466,11 +466,11 @@ try {
 
     if(sc.name==="saved character phone"){
       const beforeTeam=[...currentTeamIds];
-      const center=await page.getByTestId("home-player-team-slot-3").boundingBox();
+      const center=await page.getByTestId("home-player-team-slot-1").boundingBox();
       assert.ok(center);
       await page.mouse.move(center.x+center.width/2,center.y+center.height/2);
       await page.mouse.down();
-      await page.mouse.move(center.x+center.width/2-76,center.y+center.height/2,{steps:6});
+      await page.mouse.move(center.x+center.width/2-48,center.y+center.height/2,{steps:6});
       await page.mouse.up();
       await page.waitForFunction(() =>
         document.querySelector('[data-testid="home-player-team-slot-3"]')
@@ -514,7 +514,7 @@ try {
       // Also exercise holding and dragging RIGHT on a pet. A swipe in
       // either direction rotates the visual order without rewriting the
       // PvP/Raid roster or moving any floor ovals.
-      const rightStart=await page.getByTestId("home-player-team-slot-3").boundingBox();
+      const rightStart=await page.getByTestId("home-player-team-slot-1").boundingBox();
       assert.ok(rightStart);
       await page.mouse.move(rightStart.x+rightStart.width/2,rightStart.y+rightStart.height/2);
       await page.mouse.down();
