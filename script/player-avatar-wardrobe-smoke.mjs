@@ -432,7 +432,11 @@ try {
     });
     await page.waitForFunction(() => {
       const hair = [...document.querySelectorAll('[data-clothing-key^="hair:"]')];
-      return hair.length === 2 && hair.every(el => getComputedStyle(el).filter.includes("url("));
+      return hair.length === 2 && hair.every(el => {
+        const filter = getComputedStyle(el).filter;
+        return /grayscale\(1\).*sepia\(1\).*hue-rotate\(/.test(filter) &&
+          !filter.includes("url(");
+      });
     });
     assert.equal(await page.locator('[data-clothing-key^="hair:"]').count(), 2,
       name + ": front and back hair remain separate artwork with active recoloring");
@@ -464,8 +468,10 @@ try {
     assert.equal(skinBlend.mode,"normal",name + ": no pale luminosity-preserving Color blend");
     assert.equal(Number(skinBlend.opacity),1,
       name + ": dark skin is never diluted by overlay opacity");
-    assert.match(skinBlend.filter,/url\(/,
-      name + ": one alpha-preserving SVG filter recolors the complete assembled body");
+    assert.match(skinBlend.filter,/grayscale\(1\).*sepia\(1\).*hue-rotate\(/,
+      name + ": one native CSS filter recolors the complete assembled body");
+    assert.doesNotMatch(skinBlend.filter,/url\(/,
+      name + ": skin recoloring does not depend on an SVG URL filter");
     await page.getByTestId("avatar-choose-fem").tap();
     assert.equal(avatar.base.id,"base-2",
       name + ": switching Fem/Masc never saves an intermediate appearance");
