@@ -76,7 +76,26 @@ test("mobile wardrobe removes duplicate original skin button and uses a compact 
   assert.doesNotMatch(creator, /aria-label="Original body color"/);
   assert.match(creator, /player-avatar-page__body-divider/);
   assert.match(style, /player-avatar-page__body-divider/);
-  assert.match(style, /grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\)/);
-  assert.match(style, /clamp\(64px, 18vw, 84px\)/);
+  assert.match(style, /grid-template-columns: auto minmax\(0, 1fr\) 38px/);
+  assert.match(style, /clamp\(60px, 17vw, 78px\)/);
   assert.match(style, /player-avatar-page__create \{ margin-top: auto/);
+});
+
+test("clothing palette is a compact popover beside Tuck, not a row under inventory", () => {
+  const creator = file("client/src/pages/PlayerAvatarPage.tsx");
+  const css = file("client/src/pages/PlayerAvatarPage.css");
+  const header = creator.split('className="player-avatar-page__wardrobe-header"')[1]
+    .split('data-testid="avatar-clothing-category-panel"')[0] ?? "";
+  assert.match(creator, /data-testid="avatar-clothing-color-toggle"/);
+  assert.match(creator, /aria-expanded=\{clothingPickerOpen\}/);
+  assert.match(creator, /id="avatar-clothing-color-popup"/);
+  assert.match(creator, /data-testid="avatar-clothing-reset-color"/);
+  assert.match(creator, /onClick=\{\(\) => \{ setPreviewTint\(selected\.inventoryId, null\); showSparkle\(\); \}\}/);
+  assert.match(creator, /setClothingPickerOpen\(false\)/);
+  assert.match(creator, /playerClothingCanRecolor\(selected\.category, selected\.colorPickerEnabled\)/);
+  assert.doesNotMatch(creator, /className="player-avatar-page__clothing-colors"/);
+  assert.match(css, /player-avatar-page__wardrobe-tools \{[\s\S]*?display: flex/);
+  assert.match(css, /player-avatar-page__clothing-color-popup \{[\s\S]*?position: absolute/);
+  assert.match(css, /player-avatar-page__inventory \{[\s\S]*?flex-flow: row nowrap;[\s\S]*?overflow-x: auto;[\s\S]*?overflow-y: hidden/);
+  assert.match(css, /-webkit-overflow-scrolling: touch/);
 });
