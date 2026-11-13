@@ -580,6 +580,14 @@
   width: clamp(85px, 23vw, 112px);
   z-index: 1;
 }
+/* Vacant slots have large transparent button rectangles. At the staggered
+   edges these rectangles overlap the actual artwork of adjacent pets.
+   Keep blanks underneath occupied pets so the player can tap the visible
+   companion instead of accidentally opening the neighboring empty slot.
+   The visible + remains accessible at its own center and by keyboard. */
+.home-player-hud--avatar-home .home-player-hud__slot--vacant {
+  z-index: 0;
+}
 /* The pet composites, accessories and mini companions share one scalable slot.
    The renderer's 58px internal logical size no longer limits visible artwork. */
 .home-player-hud--avatar-home .home-player-hud__slot-portrait {
