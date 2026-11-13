@@ -433,7 +433,7 @@
   stroke: rgba(4, 22, 14, .95);
   stroke-width: 2.8px;
   paint-order: stroke fill;
-  font: 700 24px Georgia, serif;
+  font: 700 17px Georgia, serif;
   letter-spacing: .035em;
   filter: drop-shadow(0 0 3px rgba(243, 201, 108, .58));
 }
@@ -634,7 +634,7 @@
 .home-player-hud--avatar-home .home-player-hud__pet-renderer {
   display: grid;
   place-items: center;
-  transform: translateY(4px) scale(1.10);
+  transform: translateY(10px) scale(1.10);
   transform-origin: center bottom;
 }
 .home-player-hud--avatar-home .home-player-hud__pet-renderer > * {
@@ -654,7 +654,7 @@
   50% { transform: scaleY(1.008); }
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__pet-renderer {
-  transform: translateY(4px) scale(1.12);
+  transform: translateY(10px) scale(1.12);
 }
 .home-player-hud__mini-companion {
   position: absolute;
@@ -671,7 +671,7 @@
 .home-player-hud--avatar-home .home-player-hud__mini-companion {
   left: -12%;
   right: auto;
-  bottom: 9%;
+  bottom: 5%;
   width: 38%;
 }
 /* Mini Pets belong to the host pet's visible-fit portrait, never a
@@ -709,7 +709,7 @@
 .home-player-hud--avatar-home .home-player-hud__slot-stars {
   /* Rarity follows its owner and rests along the base of its current oval. */
   top: auto;
-  bottom: 2%;
+  bottom: -4%;
   width: 84%;
   gap: 1px;
   z-index: 6;
