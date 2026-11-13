@@ -54,11 +54,11 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(p(0), /clamp\(96px, 27vw, 132px\)/);
   assert.match(p(1), /left: 25%/);
   assert.match(p(1), /bottom: 34px/);
-  assert.match(p(0), /left: clamp\(54px, 14%, 78px\)/);
+  assert.match(p(0), /left: clamp\(64px, 16%, 84px\)/);
   assert.match(p(0), /bottom: 86px/);
   assert.match(p(3), /left: 75%/);
   assert.match(p(3), /bottom: 34px/);
-  assert.match(p(4), /left: calc\(100% - clamp\(54px, 14%, 78px\)\)/);
+  assert.match(p(4), /left: calc\(100% - clamp\(64px, 16%, 84px\)\)/);
   assert.match(p(4), /bottom: 86px/);
   assert.match(p(0), /z-index: 1/);
   assert.match(p(4), /z-index: 1/);
@@ -77,13 +77,16 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
 test("Home carousel remains on-screen on narrow phones, with a quieter but animated idle", () => {
   const css = read("client/src/components/HomePlayerHud.css");
   const hud = read("client/src/components/HomePlayerHud.tsx");
-  // The 54px minimum center margin protects 1.17× rendered outer artwork
-  // on 320px phone viewports; positions remain symmetric on tablets.
-  for (const panelWidth of [312, 382, 540]) {
-    const outerCenter = Math.min(78, Math.max(54, panelWidth * .14));
-    const outerArtWidth = panelWidth === 312 ? 85 : panelWidth === 382 ? 89.7 : 112;
-    assert.ok(outerCenter > outerArtWidth * 1.17 / 2 - 1,
-      "outer pet remains entirely visible on a " + panelWidth + "px-wide Home panel");
+  // The enlarged outer pet portrait includes a 6px inset and a 1.10
+  // scale, so keep its painted edge visible rather than trusting a
+  // previous thumbnail-width calculation.
+  for (const vw of [320, 390, 834]) {
+    const panelWidth = Math.min(vw - 8, 540);
+    const outerCenter = Math.min(84, Math.max(64, panelWidth * .16));
+    const outerWidth = Math.max(96, Math.min(vw * .27, 132));
+    const outerPaintHalf = (outerWidth + 6) * 1.10 / 2;
+    assert.ok(outerCenter >= outerPaintHalf - 1,
+      "pet art stays in view even at the edge on " + vw + "px screens");
     assert.ok(Math.abs((panelWidth - (panelWidth - outerCenter)) - outerCenter) < 1e-9,
       "mirrored outer position tolerates ordinary floating-point rounding");
   }
