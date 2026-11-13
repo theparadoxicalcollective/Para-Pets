@@ -46,7 +46,9 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   for (const pos of [0,1,2,3,4]) assert.match(css,
     new RegExp("home-player-hud__slot--position-" + pos + " \\{"));
   const p = (n: number) => css.match(new RegExp(
-    "home-player-hud__slot--position-" + n + " \\{([^}]+)\\}"))?.[1] ?? "";
+    "home-player-hud__slot--position-" + n +
+    ",\\s*\\.home-player-hud--avatar-home \\.home-player-hud__slot-ground--position-" +
+    n + " \\{([^}]+)\\}"))?.[1] ?? "";
   assert.match(p(2), /left: 50%/);
   assert.match(p(2), /bottom: -9px/);
   assert.match(p(2), /clamp\(124px, 34vw, 174px\)/);
@@ -60,15 +62,16 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(p(3), /bottom: 34px/);
   assert.match(p(4), /left: calc\(100% - clamp\(64px, 16%, 84px\)\)/);
   assert.match(p(4), /bottom: 86px/);
-  assert.match(p(0), /z-index: 1/);
-  assert.match(p(4), /z-index: 1/);
-  assert.match(p(1), /z-index: 3/);
+  assert.match(css, /slot--position-0 \{ z-index: 1; \}/);
+  assert.match(css, /slot--position-4 \{ z-index: 1; \}/);
+  assert.match(css, /slot--position-1 \{ z-index: 3; \}/);
   assert.match(p(3), /z-index: 3/);
   assert.match(css, /transition: left 270ms ease, bottom 270ms ease, width 270ms ease/);
   assert.match(css, /pointer-events: none;\s*touch-action: pan-y/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot \{[^}]*pointer-events: auto/s);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__mini-companion \{[\s\S]*?width: 38%/);
-  assert.match(css, /slot--position-2 \.home-player-hud__slot-stars \{ top: -48px/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-stars \{[\s\S]*?top: auto;[\s\S]*?bottom: 2%;[\s\S]*?width: 84%/);
+  assert.doesNotMatch(css, /\.home-player-hud--avatar-home \.home-player-hud__slot--position-2 \.home-player-hud__slot-stars/);
   assert.doesNotMatch(css, /clamp\(58px, 17vw, 68px\)|clamp\(65px, 19vw, 88px\)|clamp\(58px, 17\.5vw, 69px\)/);
   assert.match(css, /prefers-reduced-motion: reduce/);
 });
@@ -90,12 +93,17 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
     assert.ok(Math.abs((panelWidth - (panelWidth - outerCenter)) - outerCenter) < 1e-9,
       "mirrored outer position tolerates ordinary floating-point rounding");
   }
-  assert.match(css, /position-0,\s*\n\s*\.home-player-hud--avatar-home \.home-player-hud__slot--position-4 \{ bottom: 72px/);
-  assert.match(css, /position-1,\s*\n\s*\.home-player-hud--avatar-home \.home-player-hud__slot--position-3 \{ bottom: 27px/);
-  assert.match(css, /position-2 \{ bottom: -7px/);
+  assert.match(css, /slot-ground--position-0,[\s\S]*?slot-ground--position-4 \{ bottom: 72px/);
+  assert.match(css, /slot-ground--position-1,[\s\S]*?slot-ground--position-3 \{ bottom: 27px/);
+  assert.match(css, /slot-ground--position-2 \{ bottom: -7px/);
   assert.match(css, /bottom: calc\(10px \+ env\(safe-area-inset-bottom, 0px\)\)/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__mini-companion \{[\s\S]*?left: -12%;[\s\S]*?right: auto;[\s\S]*?width: 38%/);
   assert.match(css, /position-0 \.home-player-hud__mini-companion \{\s*left: -6%;/);
+  assert.match(hud, /home-player-team-ground-/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-ground \{[\s\S]*?pointer-events: none;[\s\S]*?z-index: 0;/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-ground::before \{[\s\S]*?border-radius: 50%/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot::before \{ content: none; \}/);
+  assert.match(hud, /style=\{avatarHome \? undefined : \{ transform:/);
   assert.match(hud, /mode="house" lowMemory size=\{58\}\s*fillContainer fitVisible=\{avatarHome\} view="front"/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot--vacant \{\s*z-index: 0;/);
