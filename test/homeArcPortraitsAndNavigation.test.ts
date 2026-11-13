@@ -73,7 +73,7 @@ test("compact blinking pet thumbnails retain equipped adornments and mini pets",
   const miniCss = homeCss.split(".home-player-hud__mini-companion {")[1].split("}")[0];
   assert.doesNotMatch(miniCss, /drop-shadow\(1px 0 0|drop-shadow\(-1px 0 0/);
   assert.match(miniCss, /drop-shadow\(0 2px 2px rgba/);
-  assert.match(homeCss, /transform: translateY\(10px\) scale\(1\.10\)/);
+  assert.match(homeCss, /transform: translateY\(4px\) scale\(1\.10\)/);
 });
 
 test("Home keeps username above smaller Watcher without changing its tap target or messages", () => {
