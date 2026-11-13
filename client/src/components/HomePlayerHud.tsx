@@ -386,7 +386,7 @@ export default function HomePlayerHud({
                         petInventoryId={pet.inventoryId}
                         artworkForm={pet.isEvolved ? "evolution" : undefined}
                         mode="house" lowMemory size={58}
-                        fillContainer view="front" />
+                        fillContainer fitVisible view="front" />
                     </span>
                   )}
                   <span className="home-player-hud__mini-companion"
