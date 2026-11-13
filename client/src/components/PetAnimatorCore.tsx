@@ -1607,7 +1607,11 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
       // pets even though they're hidden during their opacity-0 frames.
       const baseType = part.partType.replace(/^h[23]_/, "");
       if (ANIM_ONLY_PARTS.has(baseType)) continue;
-      const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+      // Low-memory Home thumbnails must not change scale after the user
+      // visits another pet page that populates the global alpha cache.
+      // Use stable authored part geometry and avoid scanning five pets'
+      // decoded artwork merely to size a small team preview.
+      const ab = lowMemory ? FULL_BOUNDS : (getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS);
       const vL = part.posX + part.width  * ab.left;
       const vT = part.posY + part.height * ab.top;
       const vR = part.posX + part.width  * (ab.left + ab.width);
