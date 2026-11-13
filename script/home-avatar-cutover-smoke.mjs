@@ -280,6 +280,11 @@ try {
         JSON.stringify({animBounds,slotBounds}));
     assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"animated",
       sc.name+": equipped Mini Pet uses its current looping idle animation");
+    const miniBox = await page.getByTestId("home-player-team-mini-1").boundingBox();
+    assert.ok(miniBox && slotBounds && miniBox.x >= -1 &&
+      miniBox.x + miniBox.width <= sc.width + 1 &&
+      miniBox.x + miniBox.width / 2 < slotBounds.x + slotBounds.width / 2,
+      sc.name+": attached Mini Pet stays visible to LEFT of its host in a normal mobile/tablet viewport");
     assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
       sc.name+": avatar, player progress and party surfaces all render");
     assert.ok(Math.abs(homeLayout.stars.centerX-homeLayout.actor.centerX)<6,
@@ -432,8 +437,9 @@ try {
       sc.name + ": Home uses one calm whole-sprite breath, not full-page idle lurches");
     assert.equal(calmHomeIdle.duration, "4.8s",
       sc.name + ": Home uses the intended quiet idle pacing");
-    assert.ok(nearLeft && nearRight && farRight && centerSlot.width > nearLeft.width + 22 &&
-      nearLeft.width > teamSlot.width + 12 && Math.abs(nearRight.width - nearLeft.width) <= 1 &&
+    assert.ok(nearLeft && nearRight && farRight && centerSlot.width > nearLeft.width + 12 &&
+      nearLeft.width > teamSlot.width + 5 && centerSlot.width / teamSlot.width < 1.5 &&
+      Math.abs(nearRight.width - nearLeft.width) <= 1 &&
       Math.abs(farRight.width - teamSlot.width) <= 1,
       sc.name+": center > near pair > outer pair: "+
       JSON.stringify({center:centerSlot.width,near:nearLeft.width,outer:teamSlot.width}));
@@ -442,8 +448,8 @@ try {
       footLine(nearLeft) > footLine(teamSlot) + (sc.height <= 690 ? 9 : 12),
       sc.name+": center oval is lowest while side pets ascend: " +
         JSON.stringify({center:footLine(centerSlot),near:footLine(nearLeft),outer:footLine(teamSlot)}));
-    assert.ok(centerSlot.y <= teamSlot.y + 12,
-      sc.name+": intentionally raised outer pets may reach the center's top height while the center stays largest");
+    assert.ok(teamSlot.y + 10 < nearLeft.y && nearLeft.y + 10 < centerSlot.y,
+      sc.name+": outer pets are raised high enough to remain visible ahead of the near pair");
 
     if(sc.name==="saved character phone"){
       const beforeTeam=[...currentTeamIds];
@@ -460,6 +466,12 @@ try {
         sc.name+": swiping pets does not accidentally open the team editor");
       assert.deepEqual(currentTeamIds,beforeTeam,
         sc.name+": circular swipes never overwrite PvP/Raid team roster");
+      const rotatedHost = await page.getByTestId("home-player-team-slot-1").boundingBox();
+      const rotatedMini = await page.getByTestId("home-player-team-mini-1").boundingBox();
+      assert.ok(rotatedHost && rotatedMini && rotatedMini.x + rotatedMini.width / 2 <
+        rotatedHost.x + rotatedHost.width / 2 && rotatedMini.x >= -1 &&
+        rotatedMini.x + rotatedMini.width <= sc.width + 1,
+        sc.name+": swiping the carousel keeps a Mini Pet attached on its host's left");
       await page.getByTestId("home-player-team-slots").press("ArrowLeft");
       await page.waitForFunction(() =>
         document.querySelector('[data-testid="home-player-team-slot-3"]')
