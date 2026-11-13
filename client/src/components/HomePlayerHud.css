@@ -548,7 +548,7 @@
    widths stay close enough to avoid huge cross-slot scale differences.
    All positions remain viewport-relative, with no fixed device stage. */
 .home-player-hud--avatar-home .home-player-hud__slot--position-0 {
-  left: clamp(54px, 14%, 78px);
+  left: clamp(64px, 16%, 84px);
   bottom: 86px;
   width: clamp(96px, 27vw, 132px);
   z-index: 1;
@@ -572,7 +572,7 @@
   z-index: 3;
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-4 {
-  left: calc(100% - clamp(54px, 14%, 78px));
+  left: calc(100% - clamp(64px, 16%, 84px));
   bottom: 86px;
   width: clamp(96px, 27vw, 132px);
   z-index: 1;
