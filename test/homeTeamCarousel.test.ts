@@ -84,7 +84,8 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
     const outerArtWidth = panelWidth === 312 ? 85 : panelWidth === 382 ? 89.7 : 112;
     assert.ok(outerCenter > outerArtWidth * 1.17 / 2 - 1,
       "outer pet remains entirely visible on a " + panelWidth + "px-wide Home panel");
-    assert.equal(panelWidth - (panelWidth - outerCenter), outerCenter);
+    assert.ok(Math.abs((panelWidth - (panelWidth - outerCenter)) - outerCenter) < 1e-9,
+      "mirrored outer position tolerates ordinary floating-point rounding");
   }
   assert.match(css, /position-0,\s*\n\s*\.home-player-hud--avatar-home \.home-player-hud__slot--position-4 \{ bottom: 42px/);
   assert.match(css, /position-1,\s*\n\s*\.home-player-hud--avatar-home \.home-player-hud__slot--position-3 \{ bottom: 27px/);
