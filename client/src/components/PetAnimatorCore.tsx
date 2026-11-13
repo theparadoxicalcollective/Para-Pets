@@ -49,6 +49,10 @@ interface PetAnimatorProps {
    *  opt-in so existing layouts (HomePage, PetHousePage, BattleArena
    *  prep) keep their current padded composition. */
   fitVisible?: boolean;
+  /** Home team only: allow alpha-tight fitting even in low-memory mode.
+   * The shared alpha scanner deduplicates URLs and limits concurrency to 2;
+   * it does not add observers or enable expensive motion compositing. */
+  preciseLowMemoryFit?: boolean;
   /** Override face parts to show a specific expression. "happy" forces eyes
    *  closed and mouth open (when those parts exist on the template), used
    *  when the pet is being celebrated (clicked / fed on the feeding page). */
@@ -1386,7 +1390,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, artworkForm = "base", mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, lowMemory = false, hiddenPartTypes, onCanvasLayout, fireReaction = false }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, artworkForm = "base", mode, view = "front", size = 200, fillContainer = false, fitVisible = false, preciseLowMemoryFit = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, lowMemory = false, hiddenPartTypes, onCanvasLayout, fireReaction = false }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -1448,11 +1452,13 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // any of the same part images get the corrected pivot for free.
   const [, bumpAlphaVersion] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
-    if ((performanceStatic && !fitVisible) || lowMemory || !allParts.length) return;
+    if ((performanceStatic && !fitVisible) || (lowMemory && !preciseLowMemoryFit) || !allParts.length) return;
     let cancelled = false;
     let pending = 0;
     for (const p of allParts) {
-      if (!p.imageUrl) continue;
+      // Only art that contributes to the visible silhouette affects fit.
+      // Avoid analyzing invisible blink/mouth expression overlays.
+      if (!p.imageUrl || ANIM_ONLY_PARTS.has(p.partType.replace(/^h[23]_/, ""))) continue;
       if (getAlphaBoundsSync(p.imageUrl)) continue; // already cached
       pending++;
       void getAlphaBounds(p.imageUrl).then(() => {
@@ -1464,7 +1470,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
       });
     }
     return () => { cancelled = true; };
-  }, [allParts, performanceStatic, fitVisible, lowMemory]);
+  }, [allParts, performanceStatic, fitVisible, lowMemory, preciseLowMemoryFit]);
   // Flying pets keep the original head-bob idle so they look like they're
   // hovering. Ground pets switch to the head-tilt-only variant so they
   // don't read as "floating off the ground".
@@ -1607,11 +1613,12 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
       // pets even though they're hidden during their opacity-0 frames.
       const baseType = part.partType.replace(/^h[23]_/, "");
       if (ANIM_ONLY_PARTS.has(baseType)) continue;
-      // Low-memory Home thumbnails must not change scale after the user
-      // visits another pet page that populates the global alpha cache.
-      // Use stable authored part geometry and avoid scanning five pets'
-      // decoded artwork merely to size a small team preview.
-      const ab = lowMemory ? FULL_BOUNDS : (getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS);
+      // Normal low-memory pages keep stable authored geometry. Home opts
+      // into a one-time, concurrency-limited alpha fit because different
+      // pet PNGs have radically different transparent margins. Re-render
+      // only after all relevant bounds have resolved.
+      const ab = lowMemory && !preciseLowMemoryFit
+        ? FULL_BOUNDS : (getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS);
       const vL = part.posX + part.width  * ab.left;
       const vT = part.posY + part.height * ab.top;
       const vR = part.posX + part.width  * (ab.left + ab.width);

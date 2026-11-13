@@ -70,7 +70,7 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(css, /pointer-events: none;\s*touch-action: pan-y/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot \{[^}]*pointer-events: auto/s);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__mini-companion \{[\s\S]*?width: 38%/);
-  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-stars \{[\s\S]*?top: auto;[\s\S]*?bottom: 2%;[\s\S]*?width: 84%/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-stars \{[\s\S]*?top: auto;[\s\S]*?bottom: -4%;[\s\S]*?width: 84%/);
   assert.doesNotMatch(css, /\.home-player-hud--avatar-home \.home-player-hud__slot--position-2 \.home-player-hud__slot-stars/);
   assert.doesNotMatch(css, /clamp\(58px, 17vw, 68px\)|clamp\(65px, 19vw, 88px\)|clamp\(58px, 17\.5vw, 69px\)/);
   assert.match(css, /prefers-reduced-motion: reduce/);
@@ -104,7 +104,7 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-ground::before \{[\s\S]*?border-radius: 50%/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot::before \{ content: none; \}/);
   assert.match(hud, /style=\{avatarHome \? undefined : \{ transform:/);
-  assert.match(hud, /mode="house" lowMemory size=\{58\}\s*fillContainer fitVisible=\{avatarHome\} view="front"/);
+  assert.match(hud, /mode="house" lowMemory size=\{58\}\s*fillContainer fitVisible=\{avatarHome\}\s*preciseLowMemoryFit=\{avatarHome\} view="front"/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot--vacant \{\s*z-index: 0;/);
   assert.match(css, /animation: homeTeamQuietBreath 4\.8s ease-in-out infinite/);
@@ -118,15 +118,18 @@ test("Home carousel remains on-screen on narrow phones, with a quieter but anima
 });
 
 
-test("Home scales only through five stable slot sizes, never image metadata or cached alpha", () => {
+test("Home keeps five stable slot sizes while alpha-fitting padded pet artwork", () => {
   const css = read("client/src/components/HomePlayerHud.css");
   const renderer = read("client/src/components/PetAnimatorCore.tsx");
   const hud = read("client/src/components/HomePlayerHud.tsx");
-  assert.match(hud, /fillContainer fitVisible=\{avatarHome\} view="front"/);
+  assert.match(hud, /fillContainer fitVisible=\{avatarHome\}\s*preciseLowMemoryFit=\{avatarHome\} view="front"/);
   assert.match(hud, /mode="house" lowMemory size=\{58\}/);
-  assert.match(renderer, /const ab = lowMemory \? FULL_BOUNDS : \(getAlphaBoundsSync\(part\.imageUrl\) \?\? FULL_BOUNDS\)/);
-  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__pet-renderer \{[\s\S]*?scale\(1\.10\)/);
-  assert.match(css, /position-2 \.home-player-hud__pet-renderer \{[\s\S]*?scale\(1\.12\)/);
+  assert.match(renderer, /const ab = lowMemory && !preciseLowMemoryFit/);
+  assert.match(renderer, /\(lowMemory && !preciseLowMemoryFit\) \|\| !allParts\.length/);
+  assert.match(renderer, /ANIM_ONLY_PARTS\.has\(p\.partType\.replace/);
+  assert.match(read("client/src/components/PetAnimator.tsx"), /preciseLowMemoryFit=\{preciseLowMemoryFit\}/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__pet-renderer \{[\s\S]*?translateY\(10px\) scale\(1\.10\)/);
+  assert.match(css, /position-2 \.home-player-hud__pet-renderer \{[\s\S]*?translateY\(10px\) scale\(1\.12\)/);
   assert.doesNotMatch(css, /scale\(1\.24\)|scale\(1\.17\)/);
   // The artwork size ladder is deliberate but modest; the middle shouldn't
   // become twice the size of an equally fitted pet placed at either edge.
