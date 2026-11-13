@@ -49,7 +49,7 @@
 }
 .player-character-renderer__skin-tint {
   /* Applied to the flattened body, NOT to any individual artwork sprite.
-     Original RGB shading drives the filter, and source alpha is unchanged. */
+     Original luminance drives the tint, and source alpha is unchanged. */
   will-change: filter;
 }
 .player-character-renderer__motion,
