@@ -123,8 +123,15 @@ try {
   for (const [name, width, height] of [["phone", 390, 844], ["tablet", 834, 1194]]) {
     const context = await browser.newContext({
       viewport: { width, height }, isMobile: true, hasTouch: true,
+      timezoneId: "UTC",
     });
     const page = await context.newPage();
+    // The world editor uses a real day/night clock. This fixture asserts the
+    // FULL-NIGHT neutral lamp peak, so pin it to 23:00 instead of allowing CI
+    // to run during the 05:30–06:00 dawn fade and incorrectly fail the peak
+    // assertion. Only Date is fixed: browser timers, gestures, and transitions
+    // continue operating normally (unlike a frozen timer mock).
+    await page.clock.setFixedTime(new Date("2026-11-12T23:00:00.000Z"));
     page.setDefaultTimeout(15_000);
     const errors = [], apiWrites = [], publicWorldRequests = [], petParkRequests = [];
     page.on("pageerror", e => errors.push(e.message));
