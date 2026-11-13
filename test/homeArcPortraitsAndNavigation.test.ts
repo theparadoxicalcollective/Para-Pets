@@ -10,8 +10,8 @@ const navCss = read("client/src/components/FloatingNavHome.css");
 const topBar = read("client/src/components/TopBar.tsx");
 const home = read("client/src/pages/HomePage.tsx");
 
-test("Home enlarges and raises the avatar's five Elevation stars, not the pet rarities", () => {
-  assert.match(homeCss, /width: clamp\(37px, 10vw, 51px\)/);
+test("Home enlarges both player and companion stars while keeping their positions", () => {
+  assert.match(homeCss, /width: clamp\(41px, 11vw, 55px\)/);
   assert.match(homeCss, /home-avatar-visual-size, 220px\) - 24px/);
   assert.match(homeHud, /avatarHome \? 31 : 14/);
   assert.match(homeHud, /i < \(player\?\.stars \?\? 1\)/);
@@ -70,7 +70,7 @@ test("compact blinking pet thumbnails retain equipped adornments and mini pets",
   assert.match(homeCss, /home-player-hud__mini-companion/);
   assert.match(homeCss, /:has\(\.home-player-hud__pet-renderer \[data-testid="pet-animator"\] img\)/);
   assert.match(homeCss, /drop-shadow\(1px 0 0/);
-  const miniCss = homeCss.split(".home-player-hud__mini-companion {")[1].split("}")[0];
+  const miniCss = homeCss.split("\n.home-player-hud__mini-companion {")[1].split("}")[0];
   assert.doesNotMatch(miniCss, /drop-shadow\(1px 0 0|drop-shadow\(-1px 0 0/);
   assert.match(miniCss, /drop-shadow\(0 2px 2px rgba/);
   assert.match(homeCss, /transform: translateY\(4px\) scale\(1\.10\)/);
