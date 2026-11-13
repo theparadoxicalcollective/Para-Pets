@@ -550,8 +550,17 @@ try {
       name+": zoom slider supports fine steps");
     await page.getByTestId("button-world-fit").click();
     const atWideZoom=await worldSprite.boundingBox();
-    assert.ok(atWideZoom && atWideZoom.width<atNormalZoom.width*.6,
-      name+": Fit shows the full authored world");
+    assert.ok(atWideZoom && atWideZoom.width<atNormalZoom.width*.75,
+      name+": Fit offers a wider view without shrinking the world to a thumbnail");
+    assert.ok(Number(await zoomSlider.inputValue())>=.6,
+      name+": Fit respects the same safe minimum as Pet Park");
+    const viewport=await page.getByTestId("world-scene-draft-viewport").boundingBox();
+    const ground=await page.locator('[data-world-editor-artwork]').boundingBox();
+    assert.ok(viewport && ground &&
+      ground.x <= viewport.x + 1 && ground.y <= viewport.y + 1 &&
+      ground.x + ground.width >= viewport.x + viewport.width - 1 &&
+      ground.y + ground.height >= viewport.y + viewport.height - 1,
+      name+": at minimum zoom, authored ground covers every phone/tablet viewport edge");
     await page.getByRole("button",{name:"Reset world zoom"}).click();
     assert.ok(Math.abs(Number(await zoomSlider.inputValue())-1)<.011);
     await page.getByRole("button",{name:"Close World Settings"}).click();
