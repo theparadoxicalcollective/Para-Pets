@@ -1433,7 +1433,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     return () => ro.disconnect();
   }, [fillContainer, performanceStatic, fitVisible, lowMemory]);
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null; evolutionEffects?: EvolutionPetEffect[] }>({
+  const { data: templateData, isError: templateError } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null; evolutionEffects?: EvolutionPetEffect[] }>({
     ...petTemplateQuery(petTemplateId, artworkForm),
   });
 
@@ -1672,7 +1672,14 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     )
   );
 
-  if (viewParts.length === 0) return null;
+  // Keep an unavailable template's original still-image fallback accessible
+  // rather than leaving its Home slot permanently blank on a failed request
+  // or when an older pet has no authored front-facing parts.
+  if (viewParts.length === 0) {
+    return preciseLowMemoryFit && (templateError || templateData)
+      ? <span data-visible-fit-ready="unavailable" aria-hidden="true" />
+      : null;
+  }
 
   // Build head groups (each head gets its own associated face parts by proximity).
   // Evolution ears are deliberately pulled out of the head stacking context:
