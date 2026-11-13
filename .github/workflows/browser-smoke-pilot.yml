@@ -26,6 +26,7 @@ on:
       - 'client/src/components/PlayerClothingAdminPanel.tsx'
       - 'client/src/components/PlayerCharacterRenderer.tsx'
       - 'client/src/components/PlayerCharacterRenderer.css'
+      - 'client/src/lib/playerCharacterCssTint.ts'
       - 'shared/playerCharacterClothing.ts'
       - 'shared/playerClothingAdmin.ts'
       - 'server/routes/playerClothingAdmin.routes.ts'
