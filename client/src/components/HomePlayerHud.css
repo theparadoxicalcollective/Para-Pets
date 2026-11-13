@@ -640,14 +640,21 @@
 }
 .home-player-hud__mini-companion {
   position: absolute;
-  left: -12%;
-  right: auto;
-  bottom: 9%;
-  width: 38%;
+  right: -12%;
+  bottom: 10%;
+  width: 48%;
   aspect-ratio: 1;
   z-index: 3;
   pointer-events: none;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
+}
+/* Scoped to modern Home: size and position a Mini Pet relative to the
+   visible-fit host portrait, never relative to the viewport or on its right. */
+.home-player-hud--avatar-home .home-player-hud__mini-companion {
+  left: -12%;
+  right: auto;
+  bottom: 9%;
+  width: 38%;
 }
 /* Mini Pets belong to the host pet's visible-fit portrait, never a
    screen-side mirror. All five sit to the host's LEFT, including positions
