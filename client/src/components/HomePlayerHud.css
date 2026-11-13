@@ -479,10 +479,10 @@
   padding: 4px;
   background: rgba(6, 28, 18, .87);
 }
-/* The five portraits form a real depth carousel, not a 5-column grid.
-   Old 58/68/88px caps and short-phone shrink overrides were removed. Every
-   position has an explicit scene-relative width and bottom anchor so the
-   center pet is visibly larger on phones AND tablets. */
+/* The five pets stay a depth carousel, not five identical thumbnails.
+   Use one modest size ladder on phones and tablets; the previous large
+   center-specific scale compounded the 37vw center slot, leaving outer pets
+   visually tiny even before different template padding was considered. */
 .home-player-hud--avatar-home .home-player-hud__party-panel {
   /* Retain a physical bottom pixel of clearance even with no iOS safe area:
      the lowered center oval must not disappear off-screen on Android. */
@@ -528,8 +528,19 @@
   pointer-events: auto;
   transition: left 270ms ease, bottom 270ms ease, width 270ms ease;
 }
-/* Each oval is at its pet's feet, not centered behind its body. */
-.home-player-hud--avatar-home .home-player-hud__slot::before {
+/* Five independent ground stations remain fixed as players drag pets. */
+.home-player-hud--avatar-home .home-player-hud__slot-ground {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  box-sizing: border-box;
+  width: clamp(85px, 23vw, 112px);
+  aspect-ratio: 1 / 1.07;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.home-player-hud--avatar-home .home-player-hud__slot-ground::before {
   content: "";
   position: absolute;
   bottom: 0;
@@ -543,43 +554,47 @@
   z-index: 0;
   pointer-events: none;
 }
-/* Grounded five-pet arc, ordered left-to-right by VISUAL position (swiping
-   moves pets between these positions; it never changes the saved roster).
-   The outer centers are at least 54px from the panel's edges so 1.17×
-   rendered artwork stays visible even on a 320px phone. Mirrored inner
-   companions are spread away from the center, raised above its silhouette,
-   and the front/center pet sits 9px lower. All measurements remain inside
-   the existing device-width panel, never a fixed reference stage. */
-.home-player-hud--avatar-home .home-player-hud__slot--position-0 {
-  left: clamp(54px, 14%, 78px);
-  bottom: 55px;
-  width: clamp(85px, 23vw, 112px);
-  z-index: 1;
+/* Pet buttons no longer carry their ground oval when swiped in modern Home. */
+.home-player-hud--avatar-home .home-player-hud__slot::before { content: none; }
+/* Grounded five-pet arc, ordered left-to-right by VISUAL position.
+   Outer pets rise above the nearer pair to remain visible behind them, but
+   widths stay close enough to avoid huge cross-slot scale differences.
+   All positions remain viewport-relative, with no fixed device stage. */
+.home-player-hud--avatar-home .home-player-hud__slot--position-0,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-0 {
+  left: clamp(64px, 16%, 84px);
+  bottom: 86px;
+  width: clamp(96px, 27vw, 132px);
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-1 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-0 { z-index: 1; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-1,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-1 {
   left: 25%;
   bottom: 34px;
-  width: clamp(105px, 28vw, 141px);
-  z-index: 3;
+  width: clamp(105px, 29vw, 150px);
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-2 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-1 { z-index: 3; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-2,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-2 {
   left: 50%;
   bottom: -9px;
-  width: clamp(140px, 37vw, 187px);
-  z-index: 5;
+  width: clamp(124px, 34vw, 174px);
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-3 {
+.home-player-hud--avatar-home .home-player-hud__slot--position-2 { z-index: 5; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-3,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-3 {
   left: 75%;
   bottom: 34px;
-  width: clamp(105px, 28vw, 141px);
-  z-index: 3;
+  width: clamp(105px, 29vw, 150px);
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-4 {
-  left: calc(100% - clamp(54px, 14%, 78px));
-  bottom: 55px;
-  width: clamp(85px, 23vw, 112px);
-  z-index: 1;
+.home-player-hud--avatar-home .home-player-hud__slot--position-3 { z-index: 3; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-4,
+.home-player-hud--avatar-home .home-player-hud__slot-ground--position-4 {
+  left: calc(100% - clamp(64px, 16%, 84px));
+  bottom: 86px;
+  width: clamp(96px, 27vw, 132px);
 }
+.home-player-hud--avatar-home .home-player-hud__slot--position-4 { z-index: 1; }
 /* Vacant slots have large transparent button rectangles. At the staggered
    edges these rectangles overlap the actual artwork of adjacent pets.
    Keep blanks underneath occupied pets so the player can tap the visible
@@ -619,7 +634,7 @@
 .home-player-hud--avatar-home .home-player-hud__pet-renderer {
   display: grid;
   place-items: center;
-  transform: translateY(6px) scale(1.17);
+  transform: translateY(4px) scale(1.10);
   transform-origin: center bottom;
 }
 .home-player-hud--avatar-home .home-player-hud__pet-renderer > * {
@@ -639,7 +654,7 @@
   50% { transform: scaleY(1.008); }
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__pet-renderer {
-  transform: translateY(6px) scale(1.24);
+  transform: translateY(4px) scale(1.12);
 }
 .home-player-hud__mini-companion {
   position: absolute;
@@ -651,12 +666,20 @@
   pointer-events: none;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
 }
-/* Right-side slots mirror Mini Pets inward. Otherwise right:-12% pushes
-   companions outside the viewport when the outermost pet is equipped. */
-.home-player-hud--avatar-home .home-player-hud__slot--position-3 .home-player-hud__mini-companion,
-.home-player-hud--avatar-home .home-player-hud__slot--position-4 .home-player-hud__mini-companion {
+/* Scoped to modern Home: size and position a Mini Pet relative to the
+   visible-fit host portrait, never relative to the viewport or on its right. */
+.home-player-hud--avatar-home .home-player-hud__mini-companion {
   left: -12%;
   right: auto;
+  bottom: 9%;
+  width: 38%;
+}
+/* Mini Pets belong to the host pet's visible-fit portrait, never a
+   screen-side mirror. All five sit to the host's LEFT, including positions
+   0/1. The far-left pet is already near the screen edge, so tuck only its
+   Mini Pet inward to avoid clipping outside the viewport. */
+.home-player-hud--avatar-home .home-player-hud__slot--position-0 .home-player-hud__mini-companion {
+  left: -6%;
 }
 .home-player-hud__slot-placeholder {
   position: absolute;
@@ -684,12 +707,13 @@
   text-shadow: 0 2px 4px #001b10, 0 0 8px #001b10;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-stars {
-  top: -38px;
+  /* Rarity follows its owner and rests along the base of its current oval. */
+  top: auto;
+  bottom: 2%;
+  width: 84%;
+  gap: 1px;
   z-index: 6;
 }
-.home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__slot-stars { top: -48px; }
-.home-player-hud--avatar-home .home-player-hud__slot--position-0 .home-player-hud__slot-stars,
-.home-player-hud--avatar-home .home-player-hud__slot--position-4 .home-player-hud__slot-stars { top: -30px; }
 .home-player-hud--avatar-home .home-player-hud__slot:disabled {
   opacity: 1;
   cursor: progress;
@@ -709,10 +733,15 @@
     height: clamp(138px, calc(21dvh - 5px), 173px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot--position-0,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-4 { bottom: 42px; }
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-0,
+  .home-player-hud--avatar-home .home-player-hud__slot--position-4,
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-4 { bottom: 72px; }
   .home-player-hud--avatar-home .home-player-hud__slot--position-1,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-3 { bottom: 27px; }
-  .home-player-hud--avatar-home .home-player-hud__slot--position-2 { bottom: -7px; }
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-1,
+  .home-player-hud--avatar-home .home-player-hud__slot--position-3,
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-3 { bottom: 27px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-2,
+  .home-player-hud--avatar-home .home-player-hud__slot-ground--position-2 { bottom: -7px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud--avatar-home .home-player-hud__slot { transition: none; }

@@ -280,6 +280,11 @@ try {
         JSON.stringify({animBounds,slotBounds}));
     assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"animated",
       sc.name+": equipped Mini Pet uses its current looping idle animation");
+    const miniBox = await page.getByTestId("home-player-team-mini-1").boundingBox();
+    assert.ok(miniBox && slotBounds && miniBox.x >= -1 &&
+      miniBox.x + miniBox.width <= sc.width + 1 &&
+      miniBox.x + miniBox.width / 2 < slotBounds.x + slotBounds.width / 2,
+      sc.name+": attached Mini Pet stays visible to LEFT of its host in a normal mobile/tablet viewport");
     assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
       sc.name+": avatar, player progress and party surfaces all render");
     assert.ok(Math.abs(homeLayout.stars.centerX-homeLayout.actor.centerX)<6,
@@ -413,6 +418,19 @@ try {
     const nearRight = await page.getByTestId("home-player-team-slot-4").boundingBox();
     const farRight = await page.getByTestId("home-player-team-slot-5").boundingBox();
     const teamFrame = await page.getByTestId("home-player-team-slots").boundingBox();
+    const groundOvals = page.locator('[data-testid^="home-player-team-ground-"]');
+    assert.equal(await groundOvals.count(), 5, sc.name + ": five static floor stations always exist");
+    const ovalPositionsBefore = await groundOvals.evaluateAll(elements =>
+      elements.map(el => {
+        const box = el.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      }));
+    const leftStars = await page.getByTestId("home-player-team-stars-1").boundingBox();
+    const firstGround = await page.getByTestId("home-player-team-ground-0").boundingBox();
+    assert.ok(leftStars && firstGround &&
+      Math.abs(leftStars.x + leftStars.width / 2 - (firstGround.x + firstGround.width / 2)) < 3 &&
+      Math.abs(leftStars.y + leftStars.height - (firstGround.y + firstGround.height)) <= 12,
+      sc.name + ": pet rarity stars align across the bottom of its current oval");
     assert.ok(teamFrame && nearLeft && nearRight && farRight &&
       teamSlot.x >= -1 && farRight.x + farRight.width <= sc.width + 1,
       sc.name + ": outer companion slot footprints stay in the viewport");
@@ -432,8 +450,9 @@ try {
       sc.name + ": Home uses one calm whole-sprite breath, not full-page idle lurches");
     assert.equal(calmHomeIdle.duration, "4.8s",
       sc.name + ": Home uses the intended quiet idle pacing");
-    assert.ok(nearLeft && nearRight && farRight && centerSlot.width > nearLeft.width + 22 &&
-      nearLeft.width > teamSlot.width + 12 && Math.abs(nearRight.width - nearLeft.width) <= 1 &&
+    assert.ok(nearLeft && nearRight && farRight && centerSlot.width > nearLeft.width + 12 &&
+      nearLeft.width > teamSlot.width + 5 && centerSlot.width / teamSlot.width < 1.5 &&
+      Math.abs(nearRight.width - nearLeft.width) <= 1 &&
       Math.abs(farRight.width - teamSlot.width) <= 1,
       sc.name+": center > near pair > outer pair: "+
       JSON.stringify({center:centerSlot.width,near:nearLeft.width,outer:teamSlot.width}));
@@ -442,39 +461,96 @@ try {
       footLine(nearLeft) > footLine(teamSlot) + (sc.height <= 690 ? 9 : 12),
       sc.name+": center oval is lowest while side pets ascend: " +
         JSON.stringify({center:footLine(centerSlot),near:footLine(nearLeft),outer:footLine(teamSlot)}));
-    assert.ok(centerSlot.y <= teamSlot.y + 12,
-      sc.name+": intentionally raised outer pets may reach the center's top height while the center stays largest");
+    assert.ok(teamSlot.y + 10 < nearLeft.y && nearLeft.y + 10 < centerSlot.y,
+      sc.name+": outer pets are raised high enough to remain visible ahead of the near pair");
 
     if(sc.name==="saved character phone"){
       const beforeTeam=[...currentTeamIds];
-      const center=await page.getByTestId("home-player-team-slot-3").boundingBox();
+      const center=await page.getByTestId("home-player-team-slot-1").boundingBox();
       assert.ok(center);
       await page.mouse.move(center.x+center.width/2,center.y+center.height/2);
       await page.mouse.down();
-      await page.mouse.move(center.x+center.width/2-76,center.y+center.height/2,{steps:6});
+      await page.mouse.move(center.x+center.width/2-48,center.y+center.height/2,{steps:6});
       await page.mouse.up();
       await page.waitForFunction(() =>
         document.querySelector('[data-testid="home-player-team-slot-3"]')
           ?.getAttribute("data-visual-position")==="1");
       assert.equal(await page.getByTestId("home-player-team-picker").count(),0,
         sc.name+": swiping pets does not accidentally open the team editor");
+      // Let the 270ms pet carousel transition finish; the ground ovals
+      // are independent nodes and must never change coordinates.
+      await page.waitForTimeout(340);
+      const ovalsAfterLeft = await groundOvals.evaluateAll(elements =>
+        elements.map(el => {
+          const box = el.getBoundingClientRect();
+          return { x: box.x, y: box.y, width: box.width, height: box.height };
+        }));
+      assert.deepEqual(ovalsAfterLeft, ovalPositionsBefore,
+        sc.name+": holding and dragging left moves pets, never their ground ovals");
+      const petAfterLeft = await page.getByTestId("home-player-team-slot-1").boundingBox();
+      assert.ok(petAfterLeft && Math.abs(petAfterLeft.x - teamSlot.x) > 10,
+        sc.name+": a leftward drag visibly changes which oval holds this pet");
+      const shiftedStars = await page.getByTestId("home-player-team-stars-1").boundingBox();
+      const shiftedOval = await page.getByTestId("home-player-team-ground-4").boundingBox();
+      assert.ok(shiftedStars && shiftedOval &&
+        Math.abs(shiftedStars.x + shiftedStars.width / 2 -
+          (shiftedOval.x + shiftedOval.width / 2)) <= 3 &&
+        Math.abs(shiftedStars.y + shiftedStars.height -
+          (shiftedOval.y + shiftedOval.height)) <= 12,
+        sc.name+": rarity stars follow their pet to the next fixed oval");
       assert.deepEqual(currentTeamIds,beforeTeam,
         sc.name+": circular swipes never overwrite PvP/Raid team roster");
+      const rotatedHost = await page.getByTestId("home-player-team-slot-1").boundingBox();
+      const rotatedMini = await page.getByTestId("home-player-team-mini-1").boundingBox();
+      assert.ok(rotatedHost && rotatedMini && rotatedMini.x + rotatedMini.width / 2 <
+        rotatedHost.x + rotatedHost.width / 2 && rotatedMini.x >= -1 &&
+        rotatedMini.x + rotatedMini.width <= sc.width + 1,
+        sc.name+": swiping the carousel keeps a Mini Pet attached on its host's left");
       await page.getByTestId("home-player-team-slots").press("ArrowLeft");
       await page.waitForFunction(() =>
         document.querySelector('[data-testid="home-player-team-slot-3"]')
           ?.getAttribute("data-visual-position")==="2");
       assert.deepEqual(currentTeamIds,beforeTeam);
+      await page.waitForTimeout(340); // allow the pet to finish returning to its oval
+      // Also exercise holding and dragging RIGHT on a pet. A swipe in
+      // either direction rotates the visual order without rewriting the
+      // PvP/Raid roster or moving any floor ovals.
+      const rightStart=await page.getByTestId("home-player-team-slot-1").boundingBox();
+      assert.ok(rightStart);
+      await page.mouse.move(rightStart.x+rightStart.width/2,rightStart.y+rightStart.height/2);
+      await page.mouse.down();
+      await page.mouse.move(rightStart.x+rightStart.width/2+76,rightStart.y+rightStart.height/2,{steps:6});
+      await page.mouse.up();
+      await page.waitForFunction(() =>
+        document.querySelector('[data-testid="home-player-team-slot-3"]')
+          ?.getAttribute("data-visual-position")==="3");
+      await page.waitForTimeout(340);
+      const ovalsAfterRight = await groundOvals.evaluateAll(elements =>
+        elements.map(el => {
+          const box = el.getBoundingClientRect();
+          return { x: box.x, y: box.y, width: box.width, height: box.height };
+        }));
+      assert.deepEqual(ovalsAfterRight, ovalPositionsBefore,
+        sc.name+": dragging right rotates pets without moving the five ovals");
+      assert.deepEqual(currentTeamIds,beforeTeam,
+        sc.name+": left and right drags never change the saved team");
     }
     const slotChrome = await page.getByTestId("home-player-team-slot-1").evaluate(el=>({
       border:getComputedStyle(el).borderStyle,
+      hasOwnOval:getComputedStyle(el,"::before").content,
+    }));
+    const groundChrome = await page.getByTestId("home-player-team-ground-0").evaluate(el=>({
       oval:getComputedStyle(el,"::before").borderRadius,
       ovalBorder:getComputedStyle(el,"::before").borderColor,
+      transitions:getComputedStyle(el).transitionDuration,
     }));
     assert.equal(slotChrome.border,"none",sc.name+": pet art has no circular frame");
-    assert.equal(slotChrome.oval,"50%",sc.name+": small shadow oval anchors each pet");
-    assert.ok(slotChrome.ovalBorder.includes("204, 181, 115"),
+    assert.equal(slotChrome.hasOwnOval,"none",sc.name+": rotating pet never draws a moving oval");
+    assert.equal(groundChrome.oval,"50%",sc.name+": fixed shadow oval anchors each ground station");
+    assert.ok(groundChrome.ovalBorder.includes("204, 181, 115"),
       sc.name+": companion oval has a readable muted gold edge");
+    assert.equal(groundChrome.transitions,"0s",
+      sc.name+": ovals do not animate when the pet positions rotate");
     assert.ok(await page.getByTestId("home-player-team-slot-4").locator(".home-player-hud__slot-placeholder img").count(),
       sc.name+": empty slot contains a greyed-out pet image");
     assert.equal((await page.getByTestId("home-player-team-slot-4").textContent()).trim(),"+",

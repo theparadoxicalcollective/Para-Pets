@@ -68,7 +68,7 @@ test("disabled tops and bottoms ignore old tints while enabled items persist per
   assert.match(creator, /selected.category === "hair" \? "Hair Color" : "Clothing Color"/);
 });
 
-test("creator always exposes hair color input and save/reset, also on first avatar creation", () => {
+test("creator offers hair and opt-in garment colors through the compact header picker", () => {
   const creator = source("client/src/pages/PlayerAvatarPage.tsx");
   const server = source("server/routes/playerAvatar.routes.ts");
   const admin = source("client/src/components/PlayerClothingAdminPanel.tsx");
@@ -78,6 +78,8 @@ test("creator always exposes hair color input and save/reset, also on first avat
   assert.match(creator, /data-testid="avatar-clothing-custom-color"/);
   assert.match(creator, /data-testid="avatar-clothing-reset-color"/);
   assert.match(creator, /data-testid="avatar-clothing-color-controls"/);
+  assert.match(creator, /data-testid="avatar-clothing-color-toggle"/);
+  assert.match(creator, /id="avatar-clothing-color-popup"/);
   assert.match(creator, /"avatar-save-character-button"/);
   assert.match(creator, /chooseClothing\(item\)/);
   assert.match(server, /colorPickerEnabled: playerClothingCanRecolor\(parsed\.data\.category, item\.colorPickerEnabled\)/);

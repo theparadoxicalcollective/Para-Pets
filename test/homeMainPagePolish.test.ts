@@ -22,15 +22,18 @@ test("Home-only overlay darkens all four edges, not the center or touch targets"
   assert.match(home, /className="absolute inset-0 pointer-events-none"/);
 });
 
-test("Home companions share their ground circles, keep stars off faces and animate", () => {
+test("Home pets rotate over fixed ground ovals with stars along each oval and calmer size", () => {
   const hud = read("client/src/components/HomePlayerHud.tsx");
   const css = read("client/src/components/HomePlayerHud.css");
   assert.match(hud, /mode="house" lowMemory size=\{58\}/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
-  assert.match(css, /transform: translateY\(6px\) scale\(1\.17\)/);
+  assert.match(hud, /home-player-team-ground-/);
+  assert.match(css, /transform: translateY\(4px\) scale\(1\.10\)/);
   assert.match(css, /home-player-hud__slot--position-2 \.home-player-hud__pet-renderer/);
-  assert.match(css, /home-player-hud__slot--position-2 \.home-player-hud__slot-stars \{ top: -48px; \}/);
-  assert.match(css, /\.home-player-hud__mini-companion \{[\s\S]*?width: 48%/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-ground::before/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot::before \{ content: none; \}/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot-stars \{[\s\S]*?bottom: 2%/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__mini-companion \{[\s\S]*?width: 38%/);
   assert.doesNotMatch(css, /width: min\(100%, clamp\(58px, 17vw, 68px\)\)/);
 });
 
