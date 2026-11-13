@@ -21,7 +21,7 @@ test("deep XP curve and lower pets preserve short-phone clearance", () => {
   assert.match(hudCss, /The SVG viewBox follows the saved curve depth/);
   assert.match(hudCss, /\.home-player-hud__xp-arc-track/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel/);
-  assert.match(hudCss, /bottom: calc\(5px \+ env\(safe-area-inset-bottom/);
+  assert.match(hudCss, /bottom: calc\(10px \+ env\(safe-area-inset-bottom/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel\s*\{[^}]*pointer-events: none/s);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__slot\s*\{[^}]*pointer-events: auto/s);
 });

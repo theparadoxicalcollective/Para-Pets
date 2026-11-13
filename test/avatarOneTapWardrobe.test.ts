@@ -64,7 +64,7 @@ test("skin tint is applied once to the composited body, not as pale per-part ove
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
   assert.match(css, /player-character-renderer__skin-tint/);
   assert.match(renderer, /style=\{\{ filter: tintFilter\(skinTone\) \}\}/);
-  assert.match(renderer, /<feColorMatrix type="matrix"/);
+  assert.match(renderer, /playerCharacterCssTint\(color\)/);
   assert.doesNotMatch(css, /mix-blend-mode: color|opacity: \.78/);
   assert.match(source, /data-testid="avatar-custom-skin"/);
 });

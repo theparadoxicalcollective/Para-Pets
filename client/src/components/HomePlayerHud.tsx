@@ -378,10 +378,14 @@ export default function HomePlayerHud({
                   {pet.petTemplateId && (
                     <span className="home-player-hud__pet-renderer"
                       data-testid={`home-player-team-composite-${index + 1}`}>
+                      {/* Keep small Home pets in the built-in calm House idle:
+                          blinking and gentle ear/tail/wing motion, without the
+                          full-size body/head translation that makes a deer
+                          appear to lurch. Other pages retain regular idle. */}
                       <PetAnimator petTemplateId={pet.petTemplateId}
                         petInventoryId={pet.inventoryId}
                         artworkForm={pet.isEvolved ? "evolution" : undefined}
-                        mode="idle" lowMemory size={58}
+                        mode="house" lowMemory size={58}
                         fillContainer view="front" />
                     </span>
                   )}

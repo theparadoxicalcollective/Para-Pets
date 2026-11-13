@@ -48,14 +48,22 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   const p = (n: number) => css.match(new RegExp(
     "home-player-hud__slot--position-" + n + " \\{([^}]+)\\}"))?.[1] ?? "";
   assert.match(p(2), /left: 50%/);
-  assert.match(p(2), /bottom: 0/);
+  assert.match(p(2), /bottom: -9px/);
   assert.match(p(2), /clamp\(140px, 37vw, 187px\)/);
   assert.match(p(1), /clamp\(105px, 28vw, 141px\)/);
   assert.match(p(0), /clamp\(85px, 23vw, 112px\)/);
-  assert.match(p(1), /bottom: 18px/);
-  assert.match(p(0), /bottom: 33px/);
-  assert.match(p(3), /left: 70%/);
-  assert.match(p(4), /left: 90%/);
+  assert.match(p(1), /left: 25%/);
+  assert.match(p(1), /bottom: 34px/);
+  assert.match(p(0), /left: clamp\(54px, 14%, 78px\)/);
+  assert.match(p(0), /bottom: 55px/);
+  assert.match(p(3), /left: 75%/);
+  assert.match(p(3), /bottom: 34px/);
+  assert.match(p(4), /left: calc\(100% - clamp\(54px, 14%, 78px\)\)/);
+  assert.match(p(4), /bottom: 55px/);
+  assert.match(p(0), /z-index: 1/);
+  assert.match(p(4), /z-index: 1/);
+  assert.match(p(1), /z-index: 3/);
+  assert.match(p(3), /z-index: 3/);
   assert.match(css, /transition: left 270ms ease, bottom 270ms ease, width 270ms ease/);
   assert.match(css, /pointer-events: none;\s*touch-action: pan-y/);
   assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot \{[^}]*pointer-events: auto/s);
@@ -63,6 +71,38 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(css, /slot--position-2 \.home-player-hud__slot-stars \{ top: -48px/);
   assert.doesNotMatch(css, /clamp\(58px, 17vw, 68px\)|clamp\(65px, 19vw, 88px\)|clamp\(58px, 17\.5vw, 69px\)/);
   assert.match(css, /prefers-reduced-motion: reduce/);
+});
+
+
+test("Home carousel remains on-screen on narrow phones, with a quieter but animated idle", () => {
+  const css = read("client/src/components/HomePlayerHud.css");
+  const hud = read("client/src/components/HomePlayerHud.tsx");
+  // The 54px minimum center margin protects 1.17× rendered outer artwork
+  // on 320px phone viewports; positions remain symmetric on tablets.
+  for (const panelWidth of [312, 382, 540]) {
+    const outerCenter = Math.min(78, Math.max(54, panelWidth * .14));
+    const outerArtWidth = panelWidth === 312 ? 85 : panelWidth === 382 ? 89.7 : 112;
+    assert.ok(outerCenter > outerArtWidth * 1.17 / 2 - 1,
+      "outer pet remains entirely visible on a " + panelWidth + "px-wide Home panel");
+    assert.ok(Math.abs((panelWidth - (panelWidth - outerCenter)) - outerCenter) < 1e-9,
+      "mirrored outer position tolerates ordinary floating-point rounding");
+  }
+  assert.match(css, /position-0,\s*\n\s*\.home-player-hud--avatar-home \.home-player-hud__slot--position-4 \{ bottom: 42px/);
+  assert.match(css, /position-1,\s*\n\s*\.home-player-hud--avatar-home \.home-player-hud__slot--position-3 \{ bottom: 27px/);
+  assert.match(css, /position-2 \{ bottom: -7px/);
+  assert.match(css, /bottom: calc\(10px \+ env\(safe-area-inset-bottom, 0px\)\)/);
+  assert.match(css, /position-3 \.home-player-hud__mini-companion,[\s\S]*?position-4 \.home-player-hud__mini-companion \{[\s\S]*?left: -12%;[\s\S]*?right: auto/);
+  assert.match(hud, /mode="house" lowMemory size=\{58\}/);
+  assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
+  assert.match(css, /\.home-player-hud--avatar-home \.home-player-hud__slot--vacant \{\s*z-index: 0;/);
+  assert.match(css, /animation: homeTeamQuietBreath 4\.8s ease-in-out infinite/);
+  assert.match(css, /@keyframes homeTeamQuietBreath \{[\s\S]*?scaleY\(1\.008\)/);
+  assert.match(css, /prefers-reduced-motion: reduce\)[\s\S]*?home-player-hud__pet-renderer > \[data-testid="pet-animator-with-costumes"\] \{ animation: none/);
+  // The built-in House mode is intentional: keep blink / ears / tail, not
+  // a static screenshot, while preventing large pet head/body lurches.
+  const core = read("client/src/components/PetAnimatorCore.tsx");
+  assert.match(core, /const HOUSE_ANIMATIONS: Record<string, string> = \{[\s\S]*?eyes: "petIdleEyes"/);
+  assert.match(core, /const HOUSE_ANIMATIONS: Record<string, string> = \{[\s\S]*?tail: "petHouseTail"/);
 });
 
 test("Home shortcut icons are comparable to Main Nav, with Map largest and no large gaps", () => {

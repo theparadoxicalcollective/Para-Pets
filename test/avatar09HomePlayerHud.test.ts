@@ -76,7 +76,7 @@ test("Home mounts the account HUD on the existing viewport portal without replac
   assert.match(home, /data-testid="display-pet-rarity-stars"/);
   assert.doesNotMatch(hud, /PlayerCharacterRenderer|\/api\/player-avatar/);
   assert.match(hud, /<PetAnimator petTemplateId=\{pet\.petTemplateId\}/);
-  assert.match(hud, /mode="idle" lowMemory size=\{58\}/);
+  assert.match(hud, /mode="house" lowMemory size=\{58\}/);
 });
 
 test("viewport UI supports small phones, long usernames, tablets, and error/loading states", () => {

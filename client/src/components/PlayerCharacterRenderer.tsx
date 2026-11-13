@@ -1,5 +1,4 @@
-import { useId } from "react";
-import { playerCharacterColorMatrix } from "@/lib/playerCharacterColorMatrix";
+import { playerCharacterCssTint } from "@/lib/playerCharacterCssTint";
 import type { PlayerCharacterPart, PlayerCharacterPartType } from "@shared/playerCharacter";
 import {
   PLAYER_CLOTHING_CATEGORIES,
@@ -90,14 +89,10 @@ export default function PlayerCharacterRenderer({
         a.segment.renderPlane === "behind_character" ? "hair_back" : a.segment.slot, a.segment.shoesLayer, topTucked)
       - clothingLayerDepth(b.category, b.category === "hair" &&
         b.segment.renderPlane === "behind_character" ? "hair_back" : b.segment.slot, b.segment.shoesLayer, topTucked));
-  const uniqueId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const tintPrefix = `avatar-tint-${uniqueId}`;
-  const tintColors = Array.from(new Set(
-    [skinTone, ...layers.map(layer => layer.colorTint)]
-      .filter((color): color is string => !!color),
-  ));
+  // Apply the same native CSS color filter to an already-flattened silhouette.
+  // iOS WebKit can ignore CSS url(#svg-filter) on accelerated HTML layers.
   const tintFilter = (color: string | null) =>
-    color ? `url("#${tintPrefix}-${tintColors.indexOf(color)}")` : undefined;
+    color ? playerCharacterCssTint(color) : undefined;
   // A colored Top or Bottom is ONE tinted material even when made from
   // independently moving sleeve/torso or leg sprites. Group only those two
   // categories: Hair Back and other high/low-depth accessories must retain
@@ -182,18 +177,8 @@ export default function PlayerCharacterRenderer({
       data-preview-eyes-closed={previewEyesClosed}
       role="img" aria-label={ariaLabel}
       className="player-character-renderer">
-      <svg className="player-character-renderer__tint-definitions" aria-hidden="true" focusable="false">
-        <defs>
-          {tintColors.map((color, index) => (
-            <filter key={color} id={`${tintPrefix}-${index}`} colorInterpolationFilters="sRGB"
-              x="-20%" y="-20%" width="140%" height="140%">
-              <feColorMatrix type="matrix" values={playerCharacterColorMatrix(color)} />
-            </filter>
-          ))}
-        </defs>
-      </svg>
       {/* Filter the COMPLETE body silhouette, after all eight sprites are
-          composited. The original alpha overlaps and artist-authored shading
+          composited. Original alpha overlaps and painted light/dark shading
           remain intact. No per-limb mask or independent tint surfaces. */}
       <div className={`player-character-renderer__body${skinTone ? " player-character-renderer__skin-tint" : ""}`}
         data-testid={skinTone ? "avatar-skin-tint" : undefined}
@@ -226,7 +211,7 @@ export default function PlayerCharacterRenderer({
       {oldPartLocal.filter(layer => !compositeKeys.has(layer.itemKey)).map(layer => renderLegacy(layer))}
       {fullCanvas.filter(layer => !compositeKeys.has(layer.itemKey)).map(layer => renderCanvas(layer))}
       {/* Colored Tops and Bottoms are flattened before the shared hue/luma
-          matrix runs. This eliminates duplicate tint pixels at seams while
+          CSS tint runs. This avoids duplicate tint pixels at seams while
           preserving each piece's independent animation/attachment. */}
       {compositedGarments.map(garment => (
         <div key={garment.itemKey} className="player-character-renderer__garment-composite"

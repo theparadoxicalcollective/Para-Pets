@@ -21,7 +21,7 @@
 }
 
 /* The renderer stays the 1000×1000 coordinate owner. Compositing all
-   eight parts into ONE body surface before applying the SVG color matrix
+   eight parts into ONE body surface before applying a native CSS tint
    prevents stacked translucent masks from emphasizing shoulder/hip seams.
    Garment planes remain sibling layers: back hair below, clothing above. */
 .player-character-renderer__body {
@@ -43,20 +43,13 @@
   pointer-events: none;
   isolation: isolate;
 }
-.player-character-renderer__tint-definitions {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
 .player-character-renderer__motion {
   position: relative;
   isolation: isolate;
 }
 .player-character-renderer__skin-tint {
   /* Applied to the flattened body, NOT to any individual artwork sprite.
-     Original RGB shading drives the filter, and source alpha is unchanged. */
+     Original luminance drives the tint, and source alpha is unchanged. */
   will-change: filter;
 }
 .player-character-renderer__motion,

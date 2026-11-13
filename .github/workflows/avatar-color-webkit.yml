@@ -1,0 +1,40 @@
+name: Avatar recoloring WebKit pixel checks
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/components/PlayerCharacterRenderer.tsx'
+      - 'client/src/components/PlayerCharacterRenderer.css'
+      - 'client/src/lib/playerCharacterCssTint.ts'
+      - 'client/src/pages/PlayerAvatarPage.tsx'
+      - 'client/src/lib/playerAvatarWardrobe.ts'
+      - 'shared/playerSkinTone.ts'
+      - 'script/avatar-skin-tone-render-smoke.mjs'
+      - '.github/workflows/avatar-color-webkit.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: avatar-webkit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  webkit-avatar-colors:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Prepare isolated Playwright WebKit (no manifest changes)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/para-webkit" --no-package-lock --ignore-scripts playwright@1.56.1
+          ln -s "$RUNNER_TEMP/para-webkit/node_modules/playwright" node_modules/playwright
+          ln -s "$RUNNER_TEMP/para-webkit/node_modules/playwright-core" node_modules/playwright-core
+          node node_modules/playwright/cli.js install --with-deps webkit
+      - name: Verify actual skin, hair and garment pixels in WebKit
+        env:
+          AVATAR_BROWSER: webkit
+        run: node script/avatar-skin-tone-render-smoke.mjs

@@ -412,6 +412,26 @@ try {
     const nearLeft = await page.getByTestId("home-player-team-slot-2").boundingBox();
     const nearRight = await page.getByTestId("home-player-team-slot-4").boundingBox();
     const farRight = await page.getByTestId("home-player-team-slot-5").boundingBox();
+    const teamFrame = await page.getByTestId("home-player-team-slots").boundingBox();
+    assert.ok(teamFrame && nearLeft && nearRight && farRight &&
+      teamSlot.x >= -1 && farRight.x + farRight.width <= sc.width + 1,
+      sc.name + ": outer companion slot footprints stay in the viewport");
+    const midX = box => box.x + box.width / 2;
+    assert.ok(teamFrame && nearLeft && nearRight && farRight &&
+      Math.abs(midX(teamSlot) + midX(farRight) - 2 * midX(teamFrame)) <= 3 &&
+      Math.abs(midX(nearLeft) + midX(nearRight) - 2 * midX(teamFrame)) <= 3 &&
+      midX(nearLeft) < midX(teamFrame) - teamFrame.width * .21 &&
+      midX(nearRight) > midX(teamFrame) + teamFrame.width * .21,
+      sc.name + ": inner companions spread outward and mirrored edges stay balanced");
+    const calmHomeIdle = await page.getByTestId("home-player-team-composite-1")
+      .locator('[data-testid="pet-animator-with-costumes"]').evaluate(el => ({
+        name: getComputedStyle(el).animationName,
+        duration: getComputedStyle(el).animationDuration,
+      }));
+    assert.equal(calmHomeIdle.name, "homeTeamQuietBreath",
+      sc.name + ": Home uses one calm whole-sprite breath, not full-page idle lurches");
+    assert.equal(calmHomeIdle.duration, "4.8s",
+      sc.name + ": Home uses the intended quiet idle pacing");
     assert.ok(nearLeft && nearRight && farRight && centerSlot.width > nearLeft.width + 22 &&
       nearLeft.width > teamSlot.width + 12 && Math.abs(nearRight.width - nearLeft.width) <= 1 &&
       Math.abs(farRight.width - teamSlot.width) <= 1,
@@ -422,8 +442,8 @@ try {
       footLine(nearLeft) > footLine(teamSlot) + (sc.height <= 690 ? 9 : 12),
       sc.name+": center oval is lowest while side pets ascend: " +
         JSON.stringify({center:footLine(centerSlot),near:footLine(nearLeft),outer:footLine(teamSlot)}));
-    assert.ok(centerSlot.y < teamSlot.y,
-      sc.name+": biggest middle pet rises tallest above its foot oval");
+    assert.ok(centerSlot.y <= teamSlot.y + 12,
+      sc.name+": intentionally raised outer pets may reach the center's top height while the center stays largest");
 
     if(sc.name==="saved character phone"){
       const beforeTeam=[...currentTeamIds];
@@ -524,6 +544,15 @@ try {
       await panel.waitFor({state:"detached"});
     }
     if(sc.name==="saved character phone"){
+      // A near-left EMPTY slot overlaps the first pet's button rectangle.
+      // Its transparent pixels must never steal taps from occupied artwork.
+      const ownerAtPetCenter=await page.getByTestId("home-player-team-slot-1").evaluate(el=>{
+        const rect=el.getBoundingClientRect();
+        const target=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+        return target?.closest('[data-testid^="home-player-team-slot-"]')?.getAttribute("data-testid");
+      });
+      assert.equal(ownerAtPetCenter,"home-player-team-slot-1",
+        "filled far-left pet remains the touch target when an empty inner slot overlaps");
       const slots=page.locator('[data-testid^="home-player-team-slot-"]');
       const positions=async()=>slots.evaluateAll(nodes=>
         nodes.map(node=>{const r=node.getBoundingClientRect();return {left:r.left,top:r.top};}));

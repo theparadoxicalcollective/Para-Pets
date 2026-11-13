@@ -63,7 +63,7 @@ test("pet team keeps five editable hit targets but no circular frames or helper 
 test("compact blinking pet thumbnails retain equipped adornments and mini pets", () => {
   assert.match(homeHud, /<PetAnimator petTemplateId=\{pet\.petTemplateId\}/);
   assert.match(homeHud, /petInventoryId=\{pet\.inventoryId\}/);
-  assert.match(homeHud, /mode="idle" lowMemory size=\{58\}/);
+  assert.match(homeHud, /mode="house" lowMemory size=\{58\}/);
   assert.match(homeHud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated/);
   assert.match(homeHud, /home-player-hud__fallback-pet/);
   assert.match(homeCss, /home-player-hud__pet-renderer/);

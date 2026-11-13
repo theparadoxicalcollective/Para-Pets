@@ -25,7 +25,7 @@ test("Home-only overlay darkens all four edges, not the center or touch targets"
 test("Home companions share their ground circles, keep stars off faces and animate", () => {
   const hud = read("client/src/components/HomePlayerHud.tsx");
   const css = read("client/src/components/HomePlayerHud.css");
-  assert.match(hud, /mode="idle" lowMemory size=\{58\}/);
+  assert.match(hud, /mode="house" lowMemory size=\{58\}/);
   assert.match(hud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated \/>/);
   assert.match(css, /transform: translateY\(6px\) scale\(1\.17\)/);
   assert.match(css, /home-player-hud__slot--position-2 \.home-player-hud__pet-renderer/);

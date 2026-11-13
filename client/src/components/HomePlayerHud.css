@@ -484,7 +484,9 @@
    position has an explicit scene-relative width and bottom anchor so the
    center pet is visibly larger on phones AND tablets. */
 .home-player-hud--avatar-home .home-player-hud__party-panel {
-  bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+  /* Retain a physical bottom pixel of clearance even with no iOS safe area:
+     the lowered center oval must not disappear off-screen on Android. */
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   width: min(calc(100% - 8px), 560px);
   padding: 0;
 }
@@ -493,7 +495,7 @@
   display: block;
   width: 100%;
   max-width: 540px;
-  height: clamp(169px, 23dvh, 232px);
+  height: clamp(164px, calc(23dvh - 5px), 227px);
   margin-inline: auto;
   overflow: visible;
   /* Only actual pet artwork takes a pointer; gaps remain tappable scenery. */
@@ -541,37 +543,50 @@
   z-index: 0;
   pointer-events: none;
 }
-/* Outer pair: larger than the old thumbnails, but smaller and higher
-   than the near-center and frontmost pets. */
+/* Grounded five-pet arc, ordered left-to-right by VISUAL position (swiping
+   moves pets between these positions; it never changes the saved roster).
+   The outer centers are at least 54px from the panel's edges so 1.17×
+   rendered artwork stays visible even on a 320px phone. Mirrored inner
+   companions are spread away from the center, raised above its silhouette,
+   and the front/center pet sits 9px lower. All measurements remain inside
+   the existing device-width panel, never a fixed reference stage. */
 .home-player-hud--avatar-home .home-player-hud__slot--position-0 {
-  left: 10%;
-  bottom: 33px;
+  left: clamp(54px, 14%, 78px);
+  bottom: 55px;
   width: clamp(85px, 23vw, 112px);
   z-index: 1;
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-1 {
-  left: 30%;
-  bottom: 18px;
+  left: 25%;
+  bottom: 34px;
   width: clamp(105px, 28vw, 141px);
   z-index: 3;
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-2 {
   left: 50%;
-  bottom: 0;
+  bottom: -9px;
   width: clamp(140px, 37vw, 187px);
   z-index: 5;
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-3 {
-  left: 70%;
-  bottom: 18px;
+  left: 75%;
+  bottom: 34px;
   width: clamp(105px, 28vw, 141px);
-  z-index: 4;
+  z-index: 3;
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-4 {
-  left: 90%;
-  bottom: 33px;
+  left: calc(100% - clamp(54px, 14%, 78px));
+  bottom: 55px;
   width: clamp(85px, 23vw, 112px);
-  z-index: 2;
+  z-index: 1;
+}
+/* Vacant slots have large transparent button rectangles. At the staggered
+   edges these rectangles overlap the actual artwork of adjacent pets.
+   Keep blanks underneath occupied pets so the player can tap the visible
+   companion instead of accidentally opening the neighboring empty slot.
+   The visible + remains accessible at its own center and by keyboard. */
+.home-player-hud--avatar-home .home-player-hud__slot--vacant {
+  z-index: 0;
 }
 /* The pet composites, accessories and mini companions share one scalable slot.
    The renderer's 58px internal logical size no longer limits visible artwork. */
@@ -611,6 +626,18 @@
   max-width: 100%;
   max-height: 100%;
 }
+/* House mode keeps individual ear/tail/wing movement and blinking. Give the
+   complete composed sprite (including wearables) one very subtle breath
+   anchored at the feet, rather than stacking separate head/body bounces.
+   This is scoped to Home only; normal pet-page idle motion is untouched. */
+.home-player-hud--avatar-home .home-player-hud__pet-renderer > [data-testid="pet-animator-with-costumes"] {
+  transform-origin: center 90%;
+  animation: homeTeamQuietBreath 4.8s ease-in-out infinite;
+}
+@keyframes homeTeamQuietBreath {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.008); }
+}
 .home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__pet-renderer {
   transform: translateY(6px) scale(1.24);
 }
@@ -623,6 +650,13 @@
   z-index: 3;
   pointer-events: none;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
+}
+/* Right-side slots mirror Mini Pets inward. Otherwise right:-12% pushes
+   companions outside the viewport when the outermost pet is equipped. */
+.home-player-hud--avatar-home .home-player-hud__slot--position-3 .home-player-hud__mini-companion,
+.home-player-hud--avatar-home .home-player-hud__slot--position-4 .home-player-hud__mini-companion {
+  left: -12%;
+  right: auto;
 }
 .home-player-hud__slot-placeholder {
   position: absolute;
@@ -672,14 +706,16 @@
 /* Short viewports reduce arc *height*, never return pet artwork to thumbnail size. */
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__team {
-    height: clamp(143px, 21dvh, 178px);
+    height: clamp(138px, calc(21dvh - 5px), 173px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot--position-0,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-4 { bottom: 24px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-4 { bottom: 42px; }
   .home-player-hud--avatar-home .home-player-hud__slot--position-1,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-3 { bottom: 12px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-3 { bottom: 27px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-2 { bottom: -7px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud--avatar-home .home-player-hud__slot { transition: none; }
+  .home-player-hud--avatar-home .home-player-hud__pet-renderer > [data-testid="pet-animator-with-costumes"] { animation: none; }
   .home-player-hud__xp-arc-fill { transition: none; }
 }
