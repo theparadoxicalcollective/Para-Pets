@@ -378,13 +378,13 @@ export default function HomePlayerHud({
                   {pet.petTemplateId && (
                     <span className="home-player-hud__pet-renderer"
                       data-testid={`home-player-team-composite-${index + 1}`}>
+                      {/* Keep small Home pets in the built-in calm House idle:
+                          blinking and gentle ear/tail/wing motion, without the
+                          full-size body/head translation that makes a deer
+                          appear to lurch. Other pages retain regular idle. */}
                       <PetAnimator petTemplateId={pet.petTemplateId}
                         petInventoryId={pet.inventoryId}
                         artworkForm={pet.isEvolved ? "evolution" : undefined}
-                        /* Small Home companions use the built-in calm House idle:
-                           blink, ears, tail and wings stay alive without body/
-                           head translation that can exaggerate tall deer antlers.
-                           Other pet pages keep their normal full idle motion. */
                         mode="house" lowMemory size={58}
                         fillContainer view="front" />
                     </span>
