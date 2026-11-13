@@ -178,7 +178,7 @@ export default function PlayerCharacterRenderer({
       role="img" aria-label={ariaLabel}
       className="player-character-renderer">
       {/* Filter the COMPLETE body silhouette, after all eight sprites are
-          composited. The original alpha overlaps and artist-authored shading
+          composited. Original alpha overlaps and painted light/dark shading
           remain intact. No per-limb mask or independent tint surfaces. */}
       <div className={`player-character-renderer__body${skinTone ? " player-character-renderer__skin-tint" : ""}`}
         data-testid={skinTone ? "avatar-skin-tint" : undefined}
@@ -211,7 +211,7 @@ export default function PlayerCharacterRenderer({
       {oldPartLocal.filter(layer => !compositeKeys.has(layer.itemKey)).map(layer => renderLegacy(layer))}
       {fullCanvas.filter(layer => !compositeKeys.has(layer.itemKey)).map(layer => renderCanvas(layer))}
       {/* Colored Tops and Bottoms are flattened before the shared hue/luma
-          matrix runs. This eliminates duplicate tint pixels at seams while
+          CSS tint runs. This avoids duplicate tint pixels at seams while
           preserving each piece's independent animation/attachment. */}
       {compositedGarments.map(garment => (
         <div key={garment.itemKey} className="player-character-renderer__garment-composite"
