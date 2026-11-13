@@ -616,6 +616,18 @@
   max-width: 100%;
   max-height: 100%;
 }
+/* House mode keeps individual ear/tail/wing movement and blinking. Give the
+   complete composed sprite (including wearables) one very subtle breath
+   anchored at the feet, rather than stacking separate head/body bounces.
+   This is scoped to Home only; normal pet-page idle motion is untouched. */
+.home-player-hud--avatar-home .home-player-hud__pet-renderer > [data-testid="pet-animator-with-costumes"] {
+  transform-origin: center 90%;
+  animation: homeTeamQuietBreath 4.8s ease-in-out infinite;
+}
+@keyframes homeTeamQuietBreath {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.008); }
+}
 .home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__pet-renderer {
   transform: translateY(6px) scale(1.24);
 }
@@ -687,5 +699,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud--avatar-home .home-player-hud__slot { transition: none; }
+  .home-player-hud--avatar-home .home-player-hud__pet-renderer > [data-testid="pet-animator-with-costumes"] { animation: none; }
   .home-player-hud__xp-arc-fill { transition: none; }
 }
