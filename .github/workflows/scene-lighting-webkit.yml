@@ -1,0 +1,37 @@
+name: Park and World night-light WebKit pixels
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/components/HomeOutdoorAtmosphere.tsx'
+      - 'client/src/lib/parkSceneLighting.ts'
+      - 'shared/petParkAtmosphere.ts'
+      - 'script/park-world-scene-lamp-pixels-smoke.mjs'
+      - '.github/workflows/scene-lighting-webkit.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: scene-light-webkit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scene-light-webkit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install isolated WebKit browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/scene-light-webkit" --no-package-lock --ignore-scripts playwright@1.56.1
+          ln -s "$RUNNER_TEMP/scene-light-webkit/node_modules/playwright" node_modules/playwright
+          ln -s "$RUNNER_TEMP/scene-light-webkit/node_modules/playwright-core" node_modules/playwright-core
+          node node_modules/playwright/cli.js install --with-deps webkit
+      - name: Check real neutral lamp illumination and falloff in WebKit
+        env:
+          SCENE_LIGHT_BROWSER: webkit
+        run: node script/park-world-scene-lamp-pixels-smoke.mjs
