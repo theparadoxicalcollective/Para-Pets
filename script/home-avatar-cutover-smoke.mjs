@@ -582,8 +582,8 @@ try {
     assert.equal(homeLayout.xpTextCount,0,
       sc.name+": Home shows no visual XP numbers while retaining progression aria label");
     assert.ok(homeLayout.levelCurve &&
-      homeLayout.levelCurve.width >= 24 && homeLayout.levelCurve.height >= 10,
-      sc.name+": level label is curved, not inside an old rectangular pill");
+      homeLayout.levelCurve.width >= 16 && homeLayout.levelCurve.height >= 6,
+      sc.name+": smaller curved Lvl text remains visible even on compact phone viewports");
     const upperLevel = await page.locator('.home-player-hud__xp-arc').evaluate(svg => {
       const text = svg.querySelector('.home-player-hud__level-curved');
       const rim = svg.querySelector('.home-player-hud__xp-arc-track');
