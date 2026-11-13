@@ -27,6 +27,9 @@ on:
       - 'client/src/components/PlayerCharacterRenderer.tsx'
       - 'client/src/components/PlayerCharacterRenderer.css'
       - 'client/src/lib/playerCharacterCssTint.ts'
+      - 'client/src/components/HomeOutdoorAtmosphere.tsx'
+      - 'client/src/lib/parkSceneLighting.ts'
+      - 'shared/petParkAtmosphere.ts'
       - 'shared/playerCharacterClothing.ts'
       - 'shared/playerClothingAdmin.ts'
       - 'server/routes/playerClothingAdmin.routes.ts'
@@ -115,6 +118,8 @@ jobs:
           node script/level-up-game-layout-smoke.mjs
           node script/pet-park-placement-smoke.mjs
           node script/world-editor-smoke.mjs
+          # Real SVG night-mask pixels, neutral pools, overlapping lamps and pan.
+          node script/park-world-scene-lamp-pixels-smoke.mjs
           node script/pet-park-player-profile-smoke.mjs
           node script/pet-park-indoor-touch-smoke.mjs
           node script/pet-park-interior-dimming-smoke.mjs
