@@ -351,6 +351,13 @@ export default function HomePlayerHud({
           event.preventDefault();
           setTeamOffset(previous => homeTeamOffset(previous + (event.key === "ArrowLeft" ? -1 : 1)));
         }}>
+        {/* Ground ovals are visual stations, independent of rotating pet
+            buttons. They never move when a player drags left or right. */}
+        {avatarHome && Array.from({ length: PLAYER_PET_TEAM_MAX }, (_, position) => (
+          <span key={position} aria-hidden="true"
+            className={`home-player-hud__slot-ground home-player-hud__slot-ground--position-${position}`}
+            data-testid={`home-player-team-ground-${position}`} />
+        ))}
         {Array.from({ length: PLAYER_PET_TEAM_MAX }, (_, index) => {
           const id = selectedPetIds[index];
           const visualPosition = avatarHome ? homeTeamVisualPosition(index, teamOffset) : index;
@@ -405,7 +412,7 @@ export default function HomePlayerHud({
                   aria-hidden="true" data-testid={`home-player-team-stars-${index + 1}`}>
                   {Array.from({ length: rarity }, (_, starIndex) => (
                     <img key={starIndex} src={cardStarImg} alt="" draggable={false}
-                      style={{ transform: `translateY(${Math.abs(starIndex - (rarity - 1) / 2) * 3}px) rotate(${(starIndex - (rarity - 1) / 2) * 11}deg)` }} />
+                      style={avatarHome ? undefined : { transform: `translateY(${Math.abs(starIndex - (rarity - 1) / 2) * 3}px) rotate(${(starIndex - (rarity - 1) / 2) * 11}deg)` }} />
                   ))}
                 </span>
               )}
