@@ -208,6 +208,13 @@ try {
     await page.goto("http://127.0.0.1:4199/",{waitUntil:"domcontentloaded",timeout:30000});
     await page.getByTestId("home-avatar-stage").waitFor({state:"visible",timeout:30000});
     await page.getByTestId("home-player-hud").waitFor({state:"visible"});
+    const vignette = await page.getByTestId("home-edge-vignette").evaluate(el => ({
+      gradient: getComputedStyle(el).backgroundImage,
+      events: getComputedStyle(el).pointerEvents,
+    }));
+    assert.ok(vignette.gradient.includes("0.92") &&
+      vignette.gradient.includes("50% 52%") && vignette.events === "none",
+      sc.name+": four edges darken while avatar-centered light remains and taps pass through");
     assert.equal(await page.getByTestId("button-open-pet-menu").count(),0,
       sc.name+": retired Home Pet Menu is absent");
     assert.equal(await page.getByTestId("active-pet-placement-stage").count(),0,
@@ -267,6 +274,20 @@ try {
     assert.equal(homeLayout.petRarityStars,4,sc.name+": selected four-star pet displays four rarity stars");
     assert.equal(homeLayout.teamSlots,5,sc.name+": still five editable pet slots");
     await page.getByTestId("home-player-team-composite-1").waitFor({state:"visible"});
+    // The fixture body has transparent padding (ellipse inside a square).
+    // Low-memory House idle must still fit its ACTUAL alpha silhouette,
+    // otherwise some real pets load at a fraction of their neighbors' size.
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector(
+        '[data-testid="home-player-team-composite-1"] [data-testid="pet-animator"] > div');
+      const scale = canvas?.style.transform.match(/scale\(([\d.]+)\) translate/);
+      return !!scale && Number(scale[1]) > 3.35;
+    }, {timeout: 15000});
+    const visibleFit = await page.getByTestId("home-player-team-composite-1")
+      .locator('[data-testid="pet-animator"] > div').first()
+      .evaluate(node => node.style.transform);
+    assert.match(visibleFit,/scale\(([\d.]+)\) translate/,
+      sc.name+": transparent-padded pet is fitted by its visible artwork even in House low-memory mode");
     await page.getByTestId("home-player-team-composite-1")
       .locator('[data-testid="pet-animator"] img').first().waitFor({state:"visible"});
     await page.getByTestId("equipped-mini-pet").waitFor({state:"visible"});
@@ -429,8 +450,9 @@ try {
     const firstGround = await page.getByTestId("home-player-team-ground-0").boundingBox();
     assert.ok(leftStars && firstGround &&
       Math.abs(leftStars.x + leftStars.width / 2 - (firstGround.x + firstGround.width / 2)) < 3 &&
-      Math.abs(leftStars.y + leftStars.height - (firstGround.y + firstGround.height)) <= 12,
-      sc.name + ": pet rarity stars align across the bottom of its current oval");
+      leftStars.y + leftStars.height >= firstGround.y + firstGround.height + 2 &&
+      leftStars.y + leftStars.height <= firstGround.y + firstGround.height + 12,
+      sc.name + ": rarity stars overlap the lower lip of the fixed oval slightly");
     assert.ok(teamFrame && nearLeft && nearRight && farRight &&
       teamSlot.x >= -1 && farRight.x + farRight.width <= sc.width + 1,
       sc.name + ": outer companion slot footprints stay in the viewport");
@@ -562,6 +584,19 @@ try {
     assert.ok(homeLayout.levelCurve &&
       homeLayout.levelCurve.width >= 24 && homeLayout.levelCurve.height >= 10,
       sc.name+": level label is curved, not inside an old rectangular pill");
+    const upperLevel = await page.locator('.home-player-hud__xp-arc').evaluate(svg => {
+      const text = svg.querySelector('.home-player-hud__level-curved');
+      const rim = svg.querySelector('.home-player-hud__xp-arc-track');
+      const box = text.getBBox(), track = rim.getBBox();
+      return {
+        fontSize: getComputedStyle(text).fontSize,
+        labelBottom: box.y + box.height,
+        trackBottom: track.y + track.height,
+      };
+    });
+    assert.equal(upperLevel.fontSize,"17px",sc.name+": level label is smaller");
+    assert.ok(upperLevel.labelBottom < upperLevel.trackBottom - 4,
+      sc.name+": curved level stays ABOVE and close to the XP rim");
     assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 12,
       sc.name+": player level follows the center under the arc");
     assert.ok(homeLayout.levelCurve.bottom <= homeLayout.party.top + 35,
