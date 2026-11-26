@@ -1,5 +1,5 @@
 import type { Express, Request, RequestHandler } from "express";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   shopItems, worldLocations, worldSceneAssets, worldSceneDrafts,
   worldSceneInteriorItems, worldScenePlacements, worldScenePublications,
@@ -112,7 +112,7 @@ export function registerWorldScenePublicationRoutes(
           .from(worldScenePublications)
           .where(eq(worldScenePublications.worldId, worldId)).limit(1);
         if (!saved?.useNewWorld) return null;
-        const [[ground], assets, placements, interiorItems, npcs, locations] = await Promise.all([
+        const [[ground], assets, placements, interiorItems, locations] = await Promise.all([
           tx.select().from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId)).limit(1),
           tx.select().from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId))
             .orderBy(asc(worldSceneAssets.createdAt)),
@@ -120,14 +120,24 @@ export function registerWorldScenePublicationRoutes(
             .orderBy(asc(worldScenePlacements.createdAt)),
           tx.select().from(worldSceneInteriorItems).where(eq(worldSceneInteriorItems.worldId, worldId))
             .orderBy(asc(worldSceneInteriorItems.createdAt)),
-          tx.select({ id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
-            specialSkill: shopItems.specialSkill })
-            .from(shopItems).where(and(eq(shopItems.type, "npc"), eq(shopItems.worldId, "__npc_catalog__"))),
           tx.select({ id: worldLocations.id, worldId: worldLocations.worldId,
             name: worldLocations.name, type: worldLocations.type, isShop: worldLocations.isShop })
-            .from(worldLocations),
+            .from(worldLocations).where(eq(worldLocations.worldId, worldId)),
         ]);
         if (!ground) return null;
+        // Do not load or send every NPC's high-resolution artwork on each
+        // player refresh. Only fetch catalog NPCs actually placed in this world.
+        const placedNpcIds = [...new Set(placements
+          .filter(p => p.kind === "npc" && p.npcId)
+          .map(p => p.npcId!))];
+        const npcs = placedNpcIds.length ? await tx.select({
+          id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
+          specialSkill: shopItems.specialSkill,
+        }).from(shopItems).where(and(
+          eq(shopItems.type, "npc"),
+          eq(shopItems.worldId, "__npc_catalog__"),
+          inArray(shopItems.id, placedNpcIds),
+        )) : [];
         const playerWorld: WorldScenePlayerWorld = {
           worldId, groundLevel: ground.groundLevel,
           groundTheme: ground.groundTheme as WorldScenePlayerWorld["groundTheme"],
