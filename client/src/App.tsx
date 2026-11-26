@@ -106,6 +106,9 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
       return response.json();
     },
     staleTime: 0, retry: 1, refetchOnMount: "always",
+    // Keep the Old/New selection current for players already in this world.
+    // This endpoint is tiny; full scenery is fetched by the player scene.
+    refetchInterval: 20_000, refetchIntervalInBackground: false,
   });
   const newWorldActive = !legacyLocationId && isPublishedWorld(worldId, publications ?? []);
   const [screenDone, setScreenDone] = useState(!isThemed);
