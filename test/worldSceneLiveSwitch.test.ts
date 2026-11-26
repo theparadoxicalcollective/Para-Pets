@@ -58,6 +58,11 @@ test("Save & Set Live is a per-world admin action, no second draft publication",
   assert.match(map, /button-switch-world-/);
   assert.match(map, /!newActive && !hasBeenLive/);
   assert.match(player, /refetchInterval: 20_000/);
+  assert.match(player, /const viewportReady = viewport.width > 1 && viewport.height > 1/);
+  assert.doesNotMatch(player, /width: 390, height: 844/,
+    "player scenes must wait for measured phone/tablet dimensions");
+  assert.match(player, /activeAsset\?\.interiorImageUrl \?\? linkedPage\?\.bgUrl/,
+    "newly saved room artwork takes precedence over a legacy fallback");
   assert.doesNotMatch(player, /WorldSceneControls|world-scene-controls|\/api\/admin\/world-editor/);
 });
 
