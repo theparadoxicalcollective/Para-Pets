@@ -33,6 +33,7 @@ import HomePage from "@/pages/HomePage";
 import LoadingScreen from "@/components/LoadingScreen";
 import DesktopComingSoonScreen from "@/components/DesktopComingSoonScreen";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
+import { isPublishedWorld, type WorldScenePublication } from "@shared/worlds/worldScenePublication";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
@@ -54,6 +55,7 @@ const ResetPasswordPage  = lazy(() => import("@/pages/ResetPasswordPage"));
 const PetHousePage       = lazy(() => import("@/pages/PetHousePage"));
 const PetParkPage        = lazy(() => import("@/pages/PetParkPage"));
 const WorldSceneEditorPage = lazy(() => import("@/pages/WorldSceneEditorPage"));
+const WorldScenePlayerPage = lazy(() => import("@/pages/WorldScenePlayerPage"));
 const VisitPetHousePage  = lazy(() => import("@/pages/VisitPetHousePage"));
 const PrivacyPolicyPage  = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const ParaPetsHubPage    = lazy(() => import("@/pages/ParaPetsHubPage"));
@@ -91,8 +93,27 @@ const THEMED_WORLDS = new Set([
 function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const worldId = location.replace("/world/", "").split("/")[0];
   const isThemed = THEMED_WORLDS.has(worldId);
+  // A linked old-world location is a safe transitional bridge. It must keep
+  // the legacy WorldPage even when its parent world is switched to New.
+  const legacyLocationId = new URLSearchParams(window.location.search).get("legacyLocationId");
+  const { data: publications, isLoading: publicationLoading } = useQuery<WorldScenePublication[]>({
+    queryKey: ["/api/world-scene-publications"],
+    queryFn: async () => {
+      const response = await fetch("/api/world-scene-publications", {
+        credentials: "include", cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Could not load active world choices");
+      return response.json();
+    },
+    staleTime: 0, retry: 1, refetchOnMount: "always",
+  });
+  const newWorldActive = !legacyLocationId && isPublishedWorld(worldId, publications ?? []);
   const [screenDone, setScreenDone] = useState(!isThemed);
   const [worldReady, setWorldReady] = useState(false);
+  useEffect(() => {
+    setWorldReady(false);
+    setScreenDone(!isThemed);
+  }, [isThemed, worldId, newWorldActive]);
   const hauntedWelcomeKey = user?.id ? `para_pets_haunted_welcome_v1_${user.id}` : "";
   const [showHauntedWelcome, setShowHauntedWelcome] = useState(() => {
     if (worldId !== "haunted_woods" || !user?.id) return false;
@@ -148,7 +169,9 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           before the themed loading screen paints — same technique as the
           HomePage base layer above. */}
       <div style={{ visibility: !isThemed || screenDone ? "visible" : "hidden", width: "100%", height: "100%" }}>
-        <WorldPage user={worldUser} onContentReady={() => setWorldReady(true)} />
+        {!publicationLoading && (newWorldActive
+          ? <WorldScenePlayerPage worldId={worldId} onContentReady={() => setWorldReady(true)} />
+          : <WorldPage user={worldUser} onContentReady={() => setWorldReady(true)} />)}
       </div>
       {!screenDone && (
         <ViewportModalPortal>
