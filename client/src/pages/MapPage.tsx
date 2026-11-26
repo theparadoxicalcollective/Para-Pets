@@ -125,7 +125,7 @@ export default function MapPage({ user }: MapPageProps) {
       toast({ title: status.useNewWorld ? "New world is live" : "Original world restored",
         description: status.useNewWorld
           ? "Players now enter this world's saved scene. The original world remains intact."
-          : "Players now enter the original world. Your new-world draft and last publication are preserved." });
+          : "Players now enter the original world. The saved new-world scene remains available." });
     },
     onError: (error) => {
       toast({ title: "World switch failed",
@@ -133,22 +133,20 @@ export default function MapPage({ user }: MapPageProps) {
     },
     onSettled: () => setSwitchingWorldId(null),
   });
-  const switchPlayerWorld = (event: React.MouseEvent<HTMLButtonElement>, world: WorldData,
-    refreshLive = false) => {
+  const switchPlayerWorld = (event: React.MouseEvent<HTMLButtonElement>, world: WorldData) => {
     event.preventDefault();
     event.stopPropagation();
     const status = publicationStatuses?.[world.id];
     if (!status || playerWorldMutation.isPending || publicationLoading || publicationError) return;
-    const useNewWorld = refreshLive || !status.useNewWorld;
+    const useNewWorld = !status.useNewWorld;
     if (useNewWorld && !canSwitchToNewWorld(status)) {
       toast({ title: "World not ready", description: status.blockers.join(" • "),
         variant: "destructive" });
       return;
     }
     const question = useNewWorld
-      ? (refreshLive ? `Publish the latest ${world.name} editor changes to players?\n\nThe current public snapshot will be replaced.\n\n${status.warnings.join("\n")}` :
-          `Switch ${world.name} players to the new scene?\n\n${status.warnings.join("\n") || "Confirm all player interactions before deleting legacy assets."}\n\nThe original world remains available for rollback.`)
-      : `Switch ${world.name} players back to the original world?\n\nThe new scene and its published snapshot will be retained.`;
+      ? `Set the saved ${world.name} world LIVE for players?\n\nSaved edits will update this world automatically.\n\n${status.warnings.join("\n") || "Keep the original game content until each gameplay connection is verified."}`
+      : `Switch ${world.name} players back to the original world?\n\nThe new world stays saved for switching back.`;
     if (!window.confirm(question)) return;
     setSwitchingWorldId(world.id);
     playerWorldMutation.mutate({ worldId: world.id, useNewWorld });
@@ -681,16 +679,6 @@ export default function MapPage({ user }: MapPageProps) {
                             {switchingWorldId === w.id ? "Switching…" :
                               publicationStatuses?.[w.id]?.useNewWorld ? "Switch to Old" : "Switch to New"}
                           </button>
-                          {publicationStatuses?.[w.id]?.useNewWorld && (
-                            <button type="button" data-testid={`button-update-live-world-${w.id}`}
-                              aria-label={`Publish latest ${w.name} editor changes`}
-                              disabled={playerWorldMutation.isPending ||
-                                !canSwitchToNewWorld(publicationStatuses[w.id])}
-                              className="rounded-full border border-[#8fae78]/70 bg-[#102b21] px-2 py-0.5 font-fantasy text-[8px] text-[#dcebb5] disabled:opacity-40"
-                              onClick={event => switchPlayerWorld(event, w, true)}>
-                              Publish Changes
-                            </button>
-                          )}
                           <span data-testid={`text-player-world-state-${w.id}`}
                             className="rounded-md bg-[#05140f]/80 px-1.5 py-0.5 text-center font-fantasy text-[8px] text-[#f5dc9c]">
                             {publicationLoading ? "Checking…" : publicationError ? "Status unavailable" :
