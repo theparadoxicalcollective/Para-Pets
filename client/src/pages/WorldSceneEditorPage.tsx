@@ -310,11 +310,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     }),
   });
   const saveAndSetLive = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (selectedGroundTheme: WorldGroundTheme) => {
       // Persist the currently selected ground settings before opening the
       // player route. All content/placement operations already save in-place.
       const ground = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
-        { groundLevel, groundTheme });
+        { groundLevel, groundTheme: selectedGroundTheme });
       const savedGround = await ground.json() as WorldSceneDraft;
       const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/publication`,
         { active: true, saveAndSetLive: true });
@@ -829,7 +829,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         onResetZoom={() => changeZoom(1)}
         isLive={isLive}
         saveLivePending={saveAndSetLive.isPending}
-        onSaveAndSetLive={() => saveAndSetLive.mutate()}
+        onSaveAndSetLive={theme => saveAndSetLive.mutate(theme)}
         onSaveGroundTheme={async theme => {
           const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
             { groundLevel, groundTheme: theme });
