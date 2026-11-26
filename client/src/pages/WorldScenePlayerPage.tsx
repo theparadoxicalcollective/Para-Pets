@@ -18,13 +18,13 @@ import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
 import type { ParkEffectType } from "@shared/petParkEffects";
 import type { WorldScenePlacement } from "@shared/worlds/worldSceneContent";
-import type { WorldScenePlayerSnapshot } from "@shared/worlds/worldScenePublication";
+import type { WorldScenePlayerWorld } from "@shared/worlds/worldScenePublication";
 import { getWorldDefinition } from "@shared/worlds/worldRegistry";
 import { parseNpcMetadata, chooseNpcMessage } from "@/lib/npcMetadata";
 
 /**
- * Read-only presentation of a published snapshot; never mounts admin tools or
- * reads private drafts. Linked old locations remain the authority for quests,
+ * Read-only presentation of current saved world data; no admin controls,
+ * editing routes, or draft/publishing step. Linked old locations own quests,
  * fishing, battles and shop transactions until each system is migrated.
  */
 export default function WorldScenePlayerPage({
@@ -44,32 +44,37 @@ export default function WorldScenePlayerPage({
   const [spokenMessages, setSpokenMessages] = useState<Record<string, string>>({});
   const lighting = useHomeOutdoorLighting("auto");
 
-  const snapshotQuery = useQuery<WorldScenePlayerSnapshot>({
+  const worldQuery = useQuery<WorldScenePlayerWorld>({
     queryKey: ["/api/world-scene", worldId, "player"],
     queryFn: async () => {
       const response = await fetch(`/api/world-scene/${encodeURIComponent(worldId)}/player`,
-        { credentials: "include", cache: "no-store" });
+        { credentials: "include", cache: "no-cache" });
       if (!response.ok) throw new Error("The new world could not be opened");
       return response.json();
     },
     retry: 1,
     staleTime: 0,
+    // Already-open worlds receive saved edits automatically. HTTP conditional
+    // revalidation avoids re-downloading unchanged artwork on mobile.
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
   });
-  const snapshot = snapshotQuery.data;
-  const content = snapshot?.content;
+  const worldData = worldQuery.data;
+  const content = worldData?.content;
   const world = getWorldDefinition(worldId);
-  const groundLevel = snapshot?.groundLevel ?? 1;
-  const groundTheme = snapshot?.groundTheme ?? "grass";
+  const groundLevel = worldData?.groundLevel ?? 1;
+  const groundTheme = worldData?.groundTheme ?? "grass";
   const camera = worldEditorCameraGeometry(size.width, size.height, groundLevel, zoom);
   const initialPan = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = worldEditorClampCamera(pan ?? initialPan, camera, size);
   const room = content?.placements.find(item => item.id === roomId && item.kind === "building");
   const assetById = useMemo(() =>
     new Map((content?.assets ?? []).map(asset => [asset.id, asset])), [content?.assets]);
-  const npcById = useMemo(() => new Map((snapshot?.npcs ?? []).map(npc => [npc.id, npc])),
-    [snapshot?.npcs]);
-  const legacyById = useMemo(() => new Map((snapshot?.legacyLocations ?? []).map(page => [page.id, page])),
-    [snapshot?.legacyLocations]);
+  const npcById = useMemo(() => new Map((worldData?.npcs ?? []).map(npc => [npc.id, npc])),
+    [worldData?.npcs]);
+  const legacyById = useMemo(() => new Map((worldData?.legacyLocations ?? []).map(page => [page.id, page])),
+    [worldData?.legacyLocations]);
   const outdoor = content?.placements ?? [];
   const worldShape = { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale };
   const { exteriorLights, exteriorFireflies } = useMemo(() => ({
@@ -102,8 +107,8 @@ export default function WorldScenePlayerPage({
     touches.current.clear(); drag.current = null; pinch.current = null;
   }, [worldId]);
   useEffect(() => {
-    if (snapshot) onContentReady?.();
-  }, [snapshot, onContentReady]);
+    if (worldData) onContentReady?.();
+  }, [worldData, onContentReady]);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(null), 5000);
@@ -222,7 +227,7 @@ export default function WorldScenePlayerPage({
         changeZoom(zoom * (event.deltaY > 0 ? 0.94 : 1.06),
           { x: event.clientX - rect.left, y: event.clientY - rect.top });
       }}>
-      {snapshot && !room ? <>
+      {worldData && !room ? <>
         <PetParkTerrain groundTheme={worldGroundRenderTheme(groundTheme)}
           groundPalette={worldGroundPalette(groundTheme)}
           viewportWidth={size.width} viewportHeight={size.height}
@@ -298,7 +303,7 @@ export default function WorldScenePlayerPage({
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
             transitionMs={lighting.transitionMs} zIndex={2} />
         </div>
-      </> : snapshot && room && activeRoomAsset?.interiorImageUrl ? <div
+      </> : worldData && room && activeRoomAsset?.interiorImageUrl ? <div
         data-testid="world-player-interior" className="absolute inset-0 flex items-center justify-center">
         <div className="relative overflow-hidden" style={{
           width: "100%", maxWidth: size.height * 4 / 3, aspectRatio: "4/3",
@@ -342,9 +347,9 @@ export default function WorldScenePlayerPage({
     {notice && <div role="status" className="pointer-events-none absolute bottom-8 inset-x-4 z-40 rounded-xl border border-amber-400/60 bg-[#153426]/95 px-4 py-3 text-center text-sm text-amber-100">
       {notice}
     </div>}
-    {(snapshotQuery.isLoading || snapshotQuery.isError) && <div
+    {(worldQuery.isLoading || worldQuery.isError) && <div
       className="absolute inset-0 z-40 flex items-center justify-center bg-[#071b12] p-6 text-center text-amber-100">
-      {snapshotQuery.isError ?
+      {worldQuery.isError ?
         <button onClick={() => navigate("/map")}>World could not load. Return to the map.</button> :
         "Entering the new world…"}
     </div>}
