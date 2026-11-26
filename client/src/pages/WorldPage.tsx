@@ -1322,6 +1322,39 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     shouldIgnoreLocationClick,
     showNoPetWarning,
   ]);
+  // A published world building/NPC may temporarily open the SAME legacy
+  // location to reuse its real fishing, shop, battle and quest implementation.
+  // Trigger the existing DOM hotspot (and NPC quest bridges) rather than
+  // inventing a second gameplay handler for the new scene. This is a one-shot
+  // deep link scoped to the original world, never an editor action.
+  const legacyAutoOpened = useRef<string | null>(null);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("legacy") !== "1") return;
+    const locationId = query.get("openLocation");
+    if (!locationId || !worldBgLoaded ||
+        !locations.some(item => item.id === locationId) ||
+        legacyAutoOpened.current === locationId) return;
+    let cancelled = false;
+    let attempt = 0;
+    let timer: number | undefined;
+    const activate = () => {
+      if (cancelled || legacyAutoOpened.current === locationId) return;
+      const node = document.querySelector<HTMLElement>(
+        `[data-testid="player-location-hotspot-${locationId}"]`);
+      if (node) {
+        legacyAutoOpened.current = locationId;
+        node.click();
+      } else if (attempt++ < 20) {
+        timer = window.setTimeout(activate, 100);
+      }
+    };
+    timer = window.setTimeout(activate, 100);
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [worldId, worldBgLoaded, locations]);
 
   // LOAD saved team when battle prep opens (or when the location changes).
   useEffect(() => {
