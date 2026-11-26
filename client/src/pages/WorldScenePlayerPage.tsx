@@ -35,7 +35,9 @@ export default function WorldScenePlayerPage({
   const [, navigate] = useLocation();
   const viewportRef = useRef<HTMLDivElement>(null);
   const notified = useRef(false);
-  const [viewport, setViewport] = useState({ width: 390, height: 844 });
+  // Start unmeasured instead of flashing a legacy phone-sized scene on
+  // tablets; actual viewport dimensions come from this page's ResizeObserver.
+  const [viewport, setViewport] = useState({ width: 1, height: 1 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point | null>(null);
   const points = useRef(new Map<number, Point>());
@@ -85,6 +87,7 @@ export default function WorldScenePlayerPage({
     return () => observer.disconnect();
   }, []);
 
+  const viewportReady = viewport.width > 1 && viewport.height > 1;
   const groundLevel = scene.data?.groundLevel ?? 1;
   const groundTheme = scene.data?.groundTheme ?? "grass";
   const minimum = worldEditorMinZoom(viewport.width, viewport.height, groundLevel);
@@ -104,7 +107,8 @@ export default function WorldScenePlayerPage({
   const activeBuilding = placements.find(item => item.id === inside && item.kind === "building") ?? null;
   const activeAsset = activeBuilding?.assetId ? assetsById.get(activeBuilding.assetId) : null;
   const linkedPage = activeBuilding?.legacyLocationId ? linkedById.get(activeBuilding.legacyLocationId) : null;
-  const interiorUrl = linkedPage?.bgUrl ?? activeAsset?.interiorImageUrl ?? null;
+  // Prefer the newly authored room; a legacy background is a fallback only.
+  const interiorUrl = activeAsset?.interiorImageUrl ?? linkedPage?.bgUrl ?? null;
 
   const terrain = useMemo(() => ({
     dirt: placements.filter(p => p.kind === "terrain" && p.effectType === "dirt_path"),
@@ -204,7 +208,7 @@ export default function WorldScenePlayerPage({
         changeZoom(safeZoom + (event.deltaY < 0 ? PLAYER_WORLD_ZOOM_STEP : -PLAYER_WORLD_ZOOM_STEP),
           { x: event.clientX - rect.left, y: event.clientY - rect.top });
       }}>
-      {sceneContent && <>
+      {sceneContent && viewportReady && <>
         <PetParkTerrain
           groundTheme={worldGroundRenderTheme(groundTheme)}
           groundPalette={worldGroundPalette(groundTheme)}
@@ -274,11 +278,11 @@ export default function WorldScenePlayerPage({
     <div className="absolute right-3 top-4 z-30 flex items-center gap-1">
       <button type="button" aria-label="Zoom out" data-testid="player-world-zoom-out"
         className="rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] w-9 h-9"
-        disabled={safeZoom <= minimum + .001}
+        disabled={!viewportReady || safeZoom <= minimum + .001}
         onClick={() => changeZoom(safeZoom - PLAYER_WORLD_ZOOM_STEP, { x: viewport.width / 2, y: viewport.height / 2 })}>−</button>
       <button type="button" aria-label="Zoom in" data-testid="player-world-zoom-in"
         className="rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] w-9 h-9"
-        disabled={safeZoom >= PLAYER_WORLD_ZOOM_MAX - .001}
+        disabled={!viewportReady || safeZoom >= PLAYER_WORLD_ZOOM_MAX - .001}
         onClick={() => changeZoom(safeZoom + PLAYER_WORLD_ZOOM_STEP, { x: viewport.width / 2, y: viewport.height / 2 })}>+</button>
     </div>
     {activeBuilding && <div className="absolute inset-0 z-40 flex flex-col bg-[#0b1714] text-[#f1d899]"
@@ -307,7 +311,7 @@ export default function WorldScenePlayerPage({
       </div>
       <p className="text-sm mt-2">This character's new-world dialogue and quests are still being connected.</p>
     </div>}
-    {scene.isLoading && <div className="absolute inset-0 z-50 bg-[#0a1811] flex items-center justify-center text-[#f5dc9e]">
+    {(scene.isLoading || !viewportReady) && <div className="absolute inset-0 z-50 bg-[#0a1811] flex items-center justify-center text-[#f5dc9e]">
       Loading world…
     </div>}
   </div>;
