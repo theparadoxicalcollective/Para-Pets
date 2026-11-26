@@ -53,7 +53,12 @@ export default function WorldScenePlayerPage({
       if (!response.ok) throw new Error("This world is unavailable; the admin can switch it back to the old version.");
       return response.json();
     },
+    // This is the same persisted scene the admin edits. Refresh periodically
+    // while the player is on this page so later saved changes appear without
+    // requiring a new publish or a full navigation. No admin data is exposed.
     retry: 1, staleTime: 0, refetchOnMount: true,
+    refetchOnWindowFocus: true, refetchInterval: 20_000,
+    refetchIntervalInBackground: false,
   });
 
   useEffect(() => {
