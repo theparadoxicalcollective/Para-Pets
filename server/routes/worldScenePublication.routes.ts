@@ -1,5 +1,5 @@
 import type { Express, Request, RequestHandler } from "express";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import {
   shopItems, worldLocations, worldSceneAssets, worldSceneDrafts,
   worldSceneInteriorItems, worldScenePlacements, worldScenePublications,
@@ -84,9 +84,13 @@ async function inspect(db: Store, worldId: WorldId): Promise<WorldScenePublicati
       npcId: worldScenePlacements.npcId, legacyLocationId: worldScenePlacements.legacyLocationId,
       isShop: worldScenePlacements.isShop,
     }).from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId)),
-    db.select({ id: worldSceneAssets.id, imageUrl: worldSceneAssets.imageUrl })
+    // Status polling happens on the World Map. Avoid loading large base64
+    // artwork eight times; a lightweight existence flag is sufficient here.
+    db.select({ id: worldSceneAssets.id,
+      imageUrl: sql<string>`CASE WHEN length(${worldSceneAssets.imageUrl}) > 0 THEN 'ready' ELSE '' END` })
       .from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId)),
-    db.select({ id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl })
+    db.select({ id: shopItems.id, name: shopItems.name,
+      imageUrl: sql<string>`CASE WHEN length(${shopItems.imageUrl}) > 0 THEN 'ready' ELSE '' END` })
       .from(shopItems).where(and(eq(shopItems.type, "npc"), eq(shopItems.worldId, "__npc_catalog__"))),
     db.select({
       id: worldLocations.id, worldId: worldLocations.worldId, name: worldLocations.name,
