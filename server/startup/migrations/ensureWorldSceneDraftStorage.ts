@@ -14,6 +14,14 @@ export async function ensureWorldSceneDraftStorage(): Promise<void> {
         CHECK (ground_theme IN ('grass', 'snow', 'haunted', 'swamp', 'volcanic', 'city')),
       updated_at timestamp NOT NULL DEFAULT now()
     );
+    -- Independent, disabled-by-default player release per canonical world.
+    -- Never overwrite or delete a private editor draft when switching back.
+    CREATE TABLE IF NOT EXISTS world_scene_publications (
+      world_id text PRIMARY KEY,
+      use_new_world boolean NOT NULL DEFAULT false,
+      snapshot jsonb,
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
     -- Existing installations still have the original five-theme constraint.
     -- Update it once without changing existing draft rows or touching Pet Park.
     DO $$
