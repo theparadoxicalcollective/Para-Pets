@@ -64,6 +64,19 @@ export function registerWorldScenePublicationRoutes(
     }
   });
 
+  // The editor reads only its own status, avoiding the 8-world scan used by
+  // the World Map. Draft settings and placed assets remain independently saved.
+  app.get("/api/admin/world-editor/:worldId/publication", isAdmin, async (req, res) => {
+    const worldId = req.params.worldId;
+    if (!playable(worldId)) return res.status(404).json({ message: "Unknown world" });
+    try {
+      return res.json(await inspect(db, worldId));
+    } catch (error) {
+      console.error("[world-publication] editor status failed", error);
+      return res.status(500).json({ message: "Unable to check world publication status" });
+    }
+  });
+
   app.get("/api/world-scene/:worldId/status", requireAuthenticated, async (req, res) => {
     const worldId = req.params.worldId;
     if (!playable(worldId)) return res.status(404).json({ message: "Unknown world" });
