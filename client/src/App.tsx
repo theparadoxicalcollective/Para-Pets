@@ -49,6 +49,7 @@ const MaintenancePage    = lazy(() => import("@/pages/MaintenancePage"));
 const MapPage            = lazy(() => import("@/pages/MapPage"));
 const AdminPage          = lazy(() => import("@/pages/AdminPage"));
 const WorldPage          = lazy(() => import("@/pages/WorldPage"));
+const WorldScenePlayerPage = lazy(() => import("@/pages/WorldScenePlayerPage"));
 const CoinShopPage       = lazy(() => import("@/pages/CoinShopPage"));
 const ResetPasswordPage  = lazy(() => import("@/pages/ResetPasswordPage"));
 const PetHousePage       = lazy(() => import("@/pages/PetHousePage"));
@@ -91,6 +92,22 @@ const THEMED_WORLDS = new Set([
 function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const worldId = location.replace("/world/", "").split("/")[0];
   const isThemed = THEMED_WORLDS.has(worldId);
+  // Legacy location pages stay reachable during staged migration. Normal
+  // /world/:id entry is decided by the SERVER's per-world published switch.
+  const legacyLink = new URLSearchParams(window.location.search).get("legacy") === "1";
+  const publication = useQuery<{ worldId: string; useNewWorld: boolean }>({
+    queryKey: ["/api/world-scene", worldId, "status"],
+    queryFn: async () => {
+      const response = await fetch(`/api/world-scene/${encodeURIComponent(worldId)}/status`,
+        { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error("World presentation could not be checked");
+      return response.json();
+    },
+    refetchOnMount: "always",
+    staleTime: 0,
+    retry: 1,
+  });
+  const newPlayerWorld = publication.data?.useNewWorld === true && !legacyLink;
   const [screenDone, setScreenDone] = useState(!isThemed);
   const [worldReady, setWorldReady] = useState(false);
   const hauntedWelcomeKey = user?.id ? `para_pets_haunted_welcome_v1_${user.id}` : "";
@@ -115,6 +132,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   });
 
   useEffect(() => {
+    if (!publication.data || newPlayerWorld) return;
     queryClient.prefetchQuery({
       queryKey: ["/api/world", worldId, "locations"],
       queryFn: async () => {
@@ -124,7 +142,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
       },
       staleTime: 60 * 1000,
     });
-  }, [worldId]);
+  }, [worldId, publication.data?.useNewWorld, newPlayerWorld]);
 
   const dismissHauntedWelcome = () => {
     if (hauntedWelcomeKey) {
@@ -139,8 +157,21 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   // through that guard keeps the change isolated without granting admin access.
   const worldUser = worldId === "haunted_woods" ? { ...user, isModerator: true } : user;
 
+  if (publication.isLoading) return <div data-testid="world-presentation-loading"
+    className="flex h-full w-full items-center justify-center bg-[#0a1913] text-amber-200">
+    Opening world…
+  </div>;
+  if (publication.isError) return <div data-testid="world-presentation-unavailable"
+    className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#0a1913] px-6 text-center text-amber-200">
+    World availability could not be checked. Your existing world has not been changed.
+    <button type="button" className="rounded-full border border-amber-500/50 px-5 py-2"
+      onClick={() => window.location.assign("/map")}>Back to world map</button>
+  </div>;
   return (
     <>
+      {/* The player scene renders underneath the same themed loading screen,
+          but only after the server confirms this world's published switch.
+          During the transition linked legacy pages keep the old WorldPage. */}
       {/* WorldPage keeps rendering/fetching underneath even while hidden, so its
           data (locations, background image) is fully ready the instant the
           loading screen fades out. `visibility: hidden` (not z-index alone) is
@@ -148,7 +179,9 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           before the themed loading screen paints — same technique as the
           HomePage base layer above. */}
       <div style={{ visibility: !isThemed || screenDone ? "visible" : "hidden", width: "100%", height: "100%" }}>
-        <WorldPage user={worldUser} onContentReady={() => setWorldReady(true)} />
+        {newPlayerWorld
+          ? <WorldScenePlayerPage worldId={worldId} onContentReady={() => setWorldReady(true)} />
+          : <WorldPage user={worldUser} onContentReady={() => setWorldReady(true)} />}
       </div>
       {!screenDone && (
         <ViewportModalPortal>
