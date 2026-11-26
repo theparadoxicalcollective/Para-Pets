@@ -1682,6 +1682,9 @@ export const worldSceneDrafts = pgTable("world_scene_drafts", {
 export const worldScenePublications = pgTable("world_scene_publications", {
   worldId: text("world_id").primaryKey(),
   active: boolean("active").notNull().default(false),
+  /** Frozen scene snapshot: never serve editable draft tables to players. */
+  snapshot: jsonb("snapshot").$type<import("./worlds/worldScenePublication").PublishedWorldScene | null>(),
+  publishedAt: timestamp("published_at"),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
