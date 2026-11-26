@@ -48,7 +48,10 @@ export function auditWorldPublication(worldId: string, input: AuditInput) {
   const warnings: string[] = [];
   const validAssets = new Set(input.assets.filter(a => !!a.imageUrl).map(a => a.id));
   const catalog = new Map(input.npcs.filter(n => !!n.imageUrl).map(n => [n.id, n]));
-  const oldPages = new Map(input.locations.map(page => [page.id, page]));
+  // A placed link must belong to this same world; a similarly named
+  // location from another realm must never satisfy its release preflight.
+  const oldPages = new Map(input.locations
+    .filter(page => page.worldId === worldId).map(page => [page.id, page]));
   const linked = new Set<string>();
   const npcNames = new Set<string>();
   if (!input.hasWorld) blockers.push("Save this world's ground settings first");
