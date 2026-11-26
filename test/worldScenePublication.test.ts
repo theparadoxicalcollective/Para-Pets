@@ -16,7 +16,7 @@ const placements = [
     legacyLocationId:null, isShop:false },
 ];
 
-test("all eight registered worlds have their own independent switch and start on legacy", () => {
+test("all registered worlds start in original mode with independent admin switches", () => {
   assert.equal(WORLD_DEFINITION_LIST.length, 8);
   const server = read("server/routes/worldScenePublication.routes.ts");
   const migration = read("server/startup/migrations/ensureWorldSceneDraftStorage.ts");
@@ -25,21 +25,20 @@ test("all eight registered worlds have their own independent switch and start on
   assert.match(schema, /worldScenePublications = pgTable\("world_scene_publications"/);
   assert.match(migration, /use_new_world boolean NOT NULL DEFAULT false/);
   assert.match(server, /app\.patch\("\/api\/admin\/world-editor\/:worldId\/player-view", isAdmin/);
-  assert.match(server, /onConflictDoUpdate/);
   assert.match(server, /useNewWorld: false, updatedAt: new Date\(\)/);
+  assert.doesNotMatch(schema, /snapshot: jsonb\("snapshot"\)/);
+  assert.doesNotMatch(migration, /snapshot jsonb/);
   assert.doesNotMatch(server, /db\.delete\(|DROP TABLE|TRUNCATE/i);
 });
 
-test("cannot turn on an empty draft or expose missing assets, shops or NPCs", () => {
+test("Save & Set Live refuses an empty world or unlinked quest/shop/NPC", () => {
   const empty = auditWorldPublication("swamp", {
-    hasDraft:false, placements:[], assets:[], npcs:[], locations:[],
+    hasWorld:false, placements:[], assets:[], npcs:[], locations:[],
   });
   assert.equal(empty.blockers.length, 2);
   const broken = auditWorldPublication("swamp", {
-    hasDraft:true,
-    placements:[{ ...placements[0], assetId:"missing", legacyLocationId:null },
-      { ...placements[1], npcId:"missing" }],
-    assets, npcs, locations:[shop, npcLocation],
+    hasWorld:true, placements:[{ ...placements[0], assetId:"missing", legacyLocationId:null },
+      { ...placements[1], npcId:"missing" }], assets, npcs, locations:[shop, npcLocation],
   });
   assert.ok(broken.blockers.some(b => b.includes("artwork")));
   assert.ok(broken.blockers.some(b => b.includes("shop building")));
@@ -47,53 +46,73 @@ test("cannot turn on an empty draft or expose missing assets, shops or NPCs", ()
   assert.ok(broken.blockers.some(b => b.includes("interactive location")));
 });
 
-test("matching every old interactive hotspot allows staged publication but warns against deletion", () => {
+test("existing original-world quest/shop connections are retained after activation", () => {
   const audit = auditWorldPublication("swamp", {
-    hasDraft:true, placements, assets, npcs, locations:[shop, npcLocation],
+    hasWorld:true, placements, assets, npcs, locations:[shop, npcLocation],
   });
   assert.deepEqual(audit.blockers, []);
   assert.equal(audit.legacyLinkCount, 1);
   assert.ok(audit.warnings.some(w => w.includes("keep legacy")));
   const status = {
-    worldId:"swamp", useNewWorld:false, hasPublishedSnapshot:false, hasSavedDraft:true,
+    worldId:"swamp", useNewWorld:false, hasSavedWorld:true,
     placementCount:2, legacyLinkCount:audit.legacyLinkCount,
     blockers:audit.blockers, warnings:audit.warnings, updatedAt:null,
   };
   assert.equal(canSwitchToNewWorld(status), true);
   assert.equal(canSwitchToNewWorld({ ...status, blockers:["Missing quest"] }), false);
   assert.equal(canSwitchToNewWorld({ ...status, placementCount:0 }), false);
-  assert.equal(canSwitchToNewWorld({ ...status, hasSavedDraft:false }), false);
+  assert.equal(canSwitchToNewWorld({ ...status, hasSavedWorld:false }), false);
 });
 
-test("world-specific legacy links never satisfy another world's required locations", () => {
+test("other worlds' locations cannot satisfy this world's readiness checks", () => {
   const audit = auditWorldPublication("haunted_woods", {
-    hasDraft:true, placements, assets, npcs,
+    hasWorld:true, placements, assets, npcs,
     locations:[shop, npcLocation, {
-      id:"haunted-quest", worldId:"haunted_woods", name:"Haunted Quest", type:"quest", isShop:false,
+      id:"haunted-quest", worldId:"haunted_woods", name:"Haunted Quest",
+      type:"quest", isShop:false,
     }],
   });
   assert.ok(audit.blockers.some(b => b.includes("1 original interactive")));
 });
 
-test("player routes consume only snapshots and restore legacy via the same world link", () => {
+test("players load only current saved world data, never admin editing controls", () => {
   const routes = read("server/routes/worldScenePublication.routes.ts");
   const client = read("client/src/App.tsx");
   const player = read("client/src/pages/WorldScenePlayerPage.tsx");
-  const old = read("client/src/pages/WorldPage.tsx");
+  const legacy = read("client/src/pages/WorldPage.tsx");
   const map = read("client/src/pages/MapPage.tsx");
+  const editor = read("client/src/pages/WorldSceneEditorPage.tsx");
   assert.match(routes, /app\.get\("\/api\/world-scene\/:worldId\/player", requireAuthenticated/);
-  assert.match(routes, /!published\?\.useNewWorld \|\| !published\.snapshot/);
-  assert.match(routes, /await db\.transaction\(async tx =>/);
-  assert.match(routes, /snapshot: WorldScenePlayerSnapshot/);
+  assert.match(routes, /if \(!saved\?\.useNewWorld\) return null/);
+  assert.match(routes, /tx\.select\(\)\.from\(worldScenePlacements\)/);
+  assert.match(routes, /tx\.select\(\)\.from\(worldSceneAssets\)/);
+  assert.match(routes, /tx\.select\(\)\.from\(worldSceneInteriorItems\)/);
+  assert.match(routes, /WorldScenePlayerWorld/);
+  assert.doesNotMatch(routes, /published\.snapshot|snapshot:|publishedAt/);
   assert.match(client, /publication\.data\?\.useNewWorld === true && !legacyLink/);
   assert.match(client, /<WorldScenePlayerPage worldId=\{worldId\}/);
   assert.match(client, /<WorldPage user=\{worldUser\}/);
+  assert.match(player, /refetchInterval: 30_000/);
+  assert.match(player, /refetchOnWindowFocus: "always"/);
   assert.match(player, /\?legacy=1&openLocation=/);
-  assert.match(old, /legacyAutoOpened/);
-  assert.match(old, /node\.click\(\)/);
+  assert.match(legacy, /legacyAutoOpened/);
+  assert.match(legacy, /node\.click\(\)/);
+  assert.doesNotMatch(player, /api\/admin\/world-editor|WorldSceneControls|isAdmin|db\.delete/);
   assert.match(map, /button-switch-player-world-/);
-  assert.match(map, /button-update-live-world-/);
+  assert.doesNotMatch(map, /Publish Changes|button-update-live-world-/);
   assert.match(map, /Switch to Old/);
   assert.match(map, /Switch to New/);
-  assert.doesNotMatch(player, /api\/admin\/world-editor|db\.delete/);
+  assert.match(editor, /data-testid="button-world-save-live"/);
+  assert.match(editor, /Save & Set Live/);
+  assert.doesNotMatch(editor, /button-world-save-draft|Save Live Changes/);
+});
+
+test("one Save & Set Live action activates world; edits stay in saved tables", () => {
+  const routes = read("server/routes/worldScenePublication.routes.ts");
+  const editor = read("client/src/pages/WorldSceneEditorPage.tsx");
+  assert.match(routes, /if \(!previous\?\.useNewWorld\)/);
+  assert.match(routes, /if \(status\.blockers\.length\) throw new PublicationNotReady/);
+  assert.match(routes, /set: \{ useNewWorld: true, updatedAt: new Date\(\) \}/);
+  assert.match(editor, /apiRequest\("PUT", `\/api\/admin\/world-editor\/\$\{worldId\}\/draft`/);
+  assert.match(editor, /apiRequest\("PATCH",\s*`\/api\/admin\/world-editor\/\$\{worldId\}\/player-view`/);
 });
