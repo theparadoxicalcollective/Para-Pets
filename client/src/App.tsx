@@ -90,6 +90,7 @@ const THEMED_WORLDS = new Set([
 ]);
 
 function WorldLoadingGate({ location, user }: { location: string; user: any }) {
+  const [, navigate] = useLocation();
   const worldId = location.replace("/world/", "").split("/")[0];
   const isThemed = THEMED_WORLDS.has(worldId);
   // Legacy location pages stay reachable during staged migration. Normal
@@ -187,6 +188,16 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
         <ViewportModalPortal>
           <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
         </ViewportModalPortal>
+      )}
+      {screenDone && legacyLink && new URLSearchParams(window.location.search).has("returnWorld") && (
+        <div className="pointer-events-none absolute right-3 top-[max(60px,env(safe-area-inset-top))] z-[90]">
+          <button type="button" data-testid="button-return-to-new-world"
+            className="pointer-events-auto rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-xs font-semibold text-amber-200"
+            onClick={() => navigate(`/world/${encodeURIComponent(
+              new URLSearchParams(window.location.search).get("returnWorld") || worldId)}`)}>
+            ← New World
+          </button>
+        </div>
       )}
       {screenDone && worldId === "haunted_woods" && showHauntedWelcome && (
         <ViewportModalPortal>
