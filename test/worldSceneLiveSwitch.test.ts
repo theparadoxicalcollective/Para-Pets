@@ -53,7 +53,8 @@ test("Save & Set Live is a per-world admin action, no second draft publication",
   assert.doesNotMatch(migration, /snapshot jsonb/);
   assert.match(controls, /data-testid="button-save-and-set-world-live"/);
   assert.match(editor, /saveAndSetLive: true/);
-  assert.match(editor, /onSaveAndSetLive=\{\(\) => saveAndSetLive\.mutate\(\)\}/);
+  assert.match(editor, /onSaveAndSetLive=\{theme => saveAndSetLive\.mutate\(theme\)\}/);
+  assert.match(controls, /props\.onSaveAndSetLive\(themeDraft\)/);
   assert.match(map, /button-switch-world-/);
   assert.match(map, /!newActive && !hasBeenLive/);
   assert.match(player, /refetchInterval: 20_000/);
