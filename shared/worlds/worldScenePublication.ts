@@ -51,7 +51,7 @@ export function auditWorldPublication(worldId: string, input: AuditInput) {
   const oldPages = new Map(input.locations.map(page => [page.id, page]));
   const linked = new Set<string>();
   const npcNames = new Set<string>();
-  if (!input.hasDraft) blockers.push("Save the new world's ground settings first");
+  if (!input.hasWorld) blockers.push("Save this world's ground settings first");
   if (!input.placements.length) blockers.push("Place at least one new-world object before switching players");
   for (const object of input.placements) {
     if ((object.kind === "building" || object.kind === "decor") &&
