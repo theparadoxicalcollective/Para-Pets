@@ -215,7 +215,7 @@ export default function WorldScenePlayerPage({
     }));
 
   return <div data-testid="world-scene-player" className="relative h-full w-full overflow-hidden text-[#f3e3b7]"
-    style={{ backgroundColor: worldGroundPalette(groundTheme).base }}>
+    style={{ backgroundColor: worldGroundPalette(groundTheme)?.base ?? "#192e23" }}>
     <div ref={viewportRef} data-testid="world-scene-player-viewport"
       className="absolute inset-0 overflow-hidden"
       style={{ touchAction: "none" }}
