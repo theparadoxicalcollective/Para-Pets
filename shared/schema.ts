@@ -1678,12 +1678,11 @@ export const worldSceneDrafts = pgTable("world_scene_drafts", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
-/** World-by-world release switch. Draft edits cannot mutate the last
- * published player snapshot; switching to legacy never deletes that snapshot. */
+/** World-by-world player-view switch. When live, players read current saved
+ * world scene content. Retain the legacy world for a reversible rollout. */
 export const worldScenePublications = pgTable("world_scene_publications", {
   worldId: text("world_id").primaryKey(),
   useNewWorld: boolean("use_new_world").notNull().default(false),
-  snapshot: jsonb("snapshot"),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
