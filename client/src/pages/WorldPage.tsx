@@ -1323,6 +1323,19 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     showNoPetWarning,
   ]);
 
+  // The new authored world may reuse a legacy location page while it is
+  // being connected. Enter that exact existing page with its original IDs,
+  // quest handlers, stock and gameplay instead of copying player data.
+  const linkedLocationOpened = useRef<string | null>(null);
+  useEffect(() => {
+    const linkedId = new URLSearchParams(window.location.search).get("legacyLocationId");
+    if (!linkedId || linkedLocationOpened.current === linkedId || locationsLoading) return;
+    const linked = locations.find(location => location.id === linkedId);
+    if (!linked) return;
+    linkedLocationOpened.current = linkedId;
+    handleLocationClick(linked);
+  }, [worldId, locations, locationsLoading, handleLocationClick]);
+
   // LOAD saved team when battle prep opens (or when the location changes).
   useEffect(() => {
     battleTeamReadyRef.current = false;
