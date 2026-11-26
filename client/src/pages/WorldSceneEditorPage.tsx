@@ -130,7 +130,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     enabled: known,
     queryFn: async () => {
       const response = await fetch(`/api/admin/world-editor/${worldId}/draft`, { credentials: "include" });
-      if (!response.ok) throw new Error("Could not load this private world draft");
+      if (!response.ok) throw new Error("Could not load this world's saved settings");
       return response.json();
     },
     refetchOnMount: true,
@@ -811,7 +811,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
 
     {(draft.isLoading || scene.isLoading || draft.isError || scene.isError) ?
       <div className="absolute z-40 inset-0 flex items-center justify-center bg-[#0d1f17]/90 p-5 text-center text-sm">
-        {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
+        {draft.isError || scene.isError ? "Saved world could not be loaded. Return to map and retry." : "Loading world editor…"}
       </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} shopItemEditing={editingShopItem} placementPoint={createPoint}
