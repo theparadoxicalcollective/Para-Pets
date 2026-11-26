@@ -141,6 +141,10 @@ try {
       swamp: { scene: makeScene("swamp"),
         draft: { worldId: "swamp", groundLevel: 1, groundTheme: "swamp", hasSavedDraft: true, updatedAt: null } },
     };
+    const publications = {
+      haunted_woods: { worldId: "haunted_woods", active: false, hasBeenLive: false, firstEnabledAt: null, updatedAt: null },
+      swamp: { worldId: "swamp", active: false, hasBeenLive: false, firstEnabledAt: null, updatedAt: null },
+    };
     const crop = {
       id: "crop", seedItemId: "seed", fruitItemId: "fruit", seedName: "Forest Seeds",
       fruitName: "Fruit", ready: true,
@@ -162,12 +166,28 @@ try {
       if (path.startsWith("/api/pet-park") || path.startsWith("/api/admin/pet-park"))
         petParkRequests.push(path);
       if (path.startsWith("/api/world/")) publicWorldRequests.push(path);
+      if (path === "/api/world-scene-publications" && req.method() === "GET")
+        return route.fulfill({ json: Object.values(publications) });
       if (path === "/api/inventory") return route.fulfill({ json: inventory });
       if (path === "/api/shop/__npc_catalog__") return route.fulfill({ json: savedNpcs });
       const match = path.match(/^\/api\/admin\/world-editor\/(haunted_woods|swamp)\/(.*)$/);
       if (!match) return route.fulfill({ json: {} });
       const [, worldId, tail] = match;
       const record = worlds[worldId];
+      if (req.method() === "PUT" && tail === "publication") {
+        const body = req.postDataJSON();
+        apiWrites.push({ worldId, tail, method: req.method(), body });
+        const prior = publications[worldId];
+        const updated = {
+          ...prior, active: body.active,
+          hasBeenLive: prior.hasBeenLive || body.saveAndSetLive === true,
+          firstEnabledAt: prior.firstEnabledAt ??
+            (body.saveAndSetLive ? new Date().toISOString() : null),
+          updatedAt: new Date().toISOString(),
+        };
+        publications[worldId] = updated;
+        return route.fulfill({ json: updated });
+      }
       if (req.method() === "GET" && tail === "draft")
         return route.fulfill({ json: record.draft });
       if (req.method() === "GET" && tail === "scene")
@@ -774,7 +794,25 @@ try {
       name + ": NPC has selection, resize, flip, and edit controls");
     await page.getByRole("button", { name: "Deselect world object" }).click();
 
-    // Crossing to another draft cannot display or edit Haunted Woods assets.
+    // Save & Set Live is one explicit admin action. Saved subsequent changes
+    // will use the same world tables, while the other world remains Old.
+    await page.getByTestId("button-world-settings").click();
+    await page.getByTestId("button-save-and-set-world-live").waitFor({ state: "visible" });
+    page.once("dialog", dialog => dialog.accept());
+    const liveResponse = page.waitForResponse(r =>
+      r.url().endsWith("/publication") && r.request().method() === "PUT");
+    await page.getByTestId("button-save-and-set-world-live").click();
+    await liveResponse;
+    assert.equal(publications.haunted_woods.active, true,
+      name + ": Save & Set Live enables only the selected world");
+    assert.equal(publications.swamp.active, false,
+      name + ": all other worlds keep their independent Old status");
+    assert.ok(apiWrites.some(w => w.worldId === "haunted_woods" && w.tail === "publication" &&
+      w.body.active === true && w.body.saveAndSetLive === true),
+      name + ": only explicit Save & Set Live authorizes the new world");
+    await page.getByRole("button", { name: "Close World Settings" }).click();
+
+    // Crossing to another saved world cannot display or edit Haunted Woods assets.
     await page.goto("http://127.0.0.1:4194/fixture?world=swamp", { waitUntil: "commit" });
     await page.getByTestId("world-scene-editor").waitFor({ state: "visible" });
     await page.getByRole("button", { name: "+ Decor" }).waitFor({ state: "visible" });
