@@ -19,6 +19,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
+import type { WorldScenePublication } from "@shared/worlds/worldScenePublication";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
@@ -96,6 +97,31 @@ export default function MapPage({ user }: MapPageProps) {
     queryKey: ["/api/worlds"],
     refetchOnMount: true,
     staleTime: 0,
+  });
+
+  const { data: worldPublications = [], isLoading: publicationsLoading, isError: publicationsError } = useQuery<WorldScenePublication[]>({
+    queryKey: ["/api/world-scene-publications"],
+    enabled: currentUser.isAdmin,
+    queryFn: async () => {
+      const response = await fetch("/api/world-scene-publications", { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error("Could not load world switches");
+      return response.json();
+    },
+    staleTime: 0,
+  });
+  const switchWorldMutation = useMutation({
+    mutationFn: async ({ worldId, active }: { worldId: string; active: boolean }) => {
+      const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/publication`, { active });
+      return response.json();
+    },
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world-scene-publications"] });
+      toast({ title: variables.active ? "New world enabled" : "Old world restored",
+        description: "Only this world's player route was switched. Both world versions are saved." });
+    },
+    onError: (error: Error) => toast({
+      title: "World switch failed", description: error.message, variant: "destructive",
+    }),
   });
 
   const { data: mapBgData } = useQuery<{ bgUrl: string | null }>({
@@ -600,21 +626,44 @@ export default function MapPage({ user }: MapPageProps) {
                         )}
                       </div>
                       {currentUser.isAdmin && isEditableWorldSceneId(w.id) && (
-                        <button
-                          type="button"
-                          data-testid={`button-new-world-edit-${w.id}`}
-                          aria-label={`New World Edit for ${w.name}`}
-                          className="relative z-40 mt-1 rounded-full border border-[#c2a04c] bg-[#152a1d] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg"
-                          style={{ touchAction: "manipulation" }}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            navigate(`/world-editor/${w.id}`);
-                          }}
-                        >
-                          New World Edit
-                        </button>
+                        <div className="relative z-40 flex flex-col items-center gap-1 mt-1"
+                          onPointerDown={event => event.stopPropagation()}>
+                          <button
+                            type="button"
+                            data-testid={`button-new-world-edit-${w.id}`}
+                            aria-label={`New World Edit for ${w.name}`}
+                            className="rounded-full border border-[#c2a04c] bg-[#152a1d] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg"
+                            style={{ touchAction: "manipulation" }}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              navigate(`/world-editor/${w.id}`);
+                            }}>
+                            New World Edit
+                          </button>
+                          {(() => {
+                            const newActive = worldPublications.some(mode => mode.worldId === w.id && mode.active);
+                            return <button
+                              type="button"
+                              data-testid={`button-switch-world-${w.id}`}
+                              aria-label={`Switch ${w.name} players to the ${newActive ? "old" : "new"} world`}
+                              aria-pressed={newActive}
+                              disabled={publicationsLoading || publicationsError || switchWorldMutation.isPending}
+                              title={newActive ? "Switch players back to the original world" : "Switch players to your saved new scene"}
+                              className="rounded-full border border-[#c2a04c] bg-[#203729] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg disabled:opacity-50"
+                              style={{ touchAction: "manipulation" }}
+                              onClick={event => {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                if (!newActive && !window.confirm(
+                                  `Use the NEW ${w.name} scene for players? Make sure its NPCs, shops and quests are connected. You can switch back without deleting the old world.`
+                                )) return;
+                                switchWorldMutation.mutate({ worldId: w.id, active: !newActive });
+                              }}>
+                              {newActive ? "Switch: New (tap for Old)" : "Switch: Old (tap for New)"}
+                            </button>;
+                          })()}
+                        </div>
                       )}
                       {selectedWorldId === w.id && (
                         <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "map-fadeIn 0.2s ease-out" }}>
