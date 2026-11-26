@@ -242,7 +242,7 @@ export default function WorldSceneControls(props: Props) {
     if (busy || !props.scene.placements.some(item => item.kind === "terrain")) return;
     const result = await mutate("DELETE", "/terrain");
     if (result) {
-      toast({ title: "World terrain cleared", description: "Only this private world draft was changed." });
+      toast({ title: "World terrain cleared", description: "Saved changes appear for players automatically when this world is live." });
       setExpanded(false);
     }
   };
@@ -251,7 +251,7 @@ export default function WorldSceneControls(props: Props) {
     setBusy(true);
     try {
       await props.onSaveGroundTheme(themeDraft);
-      toast({ title: "World ground updated", description: "Only the private world draft was changed." });
+      toast({ title: "World ground updated", description: "Players see saved ground changes automatically when this world is live." });
     } catch (error) {
       toast({ title: "World ground could not be saved", description: String(error), variant: "destructive" });
     } finally {
@@ -408,11 +408,11 @@ export default function WorldSceneControls(props: Props) {
           </select>
           <button type="button" className={quickAccent} data-testid="button-save-world-draft"
             disabled={busy || themeDraft === props.groundTheme}
-            onClick={() => void saveTheme()}>{busy ? "Saving…" : "Save Ground Theme"}</button>
+            onClick={() => void saveTheme()}>{busy ? "Saving…" : "Apply Ground Theme"}</button>
         </div>
         <details className={disclosure} data-testid="world-settings-clear-terrain">
           <summary>Clear painted terrain (advanced)</summary>
-          <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted ground paths and garden plots from this private world only. Buildings and decorations remain.</p>
+          <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted paths and garden plots from this world. Players will see the change if this world is live. Buildings and decorations remain.</p>
           <button type="button" className={quickDanger} aria-label="Clear all world terrain"
             disabled={busy || !props.scene.placements.some(item => item.kind === "terrain")}
             onClick={() => void clearTerrain()}>{busy ? "Clearing…" : "Clear terrain"}</button>
@@ -458,8 +458,8 @@ export default function WorldSceneControls(props: Props) {
           data-testid="world-editor-npc-picker" className="space-y-3">
           <p className="text-xs text-amber-100/75">
             Choose an NPC already created in Admin → NPCs. Artwork, dialogue,
-            and quest settings stay linked to the original NPC. This world
-            remains a private draft until published.
+            and quest settings remain linked to the original NPC. Placed NPCs
+            appear to players automatically once the world is live.
           </p>
           {npcCatalog.isLoading ? <p className="text-xs">Loading NPCs…</p>
             : npcCatalog.isError ? <p className="text-xs text-red-200">Could not load saved NPCs.</p>
