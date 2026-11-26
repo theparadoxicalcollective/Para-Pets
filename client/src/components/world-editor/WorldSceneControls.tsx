@@ -58,7 +58,7 @@ type Props = {
   onSaveGroundTheme: (theme: WorldGroundTheme) => Promise<void>;
   isLive: boolean;
   saveLivePending: boolean;
-  onSaveAndSetLive: () => void;
+  onSaveAndSetLive: (selectedGroundTheme: WorldGroundTheme) => void;
 };
 
 export default function WorldSceneControls(props: Props) {
@@ -431,7 +431,7 @@ export default function WorldSceneControls(props: Props) {
               if (!props.isLive && !window.confirm(
                 "Save this world and make it live for players? The original world remains available to restore from the map. Make sure quests, NPCs, and shops are connected."
               )) return;
-              props.onSaveAndSetLive();
+              props.onSaveAndSetLive(themeDraft);
             }}>
             {props.saveLivePending ? "Saving & going live…" : "Save & Set Live"}
           </button>
