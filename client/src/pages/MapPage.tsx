@@ -19,6 +19,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
+import { canSwitchToNewWorld, type WorldScenePublicationStatus } from "@shared/worlds/worldScenePublication";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
@@ -97,6 +98,59 @@ export default function MapPage({ user }: MapPageProps) {
     refetchOnMount: true,
     staleTime: 0,
   });
+
+  const { data: publicationStatuses, isLoading: publicationLoading,
+    isError: publicationError } = useQuery<Record<string, WorldScenePublicationStatus>>({
+    queryKey: ["/api/admin/world-editor/publications"],
+    enabled: currentUser.isAdmin,
+    queryFn: async () => {
+      const response = await fetch("/api/admin/world-editor/publications", {
+        credentials: "include", cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Could not check which worlds are ready");
+      return response.json();
+    },
+    staleTime: 0,
+  });
+  const [switchingWorldId, setSwitchingWorldId] = useState<string | null>(null);
+  const playerWorldMutation = useMutation({
+    mutationFn: async ({ worldId, useNewWorld }: { worldId: string; useNewWorld: boolean }) => {
+      const response = await apiRequest("PATCH",
+        `/api/admin/world-editor/${encodeURIComponent(worldId)}/player-view`, { useNewWorld });
+      return response.json() as Promise<WorldScenePublicationStatus>;
+    },
+    onSuccess: (status) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/world-editor/publications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/world-scene", status.worldId, "status"] });
+      toast({ title: status.useNewWorld ? "New world is live" : "Original world restored",
+        description: status.useNewWorld
+          ? "Players now enter this world's saved scene. The original world remains intact."
+          : "Players now enter the original world. Your new-world draft and last publication are preserved." });
+    },
+    onError: (error) => {
+      toast({ title: "World switch failed",
+        description: String(error), variant: "destructive" });
+    },
+    onSettled: () => setSwitchingWorldId(null),
+  });
+  const switchPlayerWorld = (event: React.MouseEvent<HTMLButtonElement>, world: WorldData) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const status = publicationStatuses?.[world.id];
+    if (!status || playerWorldMutation.isPending || publicationLoading || publicationError) return;
+    const useNewWorld = !status.useNewWorld;
+    if (useNewWorld && !canSwitchToNewWorld(status)) {
+      toast({ title: "World not ready", description: status.blockers.join(" • "),
+        variant: "destructive" });
+      return;
+    }
+    const question = useNewWorld
+      ? `Switch ${world.name} players to the new scene?\n\n${status.warnings.join("\n") || "Confirm all player interactions before deleting legacy assets."}\n\nThe original world remains available for rollback.`
+      : `Switch ${world.name} players back to the original world?\n\nThe new scene and its published snapshot will be retained.`;
+    if (!window.confirm(question)) return;
+    setSwitchingWorldId(world.id);
+    playerWorldMutation.mutate({ worldId: world.id, useNewWorld });
+  };
 
   const { data: mapBgData } = useQuery<{ bgUrl: string | null }>({
     queryKey: ["/api/settings/map-background"],
@@ -600,21 +654,40 @@ export default function MapPage({ user }: MapPageProps) {
                         )}
                       </div>
                       {currentUser.isAdmin && isEditableWorldSceneId(w.id) && (
-                        <button
-                          type="button"
-                          data-testid={`button-new-world-edit-${w.id}`}
-                          aria-label={`New World Edit for ${w.name}`}
-                          className="relative z-40 mt-1 rounded-full border border-[#c2a04c] bg-[#152a1d] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg"
-                          style={{ touchAction: "manipulation" }}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            navigate(`/world-editor/${w.id}`);
-                          }}
-                        >
-                          New World Edit
-                        </button>
+                        <div className="relative z-40 mt-1 flex flex-col items-center gap-1"
+                          onPointerDown={event => event.stopPropagation()}>
+                          <button type="button" data-testid={`button-new-world-edit-${w.id}`}
+                            aria-label={`New World Edit for ${w.name}`}
+                            className="rounded-full border border-[#c2a04c] bg-[#152a1d] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg"
+                            style={{ touchAction: "manipulation" }}
+                            onClick={event => {
+                              event.preventDefault(); event.stopPropagation();
+                              navigate(`/world-editor/${w.id}`);
+                            }}>
+                            New World Edit
+                          </button>
+                          <button type="button" data-testid={`button-switch-player-world-${w.id}`}
+                            aria-label={`Switch ${w.name} players to ${publicationStatuses?.[w.id]?.useNewWorld ? "old" : "new"} world`}
+                            aria-pressed={publicationStatuses?.[w.id]?.useNewWorld === true}
+                            title={publicationStatuses?.[w.id]?.blockers.join("; ") || "Each world switches independently"}
+                            disabled={publicationLoading || publicationError ||
+                              !publicationStatuses?.[w.id] || playerWorldMutation.isPending ||
+                              (!publicationStatuses[w.id].useNewWorld && !canSwitchToNewWorld(publicationStatuses[w.id]))}
+                            className="rounded-full border border-[#d2ad64] bg-[#142b20] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7dc9d] shadow-lg disabled:opacity-50"
+                            style={{ touchAction: "manipulation" }}
+                            onClick={event => switchPlayerWorld(event, w)}>
+                            {switchingWorldId === w.id ? "Switching…" :
+                              publicationStatuses?.[w.id]?.useNewWorld ? "Switch to Old" : "Switch to New"}
+                          </button>
+                          <span data-testid={`text-player-world-state-${w.id}`}
+                            className="rounded-md bg-[#05140f]/80 px-1.5 py-0.5 text-center font-fantasy text-[8px] text-[#f5dc9c]">
+                            {publicationLoading ? "Checking…" : publicationError ? "Status unavailable" :
+                              publicationStatuses?.[w.id]?.useNewWorld ? "Players: New" :
+                              publicationStatuses?.[w.id]?.blockers.length
+                                ? `Not ready: ${publicationStatuses[w.id].blockers.length} issue(s)`
+                                : "Players: Old"}
+                          </span>
+                        </div>
                       )}
                       {selectedWorldId === w.id && (
                         <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "map-fadeIn 0.2s ease-out" }}>
