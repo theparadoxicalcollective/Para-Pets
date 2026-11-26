@@ -75,6 +75,15 @@ test("other worlds' locations cannot satisfy this world's readiness checks", () 
   assert.ok(audit.blockers.some(b => b.includes("1 original interactive")));
 });
 
+test("legacy bridge links must point into the same world, not a different realm", () => {
+  const audit = auditWorldPublication("haunted_woods", {
+    hasWorld:true, placements, assets, npcs,
+    locations:[shop, npcLocation],
+  });
+  assert.ok(audit.blockers.some(b => b.includes("legacy page")),
+    "a Bayou shop link cannot make a Haunted Woods shop safe to publish");
+});
+
 test("players load only current saved world data, never admin editing controls", () => {
   const routes = read("server/routes/worldScenePublication.routes.ts");
   const client = read("client/src/App.tsx");
@@ -87,6 +96,8 @@ test("players load only current saved world data, never admin editing controls",
   assert.match(routes, /tx\.select\(\)\.from\(worldScenePlacements\)/);
   assert.match(routes, /tx\.select\(\)\.from\(worldSceneAssets\)/);
   assert.match(routes, /tx\.select\(\)\.from\(worldSceneInteriorItems\)/);
+  assert.match(routes, /inArray\(shopItems\.id, placedNpcIds\)/);
+  assert.match(routes, /from\(worldLocations\)\.where\(eq\(worldLocations\.worldId, worldId\)\)/);
   assert.match(routes, /WorldScenePlayerWorld/);
   assert.doesNotMatch(routes, /published\.snapshot|snapshot:|publishedAt/);
   assert.match(client, /publication\.data\?\.useNewWorld === true && !legacyLink/);
