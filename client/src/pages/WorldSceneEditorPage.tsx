@@ -47,8 +47,8 @@ import {
 /**
  * One independent admin World Editor across all registered realms.
  * Reuses camera and painterly ground math, not the Pet Park editor or APIs.
- * Edits stay private until the admin explicitly uses Save & Set Live.
- * Player scenes are independent published snapshots, not draft reads.
+ * Save & Set Live activates the new scene; thereafter saved editor changes
+ * appear in the player world automatically without separate publishing.
  */
 export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [, navigate] = useLocation();
@@ -308,18 +308,18 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       cache.setQueryData(queryKey, result);
       setEdited(null);
       void cache.invalidateQueries({ queryKey: sceneQueryKey });
-      toast({ title: "World draft saved", description: "Player worlds are unchanged until you save the live version." });
+      toast({ title: "World settings saved", description: publication.data?.useNewWorld
+        ? "Players see your saved changes automatically." : "Use Save & Set Live when ready." });
     },
     onError: (error: Error) => toast({
-      title: "Unable to save draft", description: error.message, variant: "destructive",
+      title: "Unable to save world settings", description: error.message, variant: "destructive",
     }),
   });
   const liveSaving = useMutation({
     mutationFn: async (mode: "publish" | "original") => {
       if (mode === "publish") {
-        // All placed assets/terrain/interiors already save through their own
-        // editor endpoints. Persist ground settings BEFORE taking the atomic
-        // player snapshot so Save & Set Live is the last and only release step.
+        // Assets, terrain and interiors already save through their own editor
+        // endpoints. Save ground settings, then activate this player world.
         const ground = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
           { groundLevel, groundTheme });
         cache.setQueryData(queryKey, await ground.json());
@@ -339,8 +339,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       toast({
         title: result.useNewWorld ? "World saved and set live" : "Original world restored",
         description: result.useNewWorld
-          ? "Players now see this saved new-world version. Future editor changes remain private until you publish them."
-          : "Players now see the original world. Your new editor scene and published snapshot are preserved.",
+          ? "Players see the saved world and future editor changes automatically."
+          : "Players see the original world. Your new world remains saved.",
       });
     },
     onError: (error: Error) => toast({
@@ -353,30 +353,30 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     publication.isLoading || publication.isError;
   const showPublicationBlockers = () => {
     const blockers = publication.data?.blockers ?? [];
-    const relevant = blockers.filter(blocker => blocker !== "Save the new world's ground settings first");
+    const relevant = blockers.filter(blocker => blocker !== "Save this world's ground settings first");
     window.alert(relevant.length
       ? relevant.join("\n\n")
-      : "Save & Set Live will save the ground settings and publish this scene for players.");
+      : "Save & Set Live saves this world and makes it available to players.");
   };
   const saveLive = () => {
     if (releaseBusy) return;
     const status = publication.data;
     if (!status) return;
-    const incomplete = status.blockers.filter(
-      blocker => blocker !== "Save the new world's ground settings first");
+    const incomplete = status.useNewWorld ? [] : status.blockers.filter(
+      blocker => blocker !== "Save this world's ground settings first");
     if (incomplete.length) {
       showPublicationBlockers();
       return;
     }
     const message = status.useNewWorld
-      ? "Save the latest editor changes as the LIVE version of this world for all players? Your original world and draft will be preserved."
-      : "Save this world and SET IT LIVE for players? The original world remains intact and can be restored at any time.";
+      ? "Save the current world settings? This world is already live, and players see saved changes automatically."
+      : "Save & Set Live for players? The original world remains available, and your future saved changes will update the new world automatically.";
     if (!window.confirm(message)) return;
     liveSaving.mutate("publish");
   };
   const restoreOriginal = () => {
     if (releaseBusy || !publication.data?.useNewWorld ||
-        !window.confirm("Restore the original player world? Your new-world draft and last published version will remain saved.")) return;
+        !window.confirm("Restore the original player world? Your new scene remains saved so you can switch back anytime.")) return;
     liveSaving.mutate("original");
   };
 
@@ -852,18 +852,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       {!paintMode && <div className="pointer-events-auto mx-auto mt-2 flex max-w-[480px] flex-col items-center gap-1 rounded-xl border border-[#a98e4a]/50 bg-[#071e15]/90 px-2 py-2 shadow-lg"
         data-testid="world-editor-save-release">
         <div className="flex w-full justify-center gap-2">
-          <button type="button" data-testid="button-world-save-draft"
-            disabled={releaseBusy}
-            className="min-h-9 flex-1 rounded-full border border-amber-500/55 bg-[#183326] px-2 text-xs font-semibold text-[#e8cb88] disabled:opacity-40"
-            onClick={() => saveDraft.mutate({ groundLevel, groundTheme })}>
-            {saveDraft.isPending ? "Saving…" : "Save Draft"}
-          </button>
           <button type="button" data-testid="button-world-save-live"
             disabled={releaseBusy}
             className="min-h-9 flex-[1.5] rounded-full border border-[#c9ae66] bg-[#3b542d] px-2 text-xs font-semibold text-[#fff2bd] disabled:opacity-40"
             onClick={saveLive}>
-            {liveSaving.isPending ? "Saving…" :
-              publication.data?.useNewWorld ? "Save Live Changes" : "Save & Set Live"}
+            {liveSaving.isPending ? "Saving…" : "Save & Set Live"}
           </button>
           {publication.data?.useNewWorld && <button type="button"
             data-testid="button-world-restore-original" disabled={releaseBusy}
@@ -890,14 +883,14 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
       <span className="rounded-lg bg-black/70 px-3 py-1.5 text-[11px] text-amber-200">
         {publication.data?.useNewWorld
-          ? "Editor draft · Save Live Changes to update players"
-          : "Editor draft · Original world remains live"}
+          ? "Live world · Saved edits appear automatically for players"
+          : "World Editor · Original world remains live until Save & Set Live"}
       </span>
     </div>}
 
     {(draft.isLoading || scene.isLoading || draft.isError || scene.isError) ?
       <div className="absolute z-40 inset-0 flex items-center justify-center bg-[#0d1f17]/90 p-5 text-center text-sm">
-        {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
+        {draft.isError || scene.isError ? "Saved world could not be loaded. Return to map and retry." : "Loading World Editor…"}
       </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} shopItemEditing={editingShopItem} placementPoint={createPoint}
