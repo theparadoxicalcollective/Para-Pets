@@ -9,6 +9,7 @@ import {
 } from "@shared/worlds/worldRegistry";
 import { requireAuthenticated } from "../auth";
 import { auditWorldPublication, type WorldScenePlayerWorld, type WorldScenePublicationStatus } from "@shared/worlds/worldScenePublication";
+import type { WorldSceneContent } from "@shared/worlds/worldSceneContent";
 import type { db as database } from "../db";
 
 type Store = typeof database;
@@ -68,7 +69,8 @@ export function registerWorldScenePublicationRoutes(
   // the World Map. Settings, art and placed objects are saved independently.
   app.get("/api/admin/world-editor/:worldId/publication", isAdmin, async (req, res) => {
     const worldId = req.params.worldId;
-    if (!playable(worldId)) return res.status(404).json({ message: "Unknown world" });
+    if (typeof worldId !== "string" || !playable(worldId))
+      return res.status(404).json({ message: "Unknown world" });
     try {
       return res.json(await inspect(db, worldId));
     } catch (error) {
@@ -79,7 +81,8 @@ export function registerWorldScenePublicationRoutes(
 
   app.get("/api/world-scene/:worldId/status", requireAuthenticated, async (req, res) => {
     const worldId = req.params.worldId;
-    if (!playable(worldId)) return res.status(404).json({ message: "Unknown world" });
+    if (typeof worldId !== "string" || !playable(worldId))
+      return res.status(404).json({ message: "Unknown world" });
     try {
       const [saved] = await db.select({
         useNewWorld: worldScenePublications.useNewWorld,
@@ -93,7 +96,8 @@ export function registerWorldScenePublicationRoutes(
 
   app.get("/api/world-scene/:worldId/player", requireAuthenticated, async (req, res) => {
     const worldId = req.params.worldId;
-    if (!playable(worldId)) return res.status(404).json({ message: "Unknown world" });
+    if (typeof worldId !== "string" || !playable(worldId))
+      return res.status(404).json({ message: "Unknown world" });
     const user = req.user as { isAdmin?: boolean; isModerator?: boolean };
     if (!user?.isAdmin && !user?.isModerator &&
         !isWorldOpenToPlayers(worldId) && worldId !== "haunted_woods") {
@@ -127,7 +131,10 @@ export function registerWorldScenePublicationRoutes(
         const playerWorld: WorldScenePlayerWorld = {
           worldId, groundLevel: ground.groundLevel,
           groundTheme: ground.groundTheme as WorldScenePlayerWorld["groundTheme"],
-          content: { assets, placements, interiorItems },
+          // Mutations validate the scene unions; the DB columns themselves
+          // use text/jsonb and Drizzle types the already-validated kinds as
+          // plain strings. Preserve all saved fields exactly as in the editor.
+          content: { assets, placements, interiorItems } as unknown as WorldSceneContent,
           npcs: npcs.filter(n => !!n.imageUrl).map(n => ({
             ...n, legacyLocationId: locations.find(loc => loc.worldId === worldId &&
               loc.type === "npc" && sameName(loc.name, n.name))?.id ?? null,
@@ -153,7 +160,8 @@ export function registerWorldScenePublicationRoutes(
 
   app.patch("/api/admin/world-editor/:worldId/player-view", isAdmin, async (req: Request, res) => {
     const worldId = req.params.worldId;
-    if (!playable(worldId)) return res.status(404).json({ message: "Unknown world" });
+    if (typeof worldId !== "string" || !playable(worldId))
+      return res.status(404).json({ message: "Unknown world" });
     if (typeof req.body?.useNewWorld !== "boolean") {
       return res.status(400).json({ message: "Choose the original or new player world" });
     }
