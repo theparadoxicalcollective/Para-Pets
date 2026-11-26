@@ -8,7 +8,7 @@ import {
   WORLD_DEFINITION_LIST, isKnownWorldId, isWorldOpenToPlayers, type WorldId,
 } from "@shared/worlds/worldRegistry";
 import { requireAuthenticated } from "../auth";
-import { auditWorldPublication, type WorldScenePlayerSnapshot, type WorldScenePublicationStatus } from "@shared/worlds/worldScenePublication";
+import { auditWorldPublication, type WorldScenePlayerWorld, type WorldScenePublicationStatus } from "@shared/worlds/worldScenePublication";
 import type { db as database } from "../db";
 
 type Store = typeof database;
@@ -16,7 +16,7 @@ const playable = (worldId: string): worldId is WorldId => isKnownWorldId(worldId
 const sameName = (a: string, b: string) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
 
 async function inspect(db: Store, worldId: WorldId): Promise<WorldScenePublicationStatus> {
-  const [pub, draft, placements, assets, npcs, locations] = await Promise.all([
+  const [pub, savedWorld, placements, assets, npcs, locations] = await Promise.all([
     db.select().from(worldScenePublications).where(eq(worldScenePublications.worldId, worldId)).limit(1),
     db.select().from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId)).limit(1),
     db.select({
@@ -38,19 +38,19 @@ async function inspect(db: Store, worldId: WorldId): Promise<WorldScenePublicati
     }).from(worldLocations),
   ]);
   const audit = auditWorldPublication(worldId, {
-    hasDraft: !!draft.length, placements, assets, npcs, locations,
+    hasWorld: !!savedWorld.length, placements, assets, npcs, locations,
   });
   return {
     worldId, useNewWorld: pub[0]?.useNewWorld === true,
-    hasPublishedSnapshot: !!pub[0]?.snapshot, hasSavedDraft: !!draft.length,
+    hasSavedWorld: !!savedWorld.length,
     placementCount: placements.length, legacyLinkCount: audit.legacyLinkCount,
     blockers: audit.blockers, warnings: audit.warnings,
     updatedAt: pub[0]?.updatedAt?.toISOString() ?? null,
   };
 }
 
-/** A published snapshot is deliberately independent of the editable scene.
- * No legacy map, NPC, quest, shop or garden data is deleted by this module. */
+/** A per-world live switch serves the same saved scene that admins edit.
+ * None of this deletes or modifies legacy game content. */
 export function registerWorldScenePublicationRoutes(
   app: Express, { db, isAdmin }: { db: Store; isAdmin: RequestHandler },
 ): void {
@@ -65,7 +65,7 @@ export function registerWorldScenePublicationRoutes(
   });
 
   // The editor reads only its own status, avoiding the 8-world scan used by
-  // the World Map. Draft settings and placed assets remain independently saved.
+  // the World Map. Settings, art and placed objects are saved independently.
   app.get("/api/admin/world-editor/:worldId/publication", isAdmin, async (req, res) => {
     const worldId = req.params.worldId;
     if (!playable(worldId)) return res.status(404).json({ message: "Unknown world" });
@@ -100,16 +100,54 @@ export function registerWorldScenePublicationRoutes(
       return res.status(403).json({ message: "World is not yet open to players" });
     }
     try {
-      const [published] = await db.select().from(worldScenePublications)
-        .where(eq(worldScenePublications.worldId, worldId)).limit(1);
-      if (!published?.useNewWorld || !published.snapshot) {
-        return res.status(404).json({ message: "This world still uses its original presentation" });
-      }
-      res.setHeader("Cache-Control", "no-store");
-      return res.json(published.snapshot as WorldScenePlayerSnapshot);
+      // Player reads are gated by this world's switch, not by edit permissions.
+      // The response is built from CURRENT saved editor tables, so changes
+      // become visible automatically without a second publish step.
+      const live = await db.transaction(async tx => {
+        const [saved] = await tx.select({ useNewWorld: worldScenePublications.useNewWorld })
+          .from(worldScenePublications)
+          .where(eq(worldScenePublications.worldId, worldId)).limit(1);
+        if (!saved?.useNewWorld) return null;
+        const [[ground], assets, placements, interiorItems, npcs, locations] = await Promise.all([
+          tx.select().from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId)).limit(1),
+          tx.select().from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId))
+            .orderBy(asc(worldSceneAssets.createdAt)),
+          tx.select().from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId))
+            .orderBy(asc(worldScenePlacements.createdAt)),
+          tx.select().from(worldSceneInteriorItems).where(eq(worldSceneInteriorItems.worldId, worldId))
+            .orderBy(asc(worldSceneInteriorItems.createdAt)),
+          tx.select({ id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
+            specialSkill: shopItems.specialSkill })
+            .from(shopItems).where(and(eq(shopItems.type, "npc"), eq(shopItems.worldId, "__npc_catalog__"))),
+          tx.select({ id: worldLocations.id, worldId: worldLocations.worldId,
+            name: worldLocations.name, type: worldLocations.type, isShop: worldLocations.isShop })
+            .from(worldLocations),
+        ]);
+        if (!ground) return null;
+        const playerWorld: WorldScenePlayerWorld = {
+          worldId, groundLevel: ground.groundLevel,
+          groundTheme: ground.groundTheme as WorldScenePlayerWorld["groundTheme"],
+          content: { assets, placements, interiorItems },
+          npcs: npcs.filter(n => !!n.imageUrl).map(n => ({
+            ...n, legacyLocationId: locations.find(loc => loc.worldId === worldId &&
+              loc.type === "npc" && sameName(loc.name, n.name))?.id ?? null,
+          })),
+          legacyLocations: locations.filter(loc =>
+            placements.some(p => p.legacyLocationId === loc.id)),
+        };
+        return playerWorld;
+      });
+      if (!live) return res.status(404).json({
+        message: "This world still uses its original presentation",
+      });
+      // Allow conditional revalidation for players already viewing this world.
+      // Express can return HTTP 304 for unchanged JSON rather than repeatedly
+      // transmitting full-size artwork on mobile.
+      res.setHeader("Cache-Control", "private, no-cache");
+      return res.json(live);
     } catch (error) {
       console.error("[world-publication] player scene failed", error);
-      return res.status(500).json({ message: "New world could not be loaded" });
+      return res.status(500).json({ message: "Saved player world could not be loaded" });
     }
   });
 
@@ -126,48 +164,19 @@ export function registerWorldScenePublicationRoutes(
             set: { useNewWorld: false, updatedAt: new Date() } });
         return res.json(await inspect(db, worldId));
       }
-      // Transactionally build the entire release from one consistent editor
-      // state. Do not publish on validation failure, and never delete legacy.
-      await db.transaction(async tx => {
-        const [[draft], assets, placements, interiorItems, npcs, locations] = await Promise.all([
-          tx.select().from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId)).limit(1),
-          tx.select().from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId))
-            .orderBy(asc(worldSceneAssets.createdAt)),
-          tx.select().from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId))
-            .orderBy(asc(worldScenePlacements.createdAt)),
-          tx.select().from(worldSceneInteriorItems).where(eq(worldSceneInteriorItems.worldId, worldId))
-            .orderBy(asc(worldSceneInteriorItems.createdAt)),
-          tx.select({
-            id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
-            specialSkill: shopItems.specialSkill,
-          }).from(shopItems).where(and(eq(shopItems.type, "npc"), eq(shopItems.worldId, "__npc_catalog__"))),
-          tx.select({
-            id: worldLocations.id, worldId: worldLocations.worldId, name: worldLocations.name,
-            type: worldLocations.type, isShop: worldLocations.isShop,
-          }).from(worldLocations),
-        ]);
-        const audit = auditWorldPublication(worldId, {
-          hasDraft: !!draft, assets, placements, npcs, locations,
-        });
-        if (audit.blockers.length) {
-          throw new PublicationNotReady(audit.blockers);
-        }
-        const snapshot: WorldScenePlayerSnapshot = {
-          worldId, groundLevel: draft.groundLevel,
-          groundTheme: draft.groundTheme as WorldScenePlayerSnapshot["groundTheme"],
-          content: { assets, placements, interiorItems },
-          npcs: npcs.filter(n => !!n.imageUrl).map(n => ({
-            ...n,
-            legacyLocationId: locations.find(loc => loc.worldId === worldId &&
-              loc.type === "npc" && sameName(loc.name, n.name))?.id ?? null,
-          })),
-          legacyLocations: locations.filter(loc => placements.some(p => p.legacyLocationId === loc.id)),
-          publishedAt: new Date().toISOString(),
-        };
-        await tx.insert(worldScenePublications).values({ worldId, useNewWorld: true, snapshot })
-          .onConflictDoUpdate({ target: worldScenePublications.worldId,
-            set: { useNewWorld: true, snapshot, updatedAt: new Date() } });
-      });
+      // Only initial activation needs the migration preflight. Afterward the
+      // editor saves directly to live tables; there is no draft publication
+      // and no extra button for making future changes visible.
+      const [previous] = await db.select({ useNewWorld: worldScenePublications.useNewWorld })
+        .from(worldScenePublications)
+        .where(eq(worldScenePublications.worldId, worldId)).limit(1);
+      if (!previous?.useNewWorld) {
+        const status = await inspect(db, worldId);
+        if (status.blockers.length) throw new PublicationNotReady(status.blockers);
+      }
+      await db.insert(worldScenePublications).values({ worldId, useNewWorld: true })
+        .onConflictDoUpdate({ target: worldScenePublications.worldId,
+          set: { useNewWorld: true, updatedAt: new Date() } });
       return res.json(await inspect(db, worldId));
     } catch (error) {
       if (error instanceof PublicationNotReady) {
