@@ -642,14 +642,17 @@ export default function MapPage({ user }: MapPageProps) {
                             New World Edit
                           </button>
                           {(() => {
-                            const newActive = worldPublications.some(mode => mode.worldId === w.id && mode.active);
+                            const mode = worldPublications.find(entry => entry.worldId === w.id);
+                            const newActive = mode?.active === true;
+                            const hasBeenLive = mode?.hasBeenLive === true;
                             return <button
                               type="button"
                               data-testid={`button-switch-world-${w.id}`}
                               aria-label={`Switch ${w.name} players to the ${newActive ? "old" : "new"} world`}
                               aria-pressed={newActive}
-                              disabled={publicationsLoading || publicationsError || switchWorldMutation.isPending}
-                              title={newActive ? "Switch players back to the original world" : "Switch players to your saved new scene"}
+                              disabled={publicationsLoading || publicationsError || switchWorldMutation.isPending || (!newActive && !hasBeenLive)}
+                              title={!hasBeenLive ? "Save & Set Live from the world editor before switching versions"
+                                : newActive ? "Switch players back to the original world" : "Restore this saved new world"}
                               className="rounded-full border border-[#c2a04c] bg-[#203729] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg disabled:opacity-50"
                               style={{ touchAction: "manipulation" }}
                               onClick={event => {
@@ -660,7 +663,8 @@ export default function MapPage({ user }: MapPageProps) {
                                 )) return;
                                 switchWorldMutation.mutate({ worldId: w.id, active: !newActive });
                               }}>
-                              {newActive ? "Switch: New (tap for Old)" : "Switch: Old (tap for New)"}
+                              {newActive ? "Switch: New (tap for Old)"
+                                : hasBeenLive ? "Switch: Old (tap for New)" : "Open Editor · Save & Set Live"}
                             </button>;
                           })()}
                         </div>
