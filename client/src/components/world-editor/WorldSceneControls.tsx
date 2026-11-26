@@ -56,6 +56,9 @@ type Props = {
   onZoom: (value: number) => void;
   onResetZoom: () => void;
   onSaveGroundTheme: (theme: WorldGroundTheme) => Promise<void>;
+  isLive: boolean;
+  saveLivePending: boolean;
+  onSaveAndSetLive: () => void;
 };
 
 export default function WorldSceneControls(props: Props) {
@@ -409,6 +412,30 @@ export default function WorldSceneControls(props: Props) {
           <button type="button" className={quickAccent} data-testid="button-save-world-draft"
             disabled={busy || themeDraft === props.groundTheme}
             onClick={() => void saveTheme()}>{busy ? "Saving…" : "Save Ground Theme"}</button>
+        </div>
+        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523]/90 p-3"
+          data-testid="world-editor-publication-settings">
+          <strong className="text-xs text-[#f5d77b]">Player world</strong>
+          <p className="text-[11px] text-[#e8caa0]">
+            {props.isLive
+              ? "This new world is LIVE. Every saved scene change is available to players without another publish step."
+              : "Players still see the original world. Save & Set Live once to switch this world over."}
+          </p>
+          <button type="button"
+            data-testid="button-save-and-set-world-live"
+            className={quickAccent}
+            disabled={busy || props.saveLivePending}
+            onClick={() => {
+              if (!props.isLive && !window.confirm(
+                "Save this world and make it live for players? The original world remains available to restore from the map. Make sure quests, NPCs, and shops are connected."
+              )) return;
+              props.onSaveAndSetLive();
+            }}>
+            {props.saveLivePending ? "Saving & going live…" : "Save & Set Live"}
+          </button>
+          <p className="text-[10px] text-[#d1b77c]">
+            No separate draft to publish. The saved scene is the live scene; the map's per-world Switch can restore the original world any time.
+          </p>
         </div>
         <details className={disclosure} data-testid="world-settings-clear-terrain">
           <summary>Clear painted terrain (advanced)</summary>
