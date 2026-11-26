@@ -24,6 +24,8 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       return res.json(WORLD_DEFINITION_LIST.map(world => {
         const saved = byId.get(world.id);
         return { worldId: world.id, active: saved?.active === true,
+          hasBeenLive: !!saved?.firstEnabledAt,
+          firstEnabledAt: saved?.firstEnabledAt?.toISOString() ?? null,
           updatedAt: saved?.updatedAt?.toISOString() ?? null };
       }));
     } catch (error) {
@@ -39,32 +41,49 @@ export function registerWorldScenePublicationRoutes(app: Express, {
     if (req.body?.active !== true && req.body?.active !== false)
       return res.status(400).json({ message: "active must be a boolean" });
     const active: boolean = req.body.active;
+    const saveAndSetLive = req.body?.saveAndSetLive === true;
+    if (saveAndSetLive && !active)
+      return res.status(400).json({ message: "Save & Set Live must activate this world." });
     try {
-      // Require an authored terrain and some scene content, not an empty
-      // placeholder. This is still an admin decision: linked NPCs/quests must
-      // be tested manually before the administrator opts players into the new view.
-      if (active) {
-        const [draft] = await db.select({ worldId: worldSceneDrafts.worldId })
+      const [existing] = await db.select().from(worldScenePublications)
+        .where(eq(worldScenePublications.worldId, worldId)).limit(1);
+      // A map toggle cannot accidentally expose an unfinished world. Only
+      // Save & Set Live from the admin editor first authorizes that scene.
+      if (active && !saveAndSetLive && !existing?.firstEnabledAt)
+        return res.status(409).json({
+          message: "Open this world's editor and select Save & Set Live first.",
+        });
+      if (saveAndSetLive) {
+        const [ground] = await db.select({ worldId: worldSceneDrafts.worldId })
           .from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId)).limit(1);
         const [placements] = await db.select({ total: count() }).from(worldScenePlacements)
           .where(eq(worldScenePlacements.worldId, worldId));
-        if (!draft || !placements?.total) return res.status(409).json({
-          message: "Save this world's ground and place some content before switching players",
+        if (!ground || !placements?.total) return res.status(409).json({
+          message: "Save the world ground and place at least one item before setting it live.",
         });
       }
+      const now = new Date();
+      const firstEnabledAt = existing?.firstEnabledAt ?? (saveAndSetLive ? now : null);
       const [updated] = await db.insert(worldScenePublications)
-        .values({ worldId, active, updatedAt: new Date() })
+        .values({ worldId, active, firstEnabledAt, updatedAt: now })
         .onConflictDoUpdate({
-          target: worldScenePublications.worldId, set: { active, updatedAt: new Date() },
+          target: worldScenePublications.worldId,
+          set: { active, firstEnabledAt, updatedAt: now },
         }).returning();
-      return res.json({ worldId, active: updated.active, updatedAt: updated.updatedAt.toISOString() });
+      res.set("Cache-Control", "no-store");
+      return res.json({
+        worldId, active: updated.active,
+        hasBeenLive: !!updated.firstEnabledAt,
+        firstEnabledAt: updated.firstEnabledAt?.toISOString() ?? null,
+        updatedAt: updated.updatedAt.toISOString(),
+      });
     } catch (error) {
       console.error("[world-publication] switch failed", error);
       return res.status(500).json({ message: "Could not switch this world" });
     }
   });
 
-  app.get("/api/worlds/:worldId/player-scene", isAuthenticated, async (req, res) => {
+    app.get("/api/worlds/:worldId/player-scene", isAuthenticated, async (req, res) => {
     const worldId = req.params.worldId;
     if (typeof worldId !== "string" || !isKnownWorldId(worldId))
       return res.status(404).json({ message: "Unknown world" });
@@ -100,8 +119,10 @@ export function registerWorldScenePublicationRoutes(app: Express, {
           id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
         }).from(shopItems).where(and(inArray(shopItems.id, npcIds), eq(shopItems.type, "npc"))) : Promise.resolve([]),
       ]);
-      // No admin draft settings, asset upload controls, or private catalog routes
-      // are exposed. Only the scene explicitly switched to active can be read.
+      // No editor permissions or private catalog endpoints are exposed.
+      // Every saved scene edit is read directly from the live source tables
+      // (there is no separate published snapshot to become stale).
+      res.set("Cache-Control", "private, no-store");
       return res.json({
         worldId, groundLevel: draft[0].groundLevel, groundTheme: draft[0].groundTheme,
         assets, placements, interiorItems, linkedPages, npcs,
