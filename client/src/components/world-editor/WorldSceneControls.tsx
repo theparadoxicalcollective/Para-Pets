@@ -245,7 +245,8 @@ export default function WorldSceneControls(props: Props) {
     if (busy || !props.scene.placements.some(item => item.kind === "terrain")) return;
     const result = await mutate("DELETE", "/terrain");
     if (result) {
-      toast({ title: "World terrain cleared", description: "Only this private world draft was changed." });
+      toast({ title: "World terrain cleared",
+  description: props.isLive ? "Saved terrain changes are visible to players." : "The original world remains active until Save & Set Live." });
       setExpanded(false);
     }
   };
@@ -254,7 +255,8 @@ export default function WorldSceneControls(props: Props) {
     setBusy(true);
     try {
       await props.onSaveGroundTheme(themeDraft);
-      toast({ title: "World ground updated", description: "Only the private world draft was changed." });
+      toast({ title: "World ground updated",
+  description: props.isLive ? "Saved ground changes are visible to players." : "Choose Save & Set Live when ready." });
     } catch (error) {
       toast({ title: "World ground could not be saved", description: String(error), variant: "destructive" });
     } finally {
@@ -434,12 +436,12 @@ export default function WorldSceneControls(props: Props) {
             {props.saveLivePending ? "Saving & going live…" : "Save & Set Live"}
           </button>
           <p className="text-[10px] text-[#d1b77c]">
-            No separate draft to publish. The saved scene is the live scene; the map's per-world Switch can restore the original world any time.
+            The saved scene is the live scene. Use this world's map Switch to restore the original world when needed.
           </p>
         </div>
         <details className={disclosure} data-testid="world-settings-clear-terrain">
           <summary>Clear painted terrain (advanced)</summary>
-          <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted ground paths and garden plots from this private world only. Buildings and decorations remain.</p>
+          <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted paths and garden plots from this world only. If live, players will see this change. Buildings and decorations remain.</p>
           <button type="button" className={quickDanger} aria-label="Clear all world terrain"
             disabled={busy || !props.scene.placements.some(item => item.kind === "terrain")}
             onClick={() => void clearTerrain()}>{busy ? "Clearing…" : "Clear terrain"}</button>
@@ -485,8 +487,8 @@ export default function WorldSceneControls(props: Props) {
           data-testid="world-editor-npc-picker" className="space-y-3">
           <p className="text-xs text-amber-100/75">
             Choose an NPC already created in Admin → NPCs. Artwork, dialogue,
-            and quest settings stay linked to the original NPC. This world
-            remains a private draft until published.
+            and quest settings stay linked to the original NPC. Saved
+            placements become visible to players once this world is live.
           </p>
           {npcCatalog.isLoading ? <p className="text-xs">Loading NPCs…</p>
             : npcCatalog.isError ? <p className="text-xs text-red-200">Could not load saved NPCs.</p>
