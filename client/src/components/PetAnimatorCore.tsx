@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } fro
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { EAR_PART_TYPES, PET_LAYER_ORDER, basePetPartType, getEffectivePetLayer } from "@/lib/petPartConfig";
 import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
-import { normalizePetParts, petCanvasScale } from "@/lib/petRenderSafety";
+import { normalizePetParts, petCanvasScale, petArtworkCanvasFrame, petResponsiveFitTranslation } from "@/lib/petRenderSafety";
 import EvolutionPetEffectsLayer from "./EvolutionPetEffects";
 import type { EvolutionPetEffect } from "@shared/petEvolutionEffects";
 
@@ -27,7 +27,7 @@ interface PetPart {
   rotation: number;
 }
 
-export interface PetCanvasLayout { templateId: string; innerSize: number; innerOffset: number; transform: string; }
+export interface PetCanvasLayout { templateId: string; innerSize: number; innerOffset: number; transform: string; responsive: boolean; }
 
 interface PetAnimatorProps {
   fireReaction?: boolean;
@@ -1400,6 +1400,10 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // and properly scaled inside arena slots that aren't exactly `size` px.
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [measuredSize, setMeasuredSize] = useState<number>(size);
+  // Only Home's low-memory, visible-fit fill portrait is CSS-responsive.
+  // Its first core render can occur *after* a template query resolves, so
+  // measurements from a mount-time effect cannot safely seed this canvas.
+  const responsiveHomeCanvas = lowMemory && fillContainer && fitVisible && preciseLowMemoryFit;
   // Static fitVisible portraits still need real container dimensions and alpha
   // bounds. Static disables motion, not layout or transparent-edge fitting.
   // Synchronously seed measuredSize from the container BEFORE paint so the
@@ -1410,13 +1414,13 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // the measurement and the corresponding state update happen before the
   // browser paints the first frame.
   useLayoutEffect(() => {
-    if (!fillContainer || (performanceStatic && !fitVisible)) return;
+    if (responsiveHomeCanvas || !fillContainer || (performanceStatic && !fitVisible)) return;
     const el = wrapperRef.current;
     if (!el) return;
     // Placement scales the parent; measure the unscaled artwork canvas.
     const s = Math.min(el.clientWidth, el.clientHeight);
     if (s > 0) setMeasuredSize((prev) => (Math.abs(prev - s) > 0.5 ? s : prev));
-  }, [fillContainer, performanceStatic, fitVisible]);
+  }, [fillContainer, performanceStatic, fitVisible, responsiveHomeCanvas]);
   useEffect(() => {
     if (!fillContainer || (performanceStatic && !fitVisible) || lowMemory) return;
     const el = wrapperRef.current;
@@ -1650,14 +1654,20 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
         // div's center FIRST, then scaling around the (now-centered)
         // origin keeps it centered. CSS applies right-to-left, so the
         // string reads scale ∘ scale ∘ translate.
-        fitTransform = `scale(${partScale}) scale(${fitScale.toFixed(4)}) translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)`;
+        // Home uses normalized offsets instead of a remembered pixel size.
+        // The CSS square continuously follows its oval (including a swipe
+        // animation) without a ResizeObserver or another alpha scan.
+        const translation = responsiveHomeCanvas
+          ? petResponsiveFitTranslation((minL + maxR) / 2, (minT + maxB) / 2, CANVAS_SIZE)
+          : `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)`;
+        fitTransform = `scale(${partScale}) scale(${fitScale.toFixed(4)}) ${translation}`;
       }
     }
   }
 
   useLayoutEffect(() => {
-    onCanvasLayout?.({ templateId: petTemplateId, innerSize, innerOffset, transform: fitTransform });
-  }, [onCanvasLayout, petTemplateId, innerSize, innerOffset, fitTransform]);
+    onCanvasLayout?.({ templateId: petTemplateId, innerSize, innerOffset, transform: fitTransform, responsive: responsiveHomeCanvas });
+  }, [onCanvasLayout, petTemplateId, innerSize, innerOffset, fitTransform, responsiveHomeCanvas]);
 
   // The Home team's transparent-padded parts must not visibly render at the
   // provisional FULL_BOUNDS scale and then snap larger after async scans.
@@ -2144,7 +2154,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
       data-testid="pet-animator"
       data-visible-fit-ready={preciseLowMemoryFit ? String(homeVisibleFitReady) : undefined}
     >
-      <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: fitTransform, transformOrigin: "center center", "--pet-motion-pixel-scale": (isLargeStyle ? .3 : 1) / partScale } as React.CSSProperties}>
+      <div style={{ position: "absolute", ...petArtworkCanvasFrame(innerSize, innerOffset, responsiveHomeCanvas), transform: fitTransform, transformOrigin: "center center", "--pet-motion-pixel-scale": (isLargeStyle ? .3 : 1) / partScale } as React.CSSProperties & { "--pet-motion-pixel-scale": number }}>
 
         {/* Body parts (back_full, limbs, wings, tail, body) */}
         {bodyParts.map((part) => {
