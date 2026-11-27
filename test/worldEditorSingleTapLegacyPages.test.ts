@@ -22,7 +22,7 @@ test("world selection is a single alpha-tested tap; dragging unselected art or b
   assert.doesNotMatch(controls, /Double-tap artwork to move|Move armed/);
 });
 
-test("admin-only old-world page catalog lists actual legacy location backgrounds grouped by world", () => {
+test("admin-only legacy page access remains available for buildings already linked", () => {
   const server = read("server/routes/worldSceneContent.routes.ts");
   const picker = read("client/src/components/world-editor/WorldLegacyPagePicker.tsx");
   assert.match(server, /app\.get\("\/api\/admin\/world-editor\/:worldId\/legacy-pages", isAdmin/);
@@ -31,12 +31,9 @@ test("admin-only old-world page catalog lists actual legacy location backgrounds
   assert.match(server, /validLegacyLocationPage\(db, legacyLocationId\)/);
   assert.match(server, /saved\.kind !== "building"/);
   assert.match(server, /changes\.legacyLocationId = body\.legacyLocationId/);
-  assert.match(picker, /Add Old World Page/);
-  assert.match(picker, /<optgroup key=\{name\} label=\{name\}>/);
-  assert.match(picker, /compact \? "Add Old World Page" : "No old page linked"/);
-  assert.match(picker, /compact\?: boolean/);
-  assert.match(picker, /value=\{value \?\? ""\}/);
+  assert.match(picker, /export function useWorldLegacyPages/);
   assert.match(picker, /credentials: "include"/);
+  assert.doesNotMatch(picker, /<select|Add Old World Page|onChange/);
 });
 
 test("link is per placed building, survives restart, and reuses legacy image without mutating originals", () => {
@@ -49,10 +46,10 @@ test("link is per placed building, survives restart, and reuses legacy image wit
   assert.match(migration, /ADD COLUMN IF NOT EXISTS legacy_location_id varchar/);
   assert.match(migration, /REFERENCES world_locations\(id\) ON DELETE SET NULL/);
   assert.match(controls, /props\.selected\?\.legacyLocationId \?\? null/);
-  assert.match(controls, /patchLegacyPage\(id\)/);
-  assert.match(controls, /legacyLocationId: id/);
-  assert.match(controls, /setLegacyChoice\(\{ buildingId, pageId: id \}\)/);
-  assert.match(createForm, /legacyLocationId: isBuilding \? legacyLocationId : null/);
+  assert.doesNotMatch(controls, /patchLegacyPage|setLegacyChoice|Link existing world page|<WorldLegacyPagePicker/);
+  assert.match(controls, /button-retire-original-hotspot/);
+  assert.match(createForm, /legacyLocationId: null/);
+  assert.doesNotMatch(createForm, /setLegacyLocationId|Link existing world page|<WorldLegacyPagePicker/);
   assert.match(editor, /const interiorImageUrl = linkedLegacyPage\?\.bgUrl \?\? interiorAsset\?\.interiorImageUrl/);
   assert.match(editor, /!linkedLegacyPage && interiorAsset\?\.nightInteriorImageUrl/);
   assert.doesNotMatch(editor, /\/api\/world\/\$\{worldId\}\/locations/);

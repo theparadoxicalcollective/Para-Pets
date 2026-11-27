@@ -6,7 +6,6 @@ import { readPetParkImageData } from "@/lib/petParkImageData";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
 import { decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
-import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import type { WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
 
@@ -36,7 +35,6 @@ export default function WorldSceneCreateForm({
   const [name, setName] = useState("");
   const [size, setSize] = useState(kind === "building" ? 300 : 100);
   const [isShop, setIsShop] = useState(false);
-  const [legacyLocationId, setLegacyLocationId] = useState<string | null>(null);
   const [newDecorRole, setNewDecorRole] = useState<DecorRole>("barrier");
   const [effects, setEffects] = useState<ParkDecorEffect[]>([]);
   const [saving, setSaving] = useState(false);
@@ -80,7 +78,7 @@ export default function WorldSceneCreateForm({
         size, flipped: false, layer: 0, decorEffects: effects,
         ...(isBuilding ? decorRoleUpdate("barrier") : decorRoleUpdate(newDecorRole)),
         isShop: isBuilding ? isShop : false,
-        legacyLocationId: isBuilding ? legacyLocationId : null, shopItemIds: [],
+        legacyLocationId: null, shopItemIds: [],
       };
       const placementResponse = await apiRequest("POST", root + (inside ? "/interior-items" : "/placements"), insidePayload);
       const placed = await placementResponse.json() as WorldScenePlacement | WorldSceneInteriorItem;
@@ -127,13 +125,6 @@ export default function WorldSceneCreateForm({
           maxLength={80} value={name} onChange={event => setName(event.target.value)}
           className={`w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45 ${border}`}/>
       </label>
-      <details className={optionGroup} data-testid="world-create-legacy-options">
-        <summary>Link existing world page (optional)</summary>
-        <div className="pt-2" data-testid="world-building-legacy-picker">
-          <WorldLegacyPagePicker worldId={worldId} value={legacyLocationId}
-            onChange={setLegacyLocationId} disabled={saving} preview />
-        </div>
-      </details>
       <div className={card}>
         <label htmlFor="world-building-starting-size" className="flex justify-between gap-2 text-sm">
           <span>Starting building size</span><strong>{size} world units</strong>
