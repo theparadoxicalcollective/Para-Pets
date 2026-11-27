@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { resolveWorldSceneAction, HAUNTED_SPIN_DECOR_NAME } from "../shared/worlds/worldSceneActions";
+import { HAUNTED_SPIN_DECOR_ART } from "../shared/beauPrizeWheel";
 import { auditWorldActivation } from "../shared/worlds/worldScenePublication";
 
 const asset = { id: "spin-art", worldId: "haunted_woods", kind: "decor", name: HAUNTED_SPIN_DECOR_NAME, imageUrl: "art" };
@@ -11,6 +12,10 @@ const beau = { id: "old-beau", worldId: "haunted_woods", type: "npc", name: "Bea
 test("only the named Haunted Woods decoration is connected to the original prize wheel", () => {
   assert.equal(resolveWorldSceneAction("haunted_woods", "decor", asset), "beau-prize-wheel");
   assert.equal(resolveWorldSceneAction("haunted_woods", "decor", { ...asset, name: "  HAUNTED SPIN  " }), "beau-prize-wheel");
+  const renamedArtwork = { ...asset, name: "Spin entrance", imageUrl: HAUNTED_SPIN_DECOR_ART };
+  assert.equal(resolveWorldSceneAction("haunted_woods", "decor", renamedArtwork), "beau-prize-wheel");
+  assert.equal(resolveWorldSceneAction("swamp", "decor", { ...renamedArtwork, worldId: "swamp" }), null);
+  assert.equal(resolveWorldSceneAction("haunted_woods", "building", { ...renamedArtwork, kind: "building" }), null);
   for (const wrong of [{ ...asset, worldId: "swamp" }, { ...asset, kind: "building" },
     { ...asset, name: "Haunted Spinning Wheel" }, { ...asset, name: "Haunted Casino" }, null, undefined]) {
     assert.equal(resolveWorldSceneAction("haunted_woods", "decor", wrong), null);

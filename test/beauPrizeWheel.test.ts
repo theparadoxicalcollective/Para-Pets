@@ -7,6 +7,9 @@ import {
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
   BEAU_PRIZE_WHEEL_SLOT_COUNT,
   DEFAULT_BEAU_POINTER_LAYOUT,
+  DEFAULT_BEAU_GHOST_LAYOUT,
+  beauGhostLayoutFrom,
+  clampBeauLayerLayout,
   DEFAULT_BEAU_WHEEL_LAYOUT,
   beauPointerAngle,
   beauWheelOdds,
@@ -30,10 +33,10 @@ test("Beau wheel has seven admin prizes plus one fixed skull bonus section", () 
   assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 2500);
 
   const centers = Array.from({ length: 8 }, (_, slot) => beauWheelSlotCenterAngle(slot));
-  assert.deepEqual(centers, [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5]);
+  assert.deepEqual(centers, [0, 45, 90, 135, 180, 225, 270, 315]);
   assert.equal(new Set(centers.map((_, slot) => beauWheelLandingRotation(slot))).size, 8);
-  assert.equal(beauWheelLandingRotation(0), 67.5, "slot 1 should land at the right-side pointer");
-  assert.equal(beauWheelLandingRotation(2), 337.5, "landing math should target 90 degrees instead of the old top pointer");
+  assert.equal(beauWheelLandingRotation(0), 0, "slot 1 aligns with the top arrow");
+  assert.equal(beauWheelLandingRotation(2), 270, "slot 3 lands at the top arrow");
 });
 
 test("spin cost, daily free spin and reward grant stay server-authoritative and atomic", () => {
@@ -65,20 +68,17 @@ test("wheel cannot spin until every admin prize is valid", () => {
   assert.match(bridge, /if \(!next\.ready && !next\.isAdmin\)/);
 });
 
-test("player popup uses Beau art, arrow pointer and Haunted Forest background", () => {
-  assert.match(overlay, /BeauPrizeWheel\.png/);
-  assert.match(overlay, /PrizeWheelEmpty\.png/);
-  assert.doesNotMatch(overlay, /PrizeWheelArrow\.png/);
+test("player popup uses the exact Haunted Spin artwork and independently rotating wheel", () => {
+  for (const file of ["Main", "Wheel", "Arrow", "Ghost"]) assert.match(overlay, new RegExp("HauntedSpin" + file + "\\.png"));
+  assert.doesNotMatch(overlay, /BeauPrizeWheel\.png|PrizeWheelEmpty\.png|PrizeWheelArrow\.png/);
   assert.match(overlay, /bg_haunted_woods_v2\.webp/);
   assert.match(overlay, /Photoroom_20260705_103527_PM_1783426783499\.png/);
   assert.match(overlay, /beauPointerAngle/);
   assert.match(overlay, /beauWheelLandingRotation/);
-  assert.match(overlay, /data-testid="beau-prize-wheel-pointer"/);
-  assert.match(overlay, /#e04438/);
-  assert.match(overlay, /drop-shadow\(0 0 3px rgba\(255,92,84,\.96\)\)/);
-  assert.match(overlay, /drop-shadow\(0 0 9px rgba\(190,28,40,\.72\)\)/);
-  assert.match(overlay, /#fff0a8/);
-  assert.match(overlay, /polygon\(50% 100%,0 28%,30% 28%,30% 0,70% 0,70% 28%,100% 28%\)/);
+  assert.match(overlay, /"beau-prize-wheel-pointer"/);
+  assert.match(overlay, /"beau-prize-wheel-ghost"/);
+  assert.match(overlay, /transform: `rotate\(\$\{rotation\}deg\)`/);
+  assert.match(overlay, /beauPointerAngle\(layout, pointerLayout\)/);
   assert.match(overlay, /data-testid="beau-skull-burst"/);
   assert.match(overlay, /SKULL_BURST_PARTICLES/);
   assert.match(overlay, /FREE SPIN/);
@@ -114,7 +114,7 @@ test("admin wheel and arrow pointer placement stay independently valid", () => {
   assert.deepEqual(beauWheelLayoutFrom(DEFAULT_BEAU_WHEEL_LAYOUT), DEFAULT_BEAU_WHEEL_LAYOUT);
   assert.deepEqual(beauPointerLayoutFrom(DEFAULT_BEAU_POINTER_LAYOUT), DEFAULT_BEAU_POINTER_LAYOUT);
   assert.deepEqual(beauWheelLayoutFrom({ left: 12.345, top: 20.123, size: 78 }), { left: 12.35, top: 20.12, size: 78 });
-  assert.deepEqual(beauPointerLayoutFrom({ x: 90.126, y: 50.784, size: 4.6 }), { x: 90.13, y: 50.78, size: 4.6 });
+  assert.deepEqual(beauPointerLayoutFrom({ x: 90.126, y: 50.784, size: 5.6 }), { x: 90.13, y: 50.78, size: 5.6 });
   for (const placement of [
     { left: -1, top: 20, size: 69 },
     { left: 40, top: 20, size: 69 },
@@ -123,13 +123,35 @@ test("admin wheel and arrow pointer placement stay independently valid", () => {
     { left: Number.NaN, top: 20, size: 69 },
     { left: "25", top: 20, size: 69 },
   ]) assert.equal(beauWheelLayoutFrom(placement), null);
-  assert.equal(beauPointerLayoutFrom({ x: 1, y: 50, size: 4.6 }), null);
+  assert.equal(beauPointerLayoutFrom({ x: 1, y: 50, size: 10 }), null);
   assert.equal(beauPointerLayoutFrom({ x: 96, y: 50, size: 12 }), null);
   const angle = beauPointerAngle(DEFAULT_BEAU_WHEEL_LAYOUT, DEFAULT_BEAU_POINTER_LAYOUT);
-  assert.ok(angle > 80 && angle < 100, "default diamond should remain on the wheel's right side");
-  assert.equal(beauWheelLandingRotation(0, 180), 157.5);
+  assert.equal(angle, 0, "default arrow faces down from the top");
+  assert.equal(beauWheelLandingRotation(0, 180), 180);
+  for (const angle of [0, 90, 180, 270, 33.4]) {
+    for (let slot = 0; slot < 8; slot++) {
+      const landing = beauWheelLandingRotation(slot, angle);
+      assert.ok(Math.abs(((landing + beauWheelSlotCenterAngle(slot)) % 360) - angle) < 1e-9);
+    }
+  }
   assert.match(routes, /\/api\/admin\/beau-prize-wheel\/pointer-layout/);
   assert.match(server, /POINTER_LAYOUT_SETTING_KEY/);
+});
+
+test("Haunted artwork keeps old placement records and prize settings intact, with admin-only saves", () => {
+  assert.deepEqual(beauGhostLayoutFrom(DEFAULT_BEAU_GHOST_LAYOUT), DEFAULT_BEAU_GHOST_LAYOUT);
+  assert.equal(beauGhostLayoutFrom({ x: 95, y: 50, size: 30 }), null);
+  assert.equal(beauGhostLayoutFrom({ x: 50, y: 50, size: Infinity }), null);
+  for (const layer of ["arrow", "ghost"] as const) {
+    const next = clampBeauLayerLayout({ x: -10, y: 120, size: 100 }, layer);
+    assert.deepEqual(layer === "arrow" ? beauPointerLayoutFrom(next) : beauGhostLayoutFrom(next), next);
+  }
+  assert.match(server, /beau_prize_wheel_prizes_v1/);
+  assert.match(server, /beau_prize_wheel_haunted_layout_v2/);
+  assert.match(server, /beau_prize_wheel_haunted_pointer_layout_v2/);
+  assert.match(server, /beau_prize_wheel_haunted_ghost_layout_v2/);
+  assert.match(routes, /app.put\("\/api\/admin\/beau-prize-wheel\/ghost-layout", requireAuthenticated,[\s\S]*?if \(!adminUser\(req\)\) return res.status\(403\)/);
+  assert.match(overlay, /saves automatically/);
 });
 
 test("players can rotate Beau's wheel by drag and a quick flick starts one authoritative spin", () => {

@@ -4,9 +4,15 @@ export const BEAU_PRIZE_WHEEL_SLOT_COUNT = 8;
 export const BEAU_PRIZE_WHEEL_PRIZE_SLOTS = 7;
 export const BEAU_PRIZE_WHEEL_LOSS_SLOT = 7;
 export const BEAU_PRIZE_WHEEL_PAID_COST = 2500;
-export const BEAU_WHEEL_STAGE_RATIO = 1122 / 1402;
+// HauntedSpinMain.png is square. The arrow PNG is 1536 × 1024.
+export const BEAU_WHEEL_STAGE_RATIO = 1;
+export const BEAU_ARROW_HEIGHT_RATIO = 1024 / 1536;
+export const BEAU_WHEEL_SIZE_RANGE = { min: 20, max: 80 };
+export const BEAU_ARROW_SIZE_RANGE = { min: 5, max: 50 };
+export const BEAU_GHOST_SIZE_RANGE = { min: 5, max: 45 };
+export const HAUNTED_SPIN_DECOR_ART = "/world-assets/uploads/HauntedSpinDecor.png";
 
-// Position and diameter are percentages of the Beau artwork stage width/height.
+// Position and diameter are percentages of the artwork stage width/height.
 export interface BeauWheelLayout {
   left: number;
   top: number;
@@ -19,43 +25,70 @@ export interface BeauPointerLayout {
   size: number;
 }
 
-// Slightly fill the gold rim by default; admins can fine tune this for their art.
+// The wheel overlays the baked-in gold rim; its center is (50%, 45%).
+// The pointer artwork faces down by default, just above the wheel.
 export const DEFAULT_BEAU_WHEEL_LAYOUT: BeauWheelLayout = {
-  left: 25.55,
-  top: 32.47,
-  size: 69.5,
+  left: 26.6,
+  top: 21.6,
+  size: 46.8,
 };
 
 export const DEFAULT_BEAU_POINTER_LAYOUT: BeauPointerLayout = {
-  x: 96,
-  y: 60.3,
-  size: 4.6,
+  x: 50,
+  y: 15.1,
+  size: 40,
 };
+
+export const DEFAULT_BEAU_GHOST_LAYOUT: BeauPointerLayout = {
+  x: 84,
+  y: 25,
+  size: 22,
+};
+
+const round = (value: number) => Math.round(value * 100) / 100;
 
 export function beauWheelLayoutFrom(value: unknown): BeauWheelLayout | null {
   if (!value || typeof value !== "object") return null;
   const { left, top, size } = value as Partial<BeauWheelLayout>;
   if (typeof left !== "number" || typeof top !== "number" || typeof size !== "number" ||
       !Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(size) ||
-      size < 55 || size > 78 || left < 0 || left + size > 100 ||
-      top < 0 || top + size * (1122 / 1402) > 100) return null;
-  return { left: Math.round(left * 100) / 100, top: Math.round(top * 100) / 100, size: Math.round(size * 100) / 100 };
+      size < BEAU_WHEEL_SIZE_RANGE.min || size > BEAU_WHEEL_SIZE_RANGE.max ||
+      left < 0 || left + size > 100 || top < 0 || top + size * BEAU_WHEEL_STAGE_RATIO > 100) return null;
+  return { left: round(left), top: round(top), size: round(size) };
+}
+
+/** Shared by the client drag/resize clamp and server placement validation. */
+export function clampBeauLayerLayout(layout: BeauPointerLayout, layer: "arrow" | "ghost"): BeauPointerLayout {
+  const range = layer === "arrow" ? BEAU_ARROW_SIZE_RANGE : BEAU_GHOST_SIZE_RANGE;
+  const size = round(Math.max(range.min, Math.min(range.max, layout.size)));
+  const halfWidth = size / 2;
+  const halfHeight = size * (layer === "arrow" ? BEAU_ARROW_HEIGHT_RATIO : 1) * BEAU_WHEEL_STAGE_RATIO / 2;
+  return {
+    x: Math.max(Math.ceil(halfWidth * 100) / 100, Math.min(Math.floor((100 - halfWidth) * 100) / 100, round(layout.x))),
+    y: Math.max(Math.ceil(halfHeight * 100) / 100, Math.min(Math.floor((100 - halfHeight) * 100) / 100, round(layout.y))),
+    size,
+  };
+}
+
+function beauLayerLayoutFrom(value: unknown, layer: "arrow" | "ghost"): BeauPointerLayout | null {
+  if (!value || typeof value !== "object") return null;
+  const { x, y, size } = value as Partial<BeauPointerLayout>;
+  if (typeof x !== "number" || typeof y !== "number" || typeof size !== "number" ||
+      !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(size)) return null;
+  const range = layer === "arrow" ? BEAU_ARROW_SIZE_RANGE : BEAU_GHOST_SIZE_RANGE;
+  const halfWidth = size / 2;
+  const halfHeight = size * (layer === "arrow" ? BEAU_ARROW_HEIGHT_RATIO : 1) * BEAU_WHEEL_STAGE_RATIO / 2;
+  if (size < range.min || size > range.max ||
+      x < halfWidth || x > 100 - halfWidth || y < halfHeight || y > 100 - halfHeight) return null;
+  return clampBeauLayerLayout({ x, y, size }, layer);
 }
 
 export function beauPointerLayoutFrom(value: unknown): BeauPointerLayout | null {
-  if (!value || typeof value !== "object") return null;
-  const { x, y, size } = value as Partial<BeauPointerLayout>;
-  const halfWidth = Number(size) / 2;
-  const halfHeight = Number(size) * 1.65 * BEAU_WHEEL_STAGE_RATIO / 2;
-  if (typeof x !== "number" || typeof y !== "number" || typeof size !== "number" ||
-      !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(size) ||
-      size < 3 || size > 8 || x - halfWidth < 0 || x + halfWidth > 100 ||
-      y - halfHeight < 0 || y + halfHeight > 100) return null;
-  return {
-    x: Math.round(x * 100) / 100,
-    y: Math.round(y * 100) / 100,
-    size: Math.round(size * 100) / 100,
-  };
+  return beauLayerLayoutFrom(value, "arrow");
+}
+
+export function beauGhostLayoutFrom(value: unknown): BeauPointerLayout | null {
+  return beauLayerLayoutFrom(value, "ghost");
 }
 
 export function beauPointerAngle(wheel: BeauWheelLayout, pointer: BeauPointerLayout): number {
@@ -101,10 +134,11 @@ export interface BeauPrizeView {
 }
 
 export function beauWheelSlotCenterAngle(slot: number): number {
-  return 22.5 + Math.max(0, Math.min(BEAU_PRIZE_WHEEL_SLOT_COUNT - 1, slot)) * 45;
+  // In HauntedSpinWheel.png the upper spade is a segment center, not a boundary.
+  return Math.max(0, Math.min(BEAU_PRIZE_WHEEL_SLOT_COUNT - 1, slot)) * 45;
 }
 
-export function beauWheelLandingRotation(slot: number, pointerAngle = 90): number {
+export function beauWheelLandingRotation(slot: number, pointerAngle = 0): number {
   const raw = pointerAngle - beauWheelSlotCenterAngle(slot);
   return ((raw % 360) + 360) % 360;
 }
