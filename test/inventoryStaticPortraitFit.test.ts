@@ -7,7 +7,8 @@ const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8")
 
 test("static visible-fit portraits measure their real slot and still analyze transparent pixels", () => {
   const measurement = core.slice(core.indexOf("// Static fitVisible portraits"), core.indexOf("// Flying pets keep"));
-  assert.match(measurement, /if \(!fillContainer \|\| \(performanceStatic && !fitVisible\)\) return/);
+  assert.match(measurement, /if \(responsiveHomeCanvas \|\| !fillContainer \|\| \(performanceStatic && !fitVisible\)\) return/);
+  assert.match(core, /responsiveHomeCanvas = lowMemory && fillContainer && fitVisible && preciseLowMemoryFit/);
   assert.match(measurement, /Math\.min\(el\.clientWidth, el\.clientHeight\)/);
   assert.match(measurement, /new ResizeObserver/);
   // Other low-memory consumers still skip image scanning. Only Home's

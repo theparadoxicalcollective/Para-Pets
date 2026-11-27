@@ -11,7 +11,7 @@ import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
 import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
 import { ADORNMENT_SLOT_MAP, getWingReplacementPartTypes, normalizeCostumePlacements, type CostumePlacement } from "@shared/costumeFeature";
-import { normalizePetParts, petCanvasScale } from "@/lib/petRenderSafety";
+import { normalizePetParts, petCanvasScale, petArtworkCanvasFrame } from "@/lib/petRenderSafety";
 import { semanticFollowPartType } from "@/lib/costumeFollowPart";
 
 interface PetPart {
@@ -689,14 +689,15 @@ export default function PetAnimator({
 }: PetAnimatorProps) {
   const [canvasLayout, setCanvasLayout] = useState<PetCanvasLayout | null>(null);
   const receiveCanvasLayout = useCallback((next: PetCanvasLayout) => {
-    setCanvasLayout(current => current?.templateId === next.templateId && current.innerSize === next.innerSize && current.innerOffset === next.innerOffset && current.transform === next.transform ? current : next);
+    setCanvasLayout(current => current?.templateId === next.templateId && current.innerSize === next.innerSize && current.innerOffset === next.innerOffset && current.transform === next.transform && current.responsive === next.responsive ? current : next);
   }, []);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [measuredSize, setMeasuredSize] = useState(size);
+  const responsiveHomeCanvas = lowMemory && fillContainer && fitVisible && preciseLowMemoryFit;
   const motionEpochRef = useRef<{ templateId: string; startedAt: number } | null>(null);
 
   useLayoutEffect(() => {
-    if (!(fillContainer || fitVisible)) return;
+    if (responsiveHomeCanvas || !(fillContainer || fitVisible)) return;
     const node = wrapperRef.current;
     if (!node) return;
     const measure = () => {
@@ -714,7 +715,7 @@ export default function PetAnimator({
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [fillContainer, fitVisible, lowMemory, size]);
+  }, [fillContainer, fitVisible, lowMemory, size, responsiveHomeCanvas]);
 
   const resolvedPetInventoryId = petInventoryId ?? null;
 
@@ -825,9 +826,12 @@ export default function PetAnimator({
   // Use the core's measured/visible-fit canvas so independently placed pieces
   // share the pet's position and scale on every screen size.
   const artworkCanvas = canvasLayout?.templateId === petTemplateId
-    ? canvasLayout : { innerSize, innerOffset, transform: `scale(${partScale})` };
-  const artworkCanvasStyle: React.CSSProperties = { position: "absolute", top: artworkCanvas.innerOffset, left: artworkCanvas.innerOffset,
-    width: artworkCanvas.innerSize, height: artworkCanvas.innerSize, transform: artworkCanvas.transform, transformOrigin: "center center" };
+    ? canvasLayout : { innerSize, innerOffset, transform: `scale(${partScale})`, responsive: responsiveHomeCanvas };
+  const artworkCanvasStyle: React.CSSProperties = {
+    position: "absolute",
+    ...petArtworkCanvasFrame(artworkCanvas.innerSize, artworkCanvas.innerOffset, artworkCanvas.responsive),
+    transform: artworkCanvas.transform, transformOrigin: "center center",
+  };
 
   const costumeLayer = (depth: "front" | "back") => (
     <div

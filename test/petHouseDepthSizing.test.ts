@@ -69,12 +69,13 @@ test("Home pets maintain their relative size against the authored background acr
   }
 });
 
-test("Home pet animator remeasures after device scene height changes, including low-memory paths", () => {
+test("Pet House animator remeasures after device scene height changes, including low-memory paths", () => {
   const animator = readFileSync("client/src/components/PetAnimator.tsx", "utf8");
-  const measurement = animator.slice(animator.indexOf("  useLayoutEffect(() => {\n    if (!(fillContainer || fitVisible)) return;"));
+  const measurement = animator.slice(animator.indexOf("  useLayoutEffect(() => {\n    if (responsiveHomeCanvas || !(fillContainer || fitVisible)) return;"));
+  assert.match(animator, /responsiveHomeCanvas = lowMemory && fillContainer && fitVisible && preciseLowMemoryFit/);
   assert.match(measurement, /const next = Math\.min\(node\.clientWidth, node\.clientHeight\)/);
   assert.match(measurement, /measure\(\);\s*if \(lowMemory \|\| typeof ResizeObserver === "undefined"\) return;/);
-  assert.match(measurement, /\}, \[fillContainer, fitVisible, lowMemory, size\]\);/);
+  assert.match(measurement, /\}, \[fillContainer, fitVisible, lowMemory, size, responsiveHomeCanvas\]\);/);
   // Both camera views continue to pass the actual scene-relative dimension.
   for (const path of ["client/src/pages/PetHousePage.tsx", "client/src/pages/VisitPetHousePage.tsx"]) {
     const source = readFileSync(path, "utf8");

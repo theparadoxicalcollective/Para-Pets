@@ -84,3 +84,21 @@ export function shouldUseLowMemoryPetRenderer(runtime: RuntimeMode): boolean {
 export function petCanvasScale(largeStyle: boolean, fillFull: boolean, lowMemory: boolean): number {
   return largeStyle && !(fillFull && lowMemory) ? 0.3 : 1;
 }
+
+/** Home's square portrait already has a definite width from its CSS oval.
+ * Use that live dimension for both the pet and its fitted costume layers.
+ * This avoids first-load, viewport-resize and carousel-transition measurements
+ * (including a stale fallback size when the core did not mount until fetched).
+ */
+export function petArtworkCanvasFrame(innerSize: number, innerOffset: number, responsive: boolean) {
+  return responsive
+    ? { top: 0, left: 0, width: "100%", height: "auto", aspectRatio: "1 / 1" }
+    : { top: innerOffset, left: innerOffset, width: innerSize, height: innerSize };
+}
+
+/** Translate a fitted silhouette in its own logical 1000-unit canvas.
+ * CSS percentages track a responsive square without reading layout.
+ */
+export function petResponsiveFitTranslation(centerX: number, centerY: number, canvasSize: number): string {
+  return `translate(${((.5 - centerX / canvasSize) * 100).toFixed(4)}%, ${((.5 - centerY / canvasSize) * 100).toFixed(4)}%)`;
+}
