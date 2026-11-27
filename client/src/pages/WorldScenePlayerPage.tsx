@@ -468,7 +468,7 @@ function PlayerRoom({ imageUrl, nightImageUrl, building, items, assets, lighting
           {asset && <img src={asset.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" />}
           {item.kind === "effect" && item.effectType && <span className="absolute inset-0"
             style={{ opacity: item.effectType === "warm_glow" ? lighting.daylightStrength : 1 }}>
-            <ParkEffectVisual type={item.effectType as ParkEffectType} reducedMotion={false} />
+            <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} />
           </span>}
         </div>;
       })}

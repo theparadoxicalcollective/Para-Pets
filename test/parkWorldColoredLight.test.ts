@@ -5,6 +5,7 @@ import {
   isParkEffect, isParkOutdoorEffect, isValidParkLightColor,
   parkLightColor, DEFAULT_PARK_LIGHT_COLOR,
 } from "../shared/petParkEffects";
+import { validInteriorEffectColor } from "../shared/worlds/worldSceneContent";
 import { isValidParkDecorEffects } from "../shared/petParkDecorEffects";
 import { parkOutdoorLightEffects, parkOutdoorLightRadius } from "../shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneLampMaskChannel } from "../client/src/lib/parkSceneLighting";
@@ -92,7 +93,7 @@ test("standalone color uses narrow additive storage and server-side validation",
   const worldBoot = read("server/startup/migrations/ensureWorldSceneContentStorage.ts");
   const parkRoutes = read("server/routes/petParkAdmin.routes.ts");
   const worldRoutes = read("server/routes/worldSceneContent.routes.ts");
-  assert.equal((schema.match(/effectColor: text\("effect_color"\)/g) ?? []).length, 2);
+  assert.equal((schema.match(/effectColor: text\("effect_color"\)/g) ?? []).length, 3);
   assert.match(parkBoot, /pet_park_scene_items ADD COLUMN IF NOT EXISTS effect_color text/);
   assert.match(worldBoot, /world_scene_placements ADD COLUMN IF NOT EXISTS effect_color text/);
   assert.match(parkRoutes, /isValidParkLightColor\(effectColor\)/);
@@ -101,4 +102,25 @@ test("standalone color uses narrow additive storage and server-side validation",
   assert.match(worldRoutes, /isValidParkLightColor\(effectColor\)/);
   assert.match(worldRoutes, /isValidParkLightColor\(body\.effectColor\)/);
   assert.match(read("client/src/pages/WorldSceneEditorPage.tsx"), /color=\{p\.effectColor \?\? undefined\}/);
+});
+
+test("interior colors are validated per lamp and preserve legacy/default effects", () => {
+  for (const type of ["lamp_light", "colored_light"]) {
+    assert.equal(validInteriorEffectColor("effect", type, "#A45CFF"), true);
+    for (const invalid of [null, undefined, "#abc", "red", "#12345678", "url(evil)", 123])
+      assert.equal(validInteriorEffectColor("effect", type, invalid), false);
+  }
+  for (const type of ["fire", "candle_light", "warm_glow", "water_ripple", "sparkles", null])
+    assert.equal(validInteriorEffectColor("effect", type, "#A45CFF"), false);
+  assert.equal(validInteriorEffectColor("decor", "lamp_light", "#A45CFF"), false);
+  const schema = read("shared/schema.ts").split('export const worldSceneInteriorItems')[1].split('});')[0];
+  assert.match(schema, /effectColor: text\("effect_color"\),/);
+  const migration = read("server/startup/migrations/ensureWorldSceneContentStorage.ts");
+  assert.match(migration, /ALTER TABLE world_scene_interior_items ADD COLUMN IF NOT EXISTS effect_color text;/);
+  const routes = read("server/routes/worldSceneContent.routes.ts");
+  assert.match(routes, /body\.effectColor != null && !validInteriorEffectColor\(body\.kind, body\.effectType, body\.effectColor\)/);
+  assert.match(routes, /effectColor: body\.effectColor \?\? null/);
+  assert.match(routes, /validInteriorEffectColor\(saved\.kind, saved\.effectType, body\.effectColor\)/);
+  for (const page of ["WorldSceneEditorPage", "WorldScenePlayerPage"])
+    assert.match(read(`client/src/pages/${page}.tsx`), /type=\{item\.effectType as ParkEffectType\} color=\{item\.effectColor \?\? undefined\}/);
 });

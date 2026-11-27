@@ -942,6 +942,41 @@ try {
     assert.deepEqual(worlds.haunted_woods.scene.interiorItems, beforeRoomItems, name + ": interior placement stays unchanged");
     await page.getByRole("button", { name: "Close editor" }).click();
     await page.getByRole("button", { name: "Deselect world object" }).click();
+    // The interior uses the same picker and persisted orb color as outdoors.
+    await page.getByRole("button", { name: "+ Effects", exact: true }).click();
+    await page.getByTestId("world-standalone-light-color").fill("#7b5cff");
+    const lampCreated = page.waitForResponse(r => r.url().endsWith("/interior-items") && r.request().method() === "POST");
+    await page.getByTestId("add-world-effect-lamp_light").click();
+    const newLamp = await (await lampCreated).json();
+    assert.equal(newLamp.effectColor, "#7b5cff");
+    assert.equal(newLamp.buildingId, ids.building);
+    assert.equal(newLamp.effectType, "lamp_light");
+    const core = page.getByTestId("world-interior-item-" + newLamp.id).getByTestId("home-lamp-light-core");
+    await core.waitFor();
+    assert.match(await core.evaluate(node => node.style.backgroundImage), /123,\s*92,\s*255/);
+    await page.getByRole("button", { name: "Edit selected object details" }).click();
+    const editColor = page.getByLabel("Edit world lamp light color");
+    assert.equal(await editColor.inputValue(), "#7b5cff");
+    const lampUpdated = page.waitForResponse(r => r.url().endsWith("/interior-items/" + newLamp.id) && r.request().method() === "PATCH");
+    await editColor.fill("#44dd88");
+    const updatedLamp = await (await lampUpdated).json();
+    assert.deepEqual(updatedLamp, { ...newLamp, effectColor: "#44dd88" });
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await page.waitForFunction(id => /68,\s*221,\s*136/.test(document.querySelector(
+      '[data-testid="world-interior-item-' + id + '"] [data-testid="home-lamp-light-core"]')?.style.backgroundImage ?? ""), newLamp.id);
+    await page.getByRole("button", { name: "Exit Room" }).click();
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    assert.match(await core.evaluate(node => node.style.backgroundImage), /68,\s*221,\s*136/,
+      name + ": saved color survives reopening the room");
+    const lampItem = page.getByTestId("world-interior-item-" + newLamp.id);
+    await lampItem.focus();
+    await lampItem.press("Enter");
+    await Promise.all([
+      page.waitForResponse(r => r.url().endsWith("/interior-items/" + newLamp.id) && r.request().method() === "DELETE"),
+      page.getByRole("button", { name: "Remove", exact: true }).click(),
+    ]);
+    assert.deepEqual(worlds.haunted_woods.scene.interiorItems, beforeRoomItems,
+      name + ": lamp color operations leave other room objects untouched");
     await page.getByRole("button", { name: "Exit Room" }).click();
     // The previously selected building intentionally stays selected when
     // leaving its room. Deselect before using the outdoor terrain toolbar.

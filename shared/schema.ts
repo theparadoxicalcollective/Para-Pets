@@ -1734,6 +1734,7 @@ export const worldSceneInteriorItems = pgTable("world_scene_interior_items", {
   kind: text("kind").notNull(),
   assetId: varchar("asset_id"),
   effectType: text("effect_type"),
+  effectColor: text("effect_color"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(100),
