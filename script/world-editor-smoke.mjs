@@ -765,17 +765,39 @@ try {
       const beforePanItems = structuredClone(worlds.haunted_woods.scene.interiorItems);
       // Genuine touch input: drag background sideways, without altering items.
       const cdp = await context.newCDPSession(page);
-      const swipeRoom = async (fromX, toX, y) => {
-        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: fromX, y }] });
+      const swipeRoom = async (fromX, toX, fromY, toY = fromY) => {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: fromX, y: fromY }] });
         for (let i = 1; i <= 6; i++)
-          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: fromX + (toX - fromX) * i / 6, y }] });
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{
+            x: fromX + (toX - fromX) * i / 6, y: fromY + (toY - fromY) * i / 6,
+          }] });
         await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       };
+      assert.ok(Math.abs(fullRoom.y - visibleViewport.y) < 1, name + ": room starts at the viewport top");
+      for (const mode of ["Fit room", "Full room", "Zoom room in", "Zoom room out"])
+        assert.equal(await page.getByRole("button", { name: mode, exact: true }).count(), 0, name + ": no floating-picture controls");
       await swipeRoom(width * .75, width * .25, height * .28);
       assert.ok((await room.boundingBox()).x < fullRoom.x - 50, name + ": swiping the artwork pans the full-height room");
       assert.deepEqual(worlds.haunted_woods.scene.interiorItems, beforePanItems, name + ": panning changes no placement");
       assert.equal(apiWrites.length, writesBeforePan, name + ": pans do not save changes");
       const pannedBox = await room.boundingBox();
+      assert.ok(Math.abs(pannedBox.y - fullRoom.y) < 1 && Math.abs(pannedBox.height - fullRoom.height) < 1);
+      // Up/down and a wheel do not scroll, resize or detach the background.
+      await swipeRoom(width * .85, width * .85, height * .58, height * .28);
+      assert.deepEqual(await room.boundingBox(), pannedBox, name + ": vertical touch movement leaves the room fixed");
+      await page.mouse.move(width * .85, height * .55);
+      await page.mouse.wheel(0, -500);
+      await page.waitForTimeout(100);
+      assert.deepEqual(await room.boundingBox(), pannedBox, name + ": wheel cannot zoom the room");
+      // Toolbars overlay the artwork. Hiding them exposes the floor without
+      // changing the camera or the saved scene.
+      await page.getByRole("button", { name: "Hide room tools" }).click();
+      assert.equal(await darknessSlider.count(), 0);
+      assert.deepEqual(await room.boundingBox(), pannedBox);
+      await page.getByRole("button", { name: "Show room tools" }).click();
+      await darknessSlider.waitFor();
+      assert.deepEqual(await room.boundingBox(), pannedBox);
+      assert.equal(apiWrites.length, writesBeforePan, name + ": camera and visibility changes do not save");
       const expectedX = (visibleViewport.x + visibleViewport.width / 2 - pannedBox.x) / pannedBox.width;
       await page.getByRole("button", { name: "+ Decor", exact: true }).click();
       await page.getByLabel("Scene item artwork").setInputFiles({
@@ -799,33 +821,53 @@ try {
         page.getByRole("button", { name: "Remove", exact: true }).click(),
       ]);
       await page.getByTestId("world-editor-interior-darkness-slider").waitFor();
-      const writesBeforeZoom = apiWrites.length;
-      // The bottom controls are fixed; drag the room upward to expose art
-      // that would otherwise remain hidden behind them.
-      await page.mouse.move(width * .85, height * .58);
-      await page.mouse.down();
-      await page.mouse.move(width * .85, height * .28, { steps: 5 });
-      await page.mouse.up();
-      assert.ok((await room.boundingBox()).y < -50, name + ": room floor can be brought above the toolbar");
-      await page.getByRole("button", { name: "Fit room", exact: true }).click();
-      const fitted = await room.boundingBox();
-      assert.ok(fitted.width <= visibleViewport.width + 1 && fitted.height < visibleViewport.height,
-        name + ": Fit room restores a whole-room overview");
-      await page.getByRole("button", { name: "Full room", exact: true }).click();
-      await page.getByRole("button", { name: "Zoom room in" }).click();
-      assert.ok((await room.boundingBox()).height > visibleViewport.height * 1.2,
-        name + ": room-only zoom allows finer placement");
-      await page.getByRole("button", { name: "Zoom room out" }).click();
-      assert.ok(Math.abs((await room.boundingBox()).height - fullRoom.height) < 2);
-      assert.equal(apiWrites.length, writesBeforeZoom, name + ": room camera never saves changes");
-      // Fit then Full recenters the room. Drag a selected item in the enlarged
-      // room and verify its PATCH still uses the original artwork fractions.
+      const writesBeforeCamera = apiWrites.length;
+      // Return toward both real artwork edges with oversized mouse drags,
+      // verify no blank margins, then restore the initial centered view.
+      const dragRoom = async (fromX, toX) => {
+        await page.mouse.move(fromX, height * .17);
+        await page.mouse.down();
+        await page.mouse.move(toX, height * .17, { steps: 6 });
+        await page.mouse.up();
+      };
+      for (let i = 0; i < 8; i++) await dragRoom(width * .9, width * .1);
+      const rightEdge = await room.boundingBox();
+      assert.ok(Math.abs(rightEdge.x + rightEdge.width - visibleViewport.x - visibleViewport.width) < 2,
+        name + ": repeated swipes stop at the right artwork edge");
+      for (let i = 0; i < 8; i++) await dragRoom(width * .1, width * .9);
+      const leftEdge = await room.boundingBox();
+      assert.ok(Math.abs(leftEdge.x - visibleViewport.x) < 2,
+        name + ": repeated swipes stop at the left artwork edge");
+      assert.ok(Math.abs(leftEdge.y - fullRoom.y) < 1 && Math.abs(leftEdge.height - fullRoom.height) < 1);
+      let remaining = leftEdge.x - fullRoom.x;
+      while (remaining > 1) {
+        const distance = Math.min(remaining, width * .6);
+        await dragRoom(width * .85, width * .85 - distance);
+        remaining -= distance;
+      }
+      assert.ok(Math.abs((await room.boundingBox()).x - fullRoom.x) < 2);
+      assert.equal(apiWrites.length, writesBeforeCamera, name + ": camera never saves changes");
+      // A selected object can still be dragged in both directions; hiding
+      // tools makes the floor under the overlay accessible without vertical pan.
       const itemForDrag = page.getByTestId("world-interior-item-" + ids.room);
+      const unselectedBox = await itemForDrag.boundingBox();
+      const unselectedX = unselectedBox.x + unselectedBox.width / 2;
+      const unselectedY = unselectedBox.y + unselectedBox.height / 2;
+      const beforeSwipe = await room.boundingBox();
+      await swipeRoom(unselectedX, unselectedX + width * .16, unselectedY);
+      const afterSwipe = await room.boundingBox();
+      assert.ok(afterSwipe.x > beforeSwipe.x + 20, name + ": swiping unselected artwork pans the background");
+      assert.equal(await page.getByTestId("world-scene-selected-controls").count(), 0,
+        name + ": swiping is not a tap or placement");
+      assert.equal(apiWrites.length, writesBeforeCamera);
+      await dragRoom(width * .85, width * .85 - (afterSwipe.x - beforeSwipe.x));
       await itemForDrag.tap();
       await page.getByTestId("world-scene-selected-controls").waitFor();
+      await page.getByRole("button", { name: "Hide room tools" }).click();
+      assert.equal(await page.getByTestId("world-scene-selected-controls").count(), 0);
       const itemBox = await itemForDrag.boundingBox();
       const roomBox = await room.boundingBox();
-      const dx = width * .08, dy = -36;
+      const dx = width * .08, dy = roomBox.height * .36;
       const beforeMove = worlds.haunted_woods.scene.interiorItems.find(i => i.id === ids.room);
       const itemSaved = page.waitForResponse(r => r.url().endsWith("/interior-items/" + ids.room) && r.request().method() === "PATCH");
       await page.mouse.move(itemBox.x + itemBox.width / 2, itemBox.y + itemBox.height / 2);
@@ -837,6 +879,8 @@ try {
       assert.ok(Math.abs(afterMove.xPct - beforeMove.xPct - dx / roomBox.width) < .003);
       assert.ok(Math.abs(afterMove.yPct - beforeMove.yPct - dy / roomBox.height) < .003);
       assert.equal(apiWrites.filter(w => w.tail === "interior-items/" + ids.room).length, 1);
+      assert.deepEqual(await room.boundingBox(), roomBox, name + ": moving decor does not move background");
+      await page.getByRole("button", { name: "Show room tools" }).click();
       await page.getByRole("button", { name: "Deselect world object" }).click();
       await cdp.detach();
     }
@@ -877,7 +921,7 @@ try {
     // Re-enter via the already-visible movement toolbar, without a redundant
     // tap that could hit the toolbar if the building is behind it.
     assert.deepEqual(await page.getByTestId("world-scene-placement-" + ids.building).boundingBox(), exteriorBeforeRoom,
-      name + ": interior pan/zoom never changes the outdoor camera");
+      name + ": interior pan never changes the outdoor camera");
     await page.getByRole("button", { name: "Enter Building" }).click();
     assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
       name + ": reopening the building retains its saved darkness");

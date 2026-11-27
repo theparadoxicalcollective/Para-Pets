@@ -1,50 +1,84 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { worldEditorInteriorCamera, interiorCameraCenter } from "../client/src/lib/worldEditorInteriorCamera";
+import { readFileSync } from "node:fs";
+import { worldEditorInteriorCamera, interiorCameraCenterX } from "../client/src/lib/worldEditorInteriorCamera";
 
-test("wide building interiors fill the phone and tablet height without stretching artwork", () => {
-  for (const viewport of [{ width: 390, height: 844 }, { width: 834, height: 1194 }]) {
-    const camera = worldEditorInteriorCamera(viewport, 16 / 9, 1, { x: .5, y: .5 });
+const viewports = [
+  { width: 390, height: 844 }, { width: 360, height: 640 },
+  { width: 834, height: 1194 }, { width: 1194, height: 834 },
+];
+
+test("room artwork fills the actual phone/tablet height, at its native ratio", () => {
+  for (const viewport of viewports) {
+    const camera = worldEditorInteriorCamera(viewport, 16 / 9);
     assert.equal(camera.height, viewport.height);
-    assert.equal(camera.width / camera.height, 16 / 9);
-    assert.ok(camera.width > viewport.width);
+    assert.ok(Math.abs(camera.width / camera.height - 16 / 9) < .00001);
+    assert.ok(camera.width >= viewport.width);
     assert.equal(camera.pan.x, (viewport.width - camera.width) / 2);
     assert.equal(camera.pan.y, 0);
-    const left = worldEditorInteriorCamera(viewport, 16 / 9, 1, { x: 0, y: .5 });
-    const right = worldEditorInteriorCamera(viewport, 16 / 9, 1, { x: 1, y: .5 });
-    assert.equal(left.pan.x, 0);
-    assert.equal(right.pan.x, viewport.width - camera.width);
-    assert.deepEqual(left.center, interiorCameraCenter(viewport, left, left.pan));
+    assert.equal(camera.center.y, .5);
   }
 });
 
-test("fit shows all artwork, including portrait and landscape rooms", () => {
-  for (const aspect of [0.6, 1, 16 / 9, 3]) {
-    const viewport = { width: 390, height: 844 };
-    const fit = worldEditorInteriorCamera(viewport, aspect, 0, { x: .1, y: .9 });
-    assert.ok(fit.width <= viewport.width + .00001);
-    assert.ok(fit.height <= viewport.height + .00001);
-    assert.ok(Math.abs(fit.width / fit.height - aspect) < .00001);
-    assert.ok(Math.abs(fit.center.x - .5) < .00001);
-    assert.ok(Math.abs(fit.center.y - .5) < .00001);
+test("horizontal room camera clamps to the actual artwork and never exposes top/bottom gaps", () => {
+  for (const viewport of viewports) {
+    for (const aspect of [1.6, 16 / 9, 2.4, 3]) {
+      const full = worldEditorInteriorCamera(viewport, aspect);
+      for (const center of [-10, 0, .18, .5, .85, 1, 10]) {
+        const camera = worldEditorInteriorCamera(viewport, aspect, center);
+        assert.equal(camera.height, full.height);
+        assert.equal(camera.width, full.width);
+        assert.ok(camera.pan.x <= 0);
+        assert.ok(camera.pan.x + camera.width >= viewport.width - .00001);
+        assert.equal(camera.pan.y, 0);
+        assert.equal(camera.center.y, .5);
+        assert.ok(Math.abs(camera.center.x - interiorCameraCenterX(viewport.width, camera.width, camera.pan.x)) < .00001);
+      }
+      assert.equal(worldEditorInteriorCamera(viewport, aspect, -10).pan.x, 0);
+      assert.equal(worldEditorInteriorCamera(viewport, aspect, 10).pan.x, viewport.width - full.width);
+    }
   }
 });
 
-test("room zoom preserves the visible artwork point where possible and allows vertical panning", () => {
-  const viewport = { width: 390, height: 844 };
-  const center = { x: .66, y: .5 };
-  const full = worldEditorInteriorCamera(viewport, 16 / 9, 1, center);
-  const enlarged = worldEditorInteriorCamera(viewport, 16 / 9, 1.5, full.center);
-  assert.ok(Math.abs(enlarged.center.x - center.x) < .00001);
-  assert.equal(enlarged.height, 1.5 * viewport.height);
-  const bottom = worldEditorInteriorCamera(viewport, 16 / 9, 1.5, { x: .5, y: 1 });
-  assert.ok(bottom.pan.y < viewport.height - bottom.height,
-    "bottom edge can be moved above fixed editing controls");
-  const top = worldEditorInteriorCamera(viewport, 16 / 9, 1, { x: .5, y: 0 });
-  assert.ok(top.pan.y > 0, "top edge can be moved below fixed editing controls");
-  const bottomAtFull = worldEditorInteriorCamera(viewport, 16 / 9, 1, { x: .5, y: 1 });
-  assert.ok(bottomAtFull.pan.y < 0);
-  const rotated = worldEditorInteriorCamera({ width: 844, height: 390 }, 16 / 9, 1, full.center);
-  assert.equal(rotated.height, 390);
-  assert.equal(rotated.pan.x, (844 - rotated.width) / 2);
+test("narrow artwork is centered at full height rather than enlarged, distorted, or made into a thumbnail", () => {
+  for (const viewport of viewports) {
+    const aspect = .35;
+    for (const center of [.05, .5, .95]) {
+      const camera = worldEditorInteriorCamera(viewport, aspect, center);
+      assert.equal(camera.height, viewport.height);
+      assert.ok(Math.abs(camera.width / camera.height - aspect) < .00001);
+      assert.ok(camera.width < viewport.width);
+      assert.equal(camera.pan.x, (viewport.width - camera.width) / 2);
+      assert.equal(camera.pan.y, 0);
+      assert.ok(Math.abs(camera.center.x - .5) < .00001);
+    }
+  }
+});
+
+test("normalized horizontal focal position survives viewport resizing whenever within the new edges", () => {
+  const phone = worldEditorInteriorCamera(viewports[0], 2.4, .63);
+  const tablet = worldEditorInteriorCamera(viewports[2], 2.4, phone.center.x);
+  assert.ok(Math.abs(tablet.center.x - phone.center.x) < .00001);
+  assert.equal(phone.pan.y, 0);
+  assert.equal(tablet.pan.y, 0);
+  assert.equal(tablet.height, viewports[2].height);
+  const right = worldEditorInteriorCamera(viewports[0], 2.4, 1);
+  const resized = worldEditorInteriorCamera(viewports[3], 2.4, right.center.x);
+  assert.ok(resized.pan.x + resized.width >= viewports[3].width - .00001);
+  assert.equal(resized.pan.y, 0);
+});
+
+test("room camera and toolbar controls do not add a floating-picture mode", () => {
+  const editor = readFileSync("client/src/pages/WorldSceneEditorPage.tsx", "utf8");
+  const controls = readFileSync("client/src/components/world-editor/WorldSceneControls.tsx", "utf8");
+  assert.doesNotMatch(editor, /interiorZoom|changeRoomZoom|Fit room|Full room|Zoom room (?:in|out)/);
+  assert.match(editor, /left: roomCamera\.pan\.x, top: 0/);
+  assert.match(editor, /if \(activeBuilding\) return;[\s\S]*?changeZoom\(zoom \*/);
+  const roomDrag = editor.slice(editor.indexOf("const moveRoomPan"), editor.indexOf("const dirtPatches"));
+  assert.match(roomDrag, /requestedPanX/);
+  assert.doesNotMatch(roomDrag, /setInteriorCenter\(|pan\.y|requestedPanY/);
+  assert.match(editor, /visibility: roomArtworkReady \? "visible" : "hidden"/);
+  assert.match(editor, /aria-label=\{roomToolsHidden \? "Show room tools" : "Hide room tools"\}/);
+  assert.match(controls, /!props.roomToolsHidden && !selectedItem/);
+  assert.match(controls, /selectedItem && !props.roomToolsHidden/);
 });
