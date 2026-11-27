@@ -15,6 +15,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
   // expose the scene, player deposits or other users' pets just to check access.
   app.get("/api/pet-park/status", isAuthenticated, async (_req, res) => {
     try {
+      res.set("Cache-Control", "private, no-store");
       const userId = (_req.user as { id: string }).id;
       const [settings] = await db.select({ enabledForPlayers: petParkSettings.enabledForPlayers, enabledForModerators: petParkSettings.enabledForModerators })
         .from(petParkSettings).where(eq(petParkSettings.id, "main"));
@@ -29,6 +30,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
 
   app.get("/api/pet-park/scene", isAuthenticated, async (req, res) => {
     try {
+      res.set("Cache-Control", "private, no-store");
       const userId = (req.user as { id: string }).id;
       const [settings] = await db.select().from(petParkSettings).where(eq(petParkSettings.id, "main"));
       const [player] = await db.select({ isAdmin: users.isAdmin, isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
@@ -137,7 +139,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         if (!owner) return { status: 404 as const };
         const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers, moderators: petParkSettings.enabledForModerators })
-          .from(petParkSettings).where(eq(petParkSettings.id, "main"));
+          .from(petParkSettings).where(eq(petParkSettings.id, "main")).for("share");
         const [role] = await tx.select({ isAdmin: users.isAdmin, isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
         if (!park?.enabled && !role?.isAdmin && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
         const [slots] = await tx.select({ unlockedSlots: petParkPlayerSlots.unlockedSlots })
@@ -307,7 +309,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         if (!owner) return { status: 404 as const };
         const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers, moderators: petParkSettings.enabledForModerators })
-          .from(petParkSettings).where(eq(petParkSettings.id, "main"));
+          .from(petParkSettings).where(eq(petParkSettings.id, "main")).for("share");
         const [role] = await tx.select({ isAdmin: users.isAdmin, isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
         if (!park?.enabled && !role?.isAdmin && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
         const [outgoing] = await tx.select().from(petParkDeposits)

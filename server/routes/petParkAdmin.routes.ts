@@ -1,4 +1,4 @@
-import type { Express, RequestHandler } from "express";
+import type { Express, RequestHandler, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, ilike, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { isParkGroundLevel, isParkGroundTheme, parkGroundSize } from "@shared/petParkGround";
@@ -13,6 +13,7 @@ import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
 import type { db as database } from "../db";
 import { isDecorSurface } from "@shared/decorSurface";
 import { validParkShopPlacements } from "@shared/petParkShopPlacements";
+import { PET_PARK_BASE_REWARD_RATES } from "@shared/petParkAccrual";
 
 type ParkKind = "decor" | "sleep_spot" | "effect" | "terrain";
 function isKind(value: unknown): value is ParkKind {
@@ -69,7 +70,7 @@ export function registerPetParkAdminRoutes(
     }
   });
 
-  // Draft assets are admin-only; players cannot see unpublished park content.
+  // Admin editor data is restricted; the open park reads the same saved scene.
   app.get("/api/admin/pet-park", isAdmin, async (_req, res) => {
     try {
       const [settings] = await db.select().from(petParkSettings).where(eq(petParkSettings.id, "main"));
@@ -82,18 +83,31 @@ export function registerPetParkAdminRoutes(
     }
   });
 
+  // Access controls must not wait for every building and decoration image.
+  app.get("/api/admin/pet-park/settings", isAdmin, async (_req, res) => {
+    try {
+      const [settings] = await db.select({
+        enabledForPlayers: petParkSettings.enabledForPlayers, enabledForModerators: petParkSettings.enabledForModerators,
+        coinsPerHour: petParkSettings.coinsPerHour, essencePerHour: petParkSettings.essencePerHour,
+        petXpPerHour: petParkSettings.petXpPerHour,
+      }).from(petParkSettings).where(eq(petParkSettings.id, "main"));
+      if (!settings) return res.status(404).json({ message: "Pet Park settings not initialized" });
+      res.set("Cache-Control", "private, no-store");
+      return res.json(settings);
+    } catch (error) {
+      console.error("[pet-park] settings read failed", error);
+      return res.status(500).json({ message: "Unable to load Pet Park settings" });
+    }
+  });
 
-  app.put("/api/admin/pet-park/publishing", isAdmin, async (req, res) => {
-    const { enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour } = req.body ?? {};
-    if (typeof enabledForModerators !== "boolean") return res.status(400).json({ message: "Invalid moderator park availability" });
-    const validRate = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 10000;
-    if (typeof enabledForPlayers !== "boolean" || !validRate(coinsPerHour) ||
-        !validRate(essencePerHour) || !validRate(petXpPerHour)) {
-      return res.status(400).json({ message: "Invalid park settings or reward rates" });
-    }
-    if (enabledForPlayers && (coinsPerHour + essencePerHour + petXpPerHour) === 0) {
-      return res.status(400).json({ message: "Set at least one reward rate before opening" });
-    }
+
+  type ParkSettingsPatch = Partial<Pick<typeof petParkSettings.$inferSelect,
+    "enabledForPlayers" | "enabledForModerators" | "coinsPerHour" | "essencePerHour" | "petXpPerHour">>;
+  const validRate = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 10000;
+  // Serialize settings and deposit accounting just as before. Availability
+  // requests only change the requested flag; rates come from the locked row,
+  // never from stale client settings or unsaved reward inputs.
+  async function saveParkSettings(res: Response, patch: ParkSettingsPatch, initializeBaseRates = false) {
     try {
       const updated = await db.transaction(async tx => {
         const [current] = await tx.select().from(petParkSettings)
@@ -102,14 +116,30 @@ export function registerPetParkAdminRoutes(
         const now = new Date();
         const [activeDeposit] = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
           .where(isNull(petParkDeposits.withdrawnAt)).limit(1);
+        const { enabledForPlayers, enabledForModerators } = { ...current, ...patch };
+        let { coinsPerHour, essencePerHour, petXpPerHour } = { ...current, ...patch };
+        // Only initialize an unconfigured park if nobody has an active
+        // deposit. Otherwise changing rates could reprice existing rewards.
+        if (initializeBaseRates && enabledForPlayers && !current.enabledForPlayers && !activeDeposit &&
+            coinsPerHour + essencePerHour + petXpPerHour === 0) {
+          ({ coinsPerHour, essencePerHour, petXpPerHour } = PET_PARK_BASE_REWARD_RATES);
+        }
         if (activeDeposit && (coinsPerHour !== current.coinsPerHour ||
             essencePerHour !== current.essencePerHour || petXpPerHour !== current.petXpPerHour)) {
           return { conflict: true as const };
         }
+        if (!initializeBaseRates && enabledForPlayers && coinsPerHour + essencePerHour + petXpPerHour === 0)
+          return { invalidRates: true as const };
         if (current.enabledForPlayers !== enabledForPlayers) {
           if (enabledForPlayers) {
+            // The existing pause column is a 32-bit integer (~24.8 days).
+            // Preserve eligible earning time even after a long closure by
+            // moving only the excess pause into the effective checkpoint;
+            // never overflow the column or count closed time as earned time.
+            const totalPauseMs = sql`(${petParkDeposits.pausedDurationMs}::numeric + COALESCE(ROUND(GREATEST(0, EXTRACT(EPOCH FROM (${now.toISOString()}::timestamp - ${petParkDeposits.pausedAt})) * 1000), 0), 0))`;
             await tx.update(petParkDeposits).set({
-              pausedDurationMs: sql`${petParkDeposits.pausedDurationMs} + COALESCE(GREATEST(0, EXTRACT(EPOCH FROM (${now}::timestamp - ${petParkDeposits.pausedAt})) * 1000)::integer, 0)`,
+              pausedDurationMs: sql`LEAST(${totalPauseMs}, 2147483647)::integer`,
+              checkpointAt: sql`${petParkDeposits.checkpointAt} + GREATEST(${totalPauseMs} - 2147483647, 0) * INTERVAL '1 millisecond'`,
               pausedAt: null,
             }).where(isNull(petParkDeposits.withdrawnAt));
           } else {
@@ -123,11 +153,36 @@ export function registerPetParkAdminRoutes(
         return settings;
       });
       if ("conflict" in updated) return res.status(409).json({ message: "Retrieve all deposited pets before changing earning rates" });
+      if ("invalidRates" in updated) return res.status(400).json({ message: "Set at least one reward rate before opening" });
       return res.json(updated);
     } catch (error) {
-      console.error("[pet-park] publishing failed", error);
+      console.error("[pet-park] settings update failed", error);
       return res.status(500).json({ message: "Unable to update Pet Park availability" });
     }
+  }
+
+  // Keep the old combined endpoint compatible with older clients.
+  app.put("/api/admin/pet-park/publishing", isAdmin, async (req, res) => {
+    const { enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour } = req.body ?? {};
+    if (typeof enabledForModerators !== "boolean") return res.status(400).json({ message: "Invalid moderator park availability" });
+    if (typeof enabledForPlayers !== "boolean" || !validRate(coinsPerHour) || !validRate(essencePerHour) || !validRate(petXpPerHour))
+      return res.status(400).json({ message: "Invalid park settings or reward rates" });
+    return saveParkSettings(res, { enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour });
+  });
+
+  app.patch("/api/admin/pet-park/availability", isAdmin, async (req, res) => {
+    const body = req.body;
+    const keys = body && typeof body === "object" && !Array.isArray(body) ? Object.keys(body) : [];
+    if (!keys.length || keys.some(key => (key !== "enabledForPlayers" && key !== "enabledForModerators") || typeof body[key] !== "boolean"))
+      return res.status(400).json({ message: "Choose valid player or moderator access" });
+    return saveParkSettings(res, body, true);
+  });
+
+  app.put("/api/admin/pet-park/reward-rates", isAdmin, async (req, res) => {
+    const { coinsPerHour, essencePerHour, petXpPerHour } = req.body ?? {};
+    if (!validRate(coinsPerHour) || !validRate(essencePerHour) || !validRate(petXpPerHour))
+      return res.status(400).json({ message: "Invalid park reward rates" });
+    return saveParkSettings(res, { coinsPerHour, essencePerHour, petXpPerHour });
   });
 
   // Expand the real grass world. Reposition all saved objects and public pet

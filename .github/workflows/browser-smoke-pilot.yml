@@ -117,6 +117,7 @@ jobs:
           node script/desktop-portrait-shell-smoke.mjs
           node script/level-up-game-layout-smoke.mjs
           node script/pet-park-placement-smoke.mjs
+          node script/pet-park-live-access-smoke.mjs
           node script/world-editor-smoke.mjs
           node script/world-scene-player-smoke.mjs
           # Real SVG night-mask pixels, neutral pools, overlapping lamps and pan.

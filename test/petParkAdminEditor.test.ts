@@ -48,6 +48,8 @@ test("admin settings and in-park editor retain grass expansion, assets and objec
 test("draft editor never opens Pet Park or touches coins and reward claims", () => {
   assert.doesNotMatch(api, /enabledForPlayers: true|petParkRewardClaims|update\(users\)|update\(userInventory\)/);
   assert.doesNotMatch(api, /keepers_central|kc_doors|DROP TABLE/i);
-  assert.match(panel, /Player access and earning rates are managed here/);
+  assert.match(panel, /Open or close access here/);
+  assert.match(panel, /no separate publication is needed/);
+  assert.match(panel, /Reward rates are saved separately from access/);
   assert.doesNotMatch(panel, /Pet Park — Scene Editor/);
 });
