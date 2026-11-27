@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { PET_PARK_BASE_REWARD_RATES } from "../shared/petParkAccrual";
+import { claimablePetParkRewards, PET_PARK_BASE_REWARD_RATES } from "../shared/petParkAccrual";
 const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const editor = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8");
 const server = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
@@ -33,13 +33,13 @@ test("admin settings and direct creation retain water effects, player access and
 });
 test("reward ledger carries partial units across frequent manual claims", () => {
   assert.match(server, /SUM\(\$\{petParkRewardClaims\.earnedDurationMs\}\)/);
-  assert.match(server, /totalDuration = Number\(history\?\.duration/);
-  assert.match(server, /Math\.floor\(totalDuration \* \(settings\?\.essencePerHour/);
+  assert.match(server, /claimablePetParkRewards\(duration, Number\(history\?\.duration/);
   const earned = (rate: number, durations: number[]) => {
     let credited = 0, elapsed = 0;
     return durations.map(ms => {
+      const reward = claimablePetParkRewards(ms, elapsed, { coins: 0, essence: credited, petXp: 0 },
+        { coinsPerHour: 0, essencePerHour: rate, petXpPerHour: 0 }).essence;
       elapsed += ms;
-      const reward = (rate === 24 ? Math.floor(elapsed / 300_000) * 2 : Math.floor(elapsed * rate / 3_600_000)) - credited;
       credited += reward;
       return reward;
     });

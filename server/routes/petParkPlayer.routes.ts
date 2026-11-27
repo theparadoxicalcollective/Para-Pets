@@ -2,7 +2,8 @@ import type { Express, RequestHandler } from "express";
 import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { petParkBuildings, petParkDeposits, petParkPresence, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
-import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
+import { claimablePetParkDurationMs, checkpointPetParkClaim, claimablePetParkRewards, type PetParkRewardAmounts } from "@shared/petParkAccrual";
+import { creditablePetXp } from "@shared/petLevelXp";
 import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
 import { isPetAccessibleParkRoom } from "@shared/petParkRooms";
 import { PARK_ACTIVE_PRESENCE_MS, visibleOtherParkOutdoorIds } from "../petPark/publicOutdoorPopulation";
@@ -59,7 +60,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         petTemplateId: shopItems.petTemplateId,
         hatchedImageUrl: shopItems.hatchedImageUrl,
         petNickname: userInventory.petNickname,
-        petLevel: userInventory.petLevel,
+        petLevel: userInventory.petLevel, petLevelPoints: userInventory.petLevelPoints,
         buildingId: petParkDeposits.buildingId, roomEffectId: petParkDeposits.roomEffectId, showInPark: petParkDeposits.showInPark, parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
         interiorXPct: petParkDeposits.interiorXPct, interiorYPct: petParkDeposits.interiorYPct, pose: petParkDeposits.pose,
         checkpointAt: petParkDeposits.checkpointAt, pausedAt: petParkDeposits.pausedAt, pausedDurationMs: petParkDeposits.pausedDurationMs,
@@ -67,6 +68,11 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         // reward increment survives a manual collect or automatic pet swap.
         earnedDurationMs: sql<number>`COALESCE((SELECT SUM(${petParkRewardClaims.earnedDurationMs})
           FROM ${petParkRewardClaims} WHERE ${petParkRewardClaims.depositId} = ${petParkDeposits.id}), 0)`,
+        claimedRewards: sql<PetParkRewardAmounts>`(SELECT json_build_object(
+          'coins', COALESCE(SUM(${petParkRewardClaims.coins}), 0),
+          'essence', COALESCE(SUM(${petParkRewardClaims.essence}), 0),
+          'petXp', COALESCE(SUM(${petParkRewardClaims.petXp}), 0))
+          FROM ${petParkRewardClaims} WHERE ${petParkRewardClaims.depositId} = ${petParkDeposits.id})`,
       }).from(petParkDeposits)
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
@@ -262,10 +268,12 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         essence: sql<number>`COALESCE(SUM(${petParkRewardClaims.essence}), 0)`,
         petXp: sql<number>`COALESCE(SUM(${petParkRewardClaims.petXp}), 0)`,
       }).from(petParkRewardClaims).where(eq(petParkRewardClaims.depositId, depositId));
-      const totalDuration = Number(history?.duration ?? 0) + duration;
-      const coins = Math.max(0, Math.floor(totalDuration * (settings?.coinsPerHour ?? 0) / 3_600_000) - Number(history?.coins ?? 0));
-      const essence = Math.max(0, ((settings?.essencePerHour ?? 0) === 24 ? Math.floor(totalDuration / 300_000) * 2 : Math.floor(totalDuration * (settings?.essencePerHour ?? 0) / 3_600_000)) - Number(history?.essence ?? 0));
-      const petXp = Math.max(0, Math.floor(totalDuration * (settings?.petXpPerHour ?? 0) / 3_600_000) - Number(history?.petXp ?? 0));
+      const { coins, essence, petXp } = claimablePetParkRewards(duration, Number(history?.duration ?? 0), {
+        coins: Number(history?.coins ?? 0), essence: Number(history?.essence ?? 0), petXp: Number(history?.petXp ?? 0),
+      }, { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 });
+      // Preserve the existing gross XP ledger and leveling writes; report
+      // how much actually fit before the level cap for the player's receipt.
+      let petXpApplied = 0;
       if (duration > 0) {
         await tx.insert(petParkRewardClaims).values({
           depositId, userId, intervalStartAt: deposit.checkpointAt,
@@ -280,6 +288,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
           const [pet] = await tx.select({ petLevel: userInventory.petLevel, petLevelPoints: userInventory.petLevelPoints })
             .from(userInventory).where(and(eq(userInventory.id, deposit.petInventoryId), eq(userInventory.userId, userId))).for("update");
           if (!pet) throw new Error("Deposited pet no longer belongs to player");
+          petXpApplied = creditablePetXp(pet.petLevel ?? 1, pet.petLevelPoints ?? 0, petXp);
           const xp = applyPetXp(pet.petLevel ?? 1, pet.petLevelPoints ?? 0, petXp);
           await tx.update(userInventory).set({ petLevel: xp.newLevel, petLevelPoints: xp.newPoints })
             .where(and(eq(userInventory.id, deposit.petInventoryId), eq(userInventory.userId, userId)));
@@ -290,7 +299,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         checkpointAt: new Date(next.checkpointMs), pausedAt: next.pausedAtMs == null ? null : new Date(next.pausedAtMs),
         pausedDurationMs: next.pausedDurationMs, ...(withdraw ? { withdrawnAt: now } : {}),
       }).where(eq(petParkDeposits.id, depositId));
-      return { coins, essence, petXp, earnedDurationMs: duration, withdrawn: withdraw };
+      return { coins, essence, petXp, petXpApplied, earnedDurationMs: duration, withdrawn: withdraw };
   }
   async function settleDeposit(userId: string, depositId: string, withdraw: boolean) {
     return db.transaction(tx => settleDepositInTransaction(tx, userId, depositId, withdraw));

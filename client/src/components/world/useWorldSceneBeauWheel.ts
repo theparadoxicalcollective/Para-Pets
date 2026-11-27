@@ -7,25 +7,26 @@ const WHEEL_QUERY_KEY = ["/api/beau-prize-wheel"] as const;
 
 /** The new world's launcher never looks up a legacy NPC or its location ID.
  * An opening always reads fresh server state; simply opening never spins. */
-export function useWorldSceneBeauWheel(enabled: boolean) {
+export function useWorldSceneBeauWheel(enabled: boolean, { pollStatus = true, adminOnly = false } = {}) {
   const qc = useQueryClient();
   const status = useQuery({
     queryKey: WHEEL_QUERY_KEY,
     queryFn: ({ signal }) => readBeauPrizeWheelState(signal),
-    enabled,
+    enabled: enabled && pollStatus,
     staleTime: 0,
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: enabled ? 60_000 : false,
+    refetchInterval: enabled && pollStatus ? 60_000 : false,
   });
   const [state, setState] = useState<WheelState | null>(null);
   const [notice, setNotice] = useState("");
+  const [isOpening, setIsOpening] = useState(false);
   const opening = useRef<AbortController | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!enabled) { setState(null); setNotice(""); }
+    if (!enabled) { setState(null); setNotice(""); setIsOpening(false); }
     return () => {
       opening.current?.abort();
       opening.current = null;
@@ -43,6 +44,7 @@ export function useWorldSceneBeauWheel(enabled: boolean) {
     if (!enabled || state || opening.current) return;
     const controller = new AbortController();
     opening.current = controller;
+    setIsOpening(true);
     showNotice("Opening Beau's wheel…");
     try {
       // Cancel any older marker read so it cannot overwrite a fresher state.
@@ -50,6 +52,10 @@ export function useWorldSceneBeauWheel(enabled: boolean) {
       if (controller.signal.aborted) return;
       const next = await readBeauPrizeWheelState(controller.signal);
       if (controller.signal.aborted) return;
+      if (adminOnly && !next.isAdmin) {
+        showNotice("Only an admin can open the wheel from the world editor.");
+        return;
+      }
       qc.setQueryData(WHEEL_QUERY_KEY, next);
       if (!next.ready && !next.isAdmin) {
         showNotice("Beau's prize wheel isn't ready yet. Check back after all prizes have been set.");
@@ -61,7 +67,7 @@ export function useWorldSceneBeauWheel(enabled: boolean) {
       if (!controller.signal.aborted)
         showNotice(error instanceof Error ? error.message : "Beau's wheel could not be opened.");
     } finally {
-      if (opening.current === controller) opening.current = null;
+      if (opening.current === controller) { opening.current = null; setIsOpening(false); }
     }
   }
 
@@ -74,7 +80,7 @@ export function useWorldSceneBeauWheel(enabled: boolean) {
   }
 
   return {
-    state, open, close: () => setState(null), onStateChange, notice,
+    state, isOpening, open, close: () => setState(null), onStateChange, notice,
     freeSpinAvailable: Boolean(status.data?.ready && !status.data.isAdmin && status.data.freeSpinAvailable),
   };
 }

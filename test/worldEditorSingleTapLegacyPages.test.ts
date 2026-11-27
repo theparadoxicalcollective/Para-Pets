@@ -14,7 +14,8 @@ test("world selection is a single alpha-tested tap; dragging unselected art or b
   assert.match(page, /startCamera\(event\)/);
   assert.match(page, /if \(pinch\.current\) return/);
   assert.match(page, /parkImageHitAt\(image, event\.clientX, event\.clientY, item\.flipped\)/);
-  assert.doesNotMatch(page, /lastObjectTap|moveArmedId|doubleTap/);
+  assert.doesNotMatch(page, /lastObjectTap|moveArmedId/);
+  assert.match(page, /isWorldEditorDoubleTap\(selectedPageTap.current, tap\)/);
   assert.match(page, /filter: "drop-shadow\(1px 0 0 #efca79\)/);
   assert.match(page, /onLostPointerCapture=\{endTouch\}/);
   const controls = read("client/src/components/world-editor/WorldSceneControls.tsx");

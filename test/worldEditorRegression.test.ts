@@ -250,12 +250,13 @@ test("one tap selects only visible world artwork; dragging the scene never moves
   assert.match(editor, /onPointerUpCapture=\{event => \{[\s\S]*?if \(paintMode \|\| activeBuilding\) return/);
   assert.match(editor, /onPointerCancelCapture=\{event => \{[\s\S]*?if \(paintMode \|\| activeBuilding\) return/);
   assert.match(editor, /onPointerMoveCapture=\{event => \{[\s\S]*?if \(paintMode \|\| activeBuilding\) return/);
-  assert.doesNotMatch(editor, /doubleTap|lastObjectTap|moveArmedId/);
+  assert.doesNotMatch(editor, /lastObjectTap|moveArmedId/);
+  assert.match(editor, /isWorldEditorDoubleTap\(selectedPageTap.current, tap\)/);
   assert.match(controls, /Drag selected artwork to move · swipe background to pan/);
   assert.doesNotMatch(controls, /Double-tap artwork to move/);
   assert.match(picker, /!image \|\| !parkImageHitAt\(image, clientX, clientY, object\.flipped\)/);
   assert.match(hit, /mask\[pixelY \* MASK_SIZE \+ pixelX\] > ALPHA_THRESHOLD/);
-  assert.match(editor, /if \(event\.detail === 0\) setSelectedId\(p\.id\)/);
+  assert.match(editor, /if \(event\.detail === 0\) \{ resetPageGesture\(\); setSelectedId\(p\.id\); \}/);
   assert.match(editor, /drop-shadow\(1px 0 0 #efca79\)/,
     "selection outline follows the visible art rather than the PNG bounds");
 });

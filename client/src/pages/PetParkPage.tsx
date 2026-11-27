@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -7,6 +7,9 @@ import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetParkPetPortrait from "@/components/PetParkPetPortrait";
 import PetParkRewardBars from "@/components/PetParkRewardBars";
+import PetParkRewardReceipt, { type ParkRewardReceipt } from "@/components/PetParkRewardReceipt";
+import { parkCollectedRewards } from "@/lib/petParkRewardProgress";
+import type { PetParkRewardAmounts } from "@shared/petParkAccrual";
 import PetParkSlotProgress from "@/components/PetParkSlotProgress";
 import PetParkShopShelf from "@/components/PetParkShopShelf";
 import PetParkWaterRefillPopup from "@/components/PetParkWaterRefillPopup";
@@ -59,7 +62,7 @@ import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; decorSurface?: DecorSurface; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; nightInteriorImageUrl?: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorNightDarkness?: number | null; interiorEffects: ParkInteriorEffect[]; exteriorEffects?: ParkDecorEffect[] };
-type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
+type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; claimedRewards?: PetParkRewardAmounts; petLevelPoints?: number | null; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; canEnterPark?: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; groundTheme?: ParkGroundTheme; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number }; serverNow?: string };
@@ -119,6 +122,11 @@ export default function PetParkPage() {
     if (cameraFrame.current !== null) window.cancelAnimationFrame(cameraFrame.current);
   }, []);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const [rewardReceipt, setRewardReceipt] = useState<ParkRewardReceipt | null>(null);
+  const receiptSequence = useRef(0);
+  const dismissRewardReceipt = useCallback((id: number) => {
+    setRewardReceipt(current => current?.id === id ? null : current);
+  }, []);
   const [showPetChoices, setShowPetChoices] = useState(false);
   const [offParkInteriorLights, setOffParkInteriorLights] = useState<Record<string, string[]>>({});
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
@@ -262,17 +270,22 @@ export default function PetParkPage() {
       y: Math.max(48, Math.min(Math.max(48, viewportSize.height - 224), plotY - 97)),
     };
   })() : null;
-  const invalidate = () => { qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] }); qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] }); };
+  const invalidate = () => Promise.all([qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] }), qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] })]);
   const action = useMutation({
     mutationFn: async ({ method = "POST", path, body }: { method?: "POST" | "PATCH"; path: string; body?: object }) => {
       const res = await apiRequest(method, path, body ?? {});
       return res.json();
     },
-    onSuccess: (result: unknown, variables) => {
-      // Ordinary equip, swap, collect and display actions are reflected in
-      // the slot HUD, not noisy success toasts. Keep errors visible.
-      invalidate();
-      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+    onMutate: ({ path }) => {
+      if (/\/(claim|swap|withdraw)$/.test(path)) setRewardReceipt(null);
+    },
+    onSuccess: async (result: unknown, variables) => {
+      const collected = parkCollectedRewards(variables.path, result);
+      // The receipt is based only on the committed server response, never
+      // the ticking estimate. Keep the collect button busy through refetch.
+      if (collected) setRewardReceipt({ id: ++receiptSequence.current, rewards: collected });
+      const sceneRefresh = invalidate();
+      const inventoryRefresh = qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       setSelectedPet("");
       setShowPetChoices(false);
       setPetSearch("");
@@ -290,6 +303,7 @@ export default function PetParkPage() {
         setActiveSlot(null);
         toast({ title: "Pet spot unlocked", description: "Tap the new spot to choose a pet." });
       }
+      if (collected) await Promise.all([sceneRefresh, inventoryRefresh, qc.invalidateQueries({ queryKey: ["/api/auth/me"] })]);
     },
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
   });
@@ -1668,6 +1682,7 @@ export default function PetParkPage() {
           })()}
         </div>}
       </div>}
+      <PetParkRewardReceipt receipt={rewardReceipt} onDismiss={dismissRewardReceipt} />
       {slotDragGhost && !activeBuilding && <div className="pointer-events-none fixed z-[70] rounded-full border border-amber-300 bg-[#1e452e]/95 px-3 py-2 text-xs font-semibold text-amber-100 shadow-xl"
         style={{ left: slotDragGhost.x, top: slotDragGhost.y, transform: "translate(-50%, -110%)" }}>
         {deposits.find(item => item.id === slotDragGhost.petId)?.petNickname ||

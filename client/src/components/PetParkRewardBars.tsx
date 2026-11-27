@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { parkNextRewardProgress, type ParkRewardRates, type ParkRewardTiming, type ParkRewardRate } from "@/lib/petParkRewardProgress";
+import { parkNextRewardProgress, parkPendingRewardTotals, type ParkRewardRates, type ParkRewardBalance, type ParkRewardRate } from "@/lib/petParkRewardProgress";
 
 /** Compact HUD shown only when an equipped pet spot is open.
  * Three different fill colors match Pet Park's forest green and gold theme.
- * Numbers are progress toward the next actual reward increment, not totals
- * potentially already collected or an invented reward cap.
+ * Keep next-increment timers and display separate unclaimed ledger totals.
  */
 export default function PetParkRewardBars({
   timing, rates, serverNow,
-}: { timing: ParkRewardTiming; rates: ParkRewardRates; serverNow?: string }) {
+}: { timing: ParkRewardBalance; rates: ParkRewardRates; serverNow?: string }) {
   const [tick, setTick] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setTick(Date.now()), 1000);
@@ -20,7 +19,8 @@ export default function PetParkRewardBars({
     const serverStamp = serverNow ? Date.parse(serverNow) : NaN;
     return Number.isFinite(serverStamp) ? serverStamp - Date.now() : 0;
   }, [serverNow]);
-  const now = tick + clockOffset;
+  const now = Math.max(tick + clockOffset, serverNow ? Date.parse(serverNow) || 0 : 0);
+  const totals = parkPendingRewardTotals(timing, rates, now);
   const bars: { kind: ParkRewardRate; name: string; color: string; glow: string }[] = [
     { kind: "coins", name: "Coins", color: "linear-gradient(90deg,#91701e,#f5c85a)", glow: "rgba(245,200,90,.45)" },
     { kind: "essence", name: "Essence", color: "linear-gradient(90deg,#564082,#bd9aec)", glow: "rgba(189,154,236,.34)" },
@@ -38,20 +38,26 @@ export default function PetParkRewardBars({
       return <div key={kind} className="space-y-1 rounded-lg border border-[#c0a263]/25 bg-[#071b12]/45 px-2 py-2 shadow-[inset_0_1px_5px_rgba(0,0,0,.18)]">
         <div className="flex items-center justify-between gap-2 text-[11px]">
           <span className="font-fantasy font-semibold tracking-wide text-amber-100"><span className="mr-1 text-[#d8b96a]" aria-hidden="true">◆</span>{name}</span>
-          <span className="tabular-nums text-amber-100/65">
-            {meter.disabled ? "Not earning" : meter.paused ? "Paused" : `Next +${meter.nextUnits} in ${meter.secondsRemaining >= 60 ? `${Math.floor(meter.secondsRemaining / 60)}m ${meter.secondsRemaining % 60}s` : `${meter.secondsRemaining}s`}`}
+          <strong data-testid={`pet-park-pending-${kind}`} className="tabular-nums text-sm text-[#f9df95]">
+            {totals ? `${totals[kind].toLocaleString()} ready` : "Updating…"}
+          </strong>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-[10px] text-amber-100/65">
+          <span>Next reward</span>
+          <span className="tabular-nums">
+            {kind === "petXp" && timing.petLevel >= 100 ? "Max level" : meter.disabled ? "Not earning" : meter.paused ? "Paused" : `Next +${meter.nextUnits} in ${meter.secondsRemaining >= 60 ? `${Math.floor(meter.secondsRemaining / 60)}m ${meter.secondsRemaining % 60}s` : `${meter.secondsRemaining}s`}`}
           </span>
         </div>
         <div role="progressbar" aria-label={`${name} toward next reward`} aria-valuemin={0} aria-valuemax={100}
-          aria-valuenow={percent}
+          aria-valuenow={kind === "petXp" && timing.petLevel >= 100 ? 0 : percent}
           className="relative h-3 overflow-hidden rounded-full border border-[#c7a65e]/60 bg-[#06150e] shadow-[inset_0_1px_4px_rgba(0,0,0,.88),0_1px_2px_rgba(245,213,121,.12)]">
-          <span className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-linear"
-            style={{ width: `${percent}%`, background: color, boxShadow: `0 0 7px ${glow}` }}>
+          <span className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-linear motion-reduce:transition-none"
+            style={{ width: `${kind === "petXp" && timing.petLevel >= 100 ? 0 : percent}%`, background: color, boxShadow: `0 0 7px ${glow}` }}>
             <span className="absolute inset-x-0 top-0 h-[45%] rounded-full bg-white/20" />
           </span>
         </div>
       </div>;
     })}
-    <p className="text-[10px] leading-tight text-amber-100/50">Progress toward each next reward increment. Collecting does not interrupt earning.</p>
+    <p className="text-[10px] leading-tight text-amber-100/50">Ready totals are uncollected rewards. Bars show the next increment. Collecting does not interrupt earning.</p>
   </section>;
 }
