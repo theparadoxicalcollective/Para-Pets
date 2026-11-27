@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { WORLD_DEFINITION_LIST } from "../shared/worlds/worldRegistry";
+import { worldLockedForPlayer, defaultWorldLocked } from "../shared/worlds/worldAccess";
 import {
   auditWorldActivation, resolveLegacyNpcLocation, retiredLocationKey, effectiveRetiredLocations, clampPlayerWorldZoom, isPublishedWorld, PLAYER_WORLD_ZOOM_MAX,
   PLAYER_WORLD_ZOOM_STEP, type WorldScenePublication,
@@ -9,21 +10,17 @@ import {
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("each world starts in old mode and can switch independently", () => {
+test("every registered world selects its new scene while the locks remain independent", () => {
   const statuses: WorldScenePublication[] = WORLD_DEFINITION_LIST.map(world => ({
-    worldId: world.id, active: false, hasBeenLive: false,
+    worldId: world.id, active: true, hasBeenLive: true, locked: defaultWorldLocked(world.id),
     updatedAt: null, firstEnabledAt: null,
   }));
-  for (const world of WORLD_DEFINITION_LIST) {
-    assert.equal(isPublishedWorld(world.id, statuses), false);
-  }
+  for (const world of WORLD_DEFINITION_LIST) assert.equal(isPublishedWorld(world.id, statuses), true);
   const first = statuses[0];
-  const switched = statuses.map(status => status.worldId === first.worldId
-    ? { ...status, active: true, hasBeenLive: true } : status);
-  assert.equal(isPublishedWorld(first.worldId, switched), true);
-  for (const other of statuses.slice(1))
-    assert.equal(isPublishedWorld(other.worldId, switched), false);
-  assert.equal(isPublishedWorld("not_a_world", switched), false);
+  const unlocked = statuses.map(status => status.worldId === first.worldId ? { ...status, locked: false } : status);
+  assert.equal(worldLockedForPlayer(first.worldId, unlocked), false);
+  for (const other of statuses.slice(1)) assert.equal(worldLockedForPlayer(other.worldId, unlocked), other.locked);
+  assert.equal(isPublishedWorld("not_a_world", statuses), false);
 });
 
 test("player zoom ends below editor ceiling, clamps invalid and extreme pinch inputs", () => {
@@ -35,7 +32,7 @@ test("player zoom ends below editor ceiling, clamps invalid and extreme pinch in
   assert.equal(clampPlayerWorldZoom(1.1, .7), 1.1);
 });
 
-test("Save & Set Live is a per-world admin action, no second draft publication", () => {
+test("new worlds are the default and saved changes require no publication", () => {
   const routes = read("server/routes/worldScenePublication.routes.ts");
   const editor = read("client/src/pages/WorldSceneEditorPage.tsx");
   const controls = read("client/src/components/world-editor/WorldSceneControls.tsx");
@@ -45,21 +42,16 @@ test("Save & Set Live is a per-world admin action, no second draft publication",
   const migration = read("server/startup/migrations/ensureWorldScenePublicationStorage.ts");
   assert.match(routes, /app\.put\("\/api\/admin\/world-editor\/:worldId\/publication", isAdmin/);
   assert.match(routes, /app\.get\("\/api\/worlds\/:worldId\/player-scene", isAuthenticated/);
-  assert.match(routes, /if \(active && !saveAndSetLive && !existing\?\.firstEnabledAt\)/);
-  assert.match(routes, /if \(!publication\?\.active\)/);
+  assert.match(routes, /worldId: world.id, active: true, hasBeenLive: true/);
+  assert.match(routes, /draft\[0\] \?\? defaultWorldSceneDraft\(worldId\)/);
   assert.match(routes, /db\.select\(\)\.from\(worldScenePlacements\)/,
     "Players read saved placements rather than an independent snapshot");
   assert.doesNotMatch(schema, /snapshot: jsonb\("snapshot"\)/);
   assert.doesNotMatch(migration, /snapshot jsonb/);
-  assert.match(controls, /data-testid="button-save-and-set-world-live"/);
-  assert.match(controls, /\{!props\.isLive && <button type="button"\s+data-testid="button-save-and-set-world-live"/,
-    "a live world no longer presents a redundant publishing button");
-  assert.match(controls, /even with unfinished or unlinked buildings/);
-  assert.match(editor, /saveAndSetLive: true/);
-  assert.match(editor, /onSaveAndSetLive=\{theme => saveAndSetLive\.mutate\(theme\)\}/);
-  assert.match(controls, /props\.onSaveAndSetLive\(themeDraft\)/);
-  assert.match(map, /button-switch-world-/);
-  assert.match(map, /!newActive && !hasBeenLive/);
+  assert.doesNotMatch(controls, /button-save-and-set-world-live|onSaveAndSetLive/);
+  assert.doesNotMatch(editor, /saveAndSetLive/);
+  assert.doesNotMatch(map, /button-switch-world-|button-new-world-edit-/);
+  assert.match(map, /navigate\(`\/world-editor\/\$\{w.id\}/);
   assert.match(player, /refetchInterval: 20_000/);
   assert.match(player, /const viewportReady = viewport.width > 1 && viewport.height > 1/);
   assert.doesNotMatch(player, /width: 390, height: 844/,
@@ -133,9 +125,10 @@ test("NPC lookup is scoped to the original world, tolerates names with titles, a
   assert.equal(resolveLegacyNpcLocation("swamp", "Janson", [...original,
     { ...original[3], id: "duplicate" }]), undefined);
 });
-test("activation checks both first release and re-enabling, but does not impede rollback or force another publish for edits", () => {
+test("unlocking checks scene integrity without requiring saved ground or a separate publication", () => {
   const routes = read("server/routes/worldScenePublication.routes.ts");
-  assert.match(routes, /if \(active && !existing\?\.active\)/);
+  assert.match(routes, /if \(!locked\)/);
+  assert.match(routes, /hasGround: true, placements/);
   assert.match(routes, /auditWorldActivation\(worldId/);
   assert.match(routes, /resolveLegacyNpcLocation\(worldId, npc\.name, localNpcLocations\)/);
   assert.match(routes, /npcLocationIds\.has\(loc.id\)/);

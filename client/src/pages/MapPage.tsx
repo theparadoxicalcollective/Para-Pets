@@ -19,6 +19,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
+import { worldLockedForPlayer } from "@shared/worlds/worldAccess";
 import type { WorldScenePublication } from "@shared/worlds/worldScenePublication";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
@@ -67,6 +68,7 @@ export default function MapPage({ user }: MapPageProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [lockedWorldName, setLockedWorldName] = useState<string | null>(null);
   const [selectedWorldId, setSelectedWorldId] = useState<string | null>(null);
   const [showAddWorld, setShowAddWorld] = useState(false);
   const [newWorldName, setNewWorldName] = useState("");
@@ -99,29 +101,16 @@ export default function MapPage({ user }: MapPageProps) {
     staleTime: 0,
   });
 
-  const { data: worldPublications = [], isLoading: publicationsLoading, isError: publicationsError } = useQuery<WorldScenePublication[]>({
+  const { data: worldPublications = [] } = useQuery<WorldScenePublication[]>({
     queryKey: ["/api/world-scene-publications"],
-    enabled: currentUser.isAdmin,
     queryFn: async () => {
       const response = await fetch("/api/world-scene-publications", { credentials: "include", cache: "no-store" });
-      if (!response.ok) throw new Error("Could not load world switches");
-      return response.json();
+      if (!response.ok) throw new Error("Could not load world access");
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error("Invalid world access");
+      return data;
     },
-    staleTime: 0,
-  });
-  const switchWorldMutation = useMutation({
-    mutationFn: async ({ worldId, active }: { worldId: string; active: boolean }) => {
-      const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/publication`, { active });
-      return response.json();
-    },
-    onSuccess: (_result, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/world-scene-publications"] });
-      toast({ title: variables.active ? "New world enabled" : "Old world restored",
-        description: "Only this world's player route was switched. Both world versions are saved." });
-    },
-    onError: (error: Error) => toast({
-      title: "World switch failed", description: error.message, variant: "destructive",
-    }),
+    staleTime: 0, refetchOnMount: "always", refetchInterval: 20_000, refetchIntervalInBackground: false,
   });
 
   const { data: mapBgData } = useQuery<{ bgUrl: string | null }>({
@@ -361,22 +350,22 @@ export default function MapPage({ user }: MapPageProps) {
   const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
 
   const isWorldLocked = (w: WorldData) =>
-    !currentUser.isAdmin &&
-    !currentUser.isModerator &&
-    w.id !== "swamp" &&
-    w.id !== "volcanic" &&
-    w.id !== "haunted_woods";
+    !currentUser.isAdmin && !currentUser.isModerator && worldLockedForPlayer(w.id, worldPublications);
 
-  const handleWorldClick = useCallback((w: WorldData) => {
-    if (didDrag.current) return;
-    if (navigatingWorldId) return;
-    if (isWorldLocked(w)) return;
+  const handleWorldClick = (w: WorldData) => {
+    if (didDrag.current || navigatingWorldId) return;
+    if (isWorldLocked(w)) {
+      setLockedWorldName(w.name);
+      return;
+    }
+    if (currentUser.isAdmin && isEditableWorldSceneId(w.id)) {
+      navigate(`/world-editor/${w.id}`);
+      return;
+    }
     setSelectedWorldId(w.id);
     setNavigatingWorldId(w.id);
-    setTimeout(() => {
-      navigate(`/world/${w.id}`);
-    }, 800);
-  }, [navigate, navigatingWorldId, currentUser.isAdmin, currentUser.isModerator]);
+    setTimeout(() => navigate(`/world/${w.id}`), 800);
+  };
 
   return (
     <div
@@ -508,7 +497,7 @@ export default function MapPage({ user }: MapPageProps) {
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
                         width: `${Math.max(16, Math.min(46, Number.isFinite(w.iconSize) ? w.iconSize : 30))}%`,
-                        cursor: currentUser.isAdmin ? "grab" : locked ? "default" : "pointer",
+                        cursor: currentUser.isAdmin ? "grab" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
                         animation: isDragging ? "none" : `map-floatWorld ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
                         animationDelay: `${i * 0.4}s`,
@@ -602,7 +591,7 @@ export default function MapPage({ user }: MapPageProps) {
                         )}
 
                         {locked && (
-                          <div
+                          <div data-testid={`world-locked-${w.id}`}
                             className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none gap-0.5"
                           >
                             <span style={{ fontSize: "clamp(14px, calc(4*var(--vw)), 20px)", lineHeight: 1 }}>🔒</span>
@@ -625,50 +614,6 @@ export default function MapPage({ user }: MapPageProps) {
                           </div>
                         )}
                       </div>
-                      {currentUser.isAdmin && isEditableWorldSceneId(w.id) && (
-                        <div className="relative z-40 flex flex-col items-center gap-1 mt-1"
-                          onPointerDown={event => event.stopPropagation()}>
-                          <button
-                            type="button"
-                            data-testid={`button-new-world-edit-${w.id}`}
-                            aria-label={`New World Edit for ${w.name}`}
-                            className="rounded-full border border-[#c2a04c] bg-[#152a1d] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg"
-                            style={{ touchAction: "manipulation" }}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              navigate(`/world-editor/${w.id}`);
-                            }}>
-                            New World Edit
-                          </button>
-                          {(() => {
-                            const mode = worldPublications.find(entry => entry.worldId === w.id);
-                            const newActive = mode?.active === true;
-                            const hasBeenLive = mode?.hasBeenLive === true;
-                            return <button
-                              type="button"
-                              data-testid={`button-switch-world-${w.id}`}
-                              aria-label={`Switch ${w.name} players to the ${newActive ? "old" : "new"} world`}
-                              aria-pressed={newActive}
-                              disabled={publicationsLoading || publicationsError || switchWorldMutation.isPending || (!newActive && !hasBeenLive)}
-                              title={!hasBeenLive ? "Save & Set Live from the world editor before switching versions"
-                                : newActive ? "Switch players back to the original world" : "Restore this saved new world"}
-                              className="rounded-full border border-[#c2a04c] bg-[#203729] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg disabled:opacity-50"
-                              style={{ touchAction: "manipulation" }}
-                              onClick={event => {
-                                event.stopPropagation();
-                                event.preventDefault();
-                                if (!newActive && !window.confirm(
-                                  `Use the NEW ${w.name} scene for players? Make sure its NPCs, shops and quests are connected. You can switch back without deleting the old world.`
-                                )) return;
-                                switchWorldMutation.mutate({ worldId: w.id, active: !newActive });
-                              }}>
-                              {newActive ? "Switch: New (tap for Old)"
-                                : hasBeenLive ? "Switch: Old (tap for New)" : "Open Editor · Save & Set Live"}
-                            </button>;
-                          })()}
-                        </div>
-                      )}
                       {selectedWorldId === w.id && (
                         <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "map-fadeIn 0.2s ease-out" }}>
                           <span
@@ -707,6 +652,23 @@ export default function MapPage({ user }: MapPageProps) {
 
       </div>
       </ViewportScenePortal>
+
+      {lockedWorldName && (
+        <ViewportModalPortal>
+          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/65 p-5"
+            onClick={() => setLockedWorldName(null)}>
+            <section role="dialog" aria-modal="true" aria-label="Coming Soon" data-testid="modal-world-coming-soon"
+              className="w-full max-w-sm rounded-2xl border border-[#b99a4c] bg-[#10291d] p-6 text-center text-[#f5d77b] shadow-xl"
+              onClick={event => event.stopPropagation()}>
+              <span className="text-3xl" aria-hidden="true">🔒</span>
+              <h2 className="mt-3 font-fantasy text-xl font-semibold">Coming Soon</h2>
+              <p className="mt-2 text-sm text-amber-100/80">{lockedWorldName}</p>
+              <button type="button" className="mt-5 rounded-full border border-[#b99a4c] bg-[#20412b] px-5 py-2"
+                onClick={() => setLockedWorldName(null)}>Close</button>
+            </section>
+          </div>
+        </ViewportModalPortal>
+      )}
 
       {showAddWorld && (
         <ViewportModalPortal>

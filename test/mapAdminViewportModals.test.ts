@@ -7,8 +7,9 @@ const portal = readFileSync("client/src/components/ViewportModalPortal.tsx", "ut
 
 test("map admin blocking dialogs use the shared viewport modal layer", () => {
   assert.match(map, /import ViewportModalPortal from "@\/components\/ViewportModalPortal"/);
-  assert.equal((map.match(/<ViewportModalPortal>/g) ?? []).length, 3);
-  assert.equal((map.match(/<\/ViewportModalPortal>/g) ?? []).length, 3);
+  assert.equal((map.match(/<ViewportModalPortal>/g) ?? []).length, 4);
+  assert.equal((map.match(/<\/ViewportModalPortal>/g) ?? []).length, 4);
+  assert.match(map, /data-testid="modal-world-coming-soon"/);
   assert.match(map, /data-testid="map-add-world-viewport-modal"/);
   assert.match(map, /data-testid="map-edit-world-viewport-modal"/);
   assert.match(map, /data-testid="map-background-viewport-modal"/);

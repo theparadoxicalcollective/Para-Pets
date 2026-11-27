@@ -33,8 +33,9 @@ import HomePage from "@/pages/HomePage";
 import LoadingScreen from "@/components/LoadingScreen";
 import DesktopComingSoonScreen from "@/components/DesktopComingSoonScreen";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
-import { isPublishedWorld, type WorldScenePublication } from "@shared/worlds/worldScenePublication";
+import type { WorldScenePublication } from "@shared/worlds/worldScenePublication";
 import { isKnownWorldId } from "@shared/worlds/worldRegistry";
+import { shouldUseLegacyWorld, worldLockedForPlayer } from "@shared/worlds/worldAccess";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
@@ -100,29 +101,29 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const [, navigate] = useLocation();
   const params = new URLSearchParams(search);
   const legacyLocationId = params.get("legacyLocationId");
-  const legacyView = !!legacyLocationId || params.get("legacyView") === "1" ||
-    ["fishHint", "shopHint", "moltenHint", "openFishMarket"].some(name => params.has(name));
+  const staff = !!(user?.isAdmin || user?.isModerator);
+  const legacyView = shouldUseLegacyWorld(worldId, params, staff);
   const returnWorld = params.get("returnWorld") ?? worldId;
   const editorReturnWorld = params.get("returnEditor");
   const canReturnToEditor = !!legacyLocationId && user?.isAdmin && user?.emailVerified &&
     !!editorReturnWorld && isKnownWorldId(editorReturnWorld);
-  const { data: publications, isLoading: publicationLoading } = useQuery<WorldScenePublication[]>({
+  const { data: publications, isLoading: publicationLoading, isError: publicationError } = useQuery<WorldScenePublication[]>({
     queryKey: ["/api/world-scene-publications"],
     queryFn: async () => {
       const response = await fetch("/api/world-scene-publications", {
         credentials: "include", cache: "no-store",
       });
-      if (!response.ok) throw new Error("Could not load active world choices");
+      if (!response.ok) throw new Error("Could not load world access");
       const result = await response.json();
       if (!Array.isArray(result)) throw new Error("Invalid world status");
       return result;
     },
     staleTime: 0, retry: 1, refetchOnMount: "always",
-    // Keep the Old/New selection current for players already in this world.
-    // This endpoint is tiny; full scenery is fetched by the player scene.
+    // Keep access current for players already in this world.
     refetchInterval: 20_000, refetchIntervalInBackground: false,
   });
-  const newWorldActive = !legacyView && isPublishedWorld(worldId, publications ?? []);
+  const newWorldActive = isKnownWorldId(worldId) && !legacyView;
+  const locked = !staff && worldLockedForPlayer(worldId, publications ?? []);
   const [screenDone, setScreenDone] = useState(!isThemed);
   const [worldReady, setWorldReady] = useState(false);
   // The world route is already keyed by pathname. A same-path handoff must
@@ -149,6 +150,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   });
 
   useEffect(() => {
+    if (!legacyView || locked) return;
     queryClient.prefetchQuery({
       queryKey: ["/api/world", worldId, "locations"],
       queryFn: async () => {
@@ -158,7 +160,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
       },
       staleTime: 60 * 1000,
     });
-  }, [worldId]);
+  }, [worldId, legacyView, locked]);
 
   const dismissHauntedWelcome = () => {
     if (hauntedWelcomeKey) {
@@ -173,6 +175,15 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   // through that guard keeps the change isolated without granting admin access.
   const worldUser = worldId === "haunted_woods" ? { ...user, isModerator: true } : user;
 
+  if (!staff && (publicationLoading || publicationError || locked)) {
+    return <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#10291d] p-6 text-center text-[#f5d77b]">
+      <h2 data-testid="world-access-message" className="font-fantasy text-xl">
+        {publicationLoading ? "Loading world…" : publicationError ? "Could not load world access" : "🔒 Coming Soon"}
+      </h2>
+      <button type="button" className="rounded-full border border-[#b99a4c] px-4 py-2" onClick={() => navigate("/map")}>Back to Map</button>
+    </div>;
+  }
+
   return (
     <>
       {/* WorldPage keeps rendering/fetching underneath even while hidden, so its
@@ -182,7 +193,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           before the themed loading screen paints — same technique as the
           HomePage base layer above. */}
       <div style={{ visibility: !isThemed || screenDone ? "visible" : "hidden", width: "100%", height: "100%" }}>
-        {(!publicationLoading || legacyView) && (newWorldActive
+        {(!publicationLoading || staff) && (newWorldActive
           ? <WorldScenePlayerPage worldId={worldId} onContentReady={() => setWorldReady(true)} />
           : <WorldPage key={legacyLocationId ?? "original"} user={worldUser} onContentReady={() => setWorldReady(true)} />)}
       </div>
@@ -196,12 +207,12 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           className="absolute right-3 top-[max(60px,env(safe-area-inset-top))] z-[90] rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-xs font-semibold text-amber-200"
           onClick={() => navigate(`/world-editor/${encodeURIComponent(editorReturnWorld!)}`)}>← World Editor</button>
       )}
-      {screenDone && !canReturnToEditor && legacyView && isKnownWorldId(returnWorld) && isPublishedWorld(returnWorld, publications ?? []) && (
+      {screenDone && !canReturnToEditor && legacyView && isKnownWorldId(returnWorld) && (
         <div className="absolute right-3 top-[max(60px,env(safe-area-inset-top))] z-[90] flex flex-col items-end gap-1">
           <button type="button" data-testid="button-return-to-new-world"
             className="rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-xs font-semibold text-amber-200"
             onClick={() => navigate(`/world/${encodeURIComponent(returnWorld)}`)}>← New World</button>
-          {params.get("legacyView") === "1" && !legacyLocationId && <button type="button"
+          {staff && params.get("legacyView") === "1" && !legacyLocationId && <button type="button"
             data-testid="button-show-retired-locations"
             className="rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-[10px] text-amber-200"
             onClick={() => {

@@ -243,7 +243,7 @@ export default function WorldScenePlayerPage({
       // quest/dialogue overlays. If a quest overlay isn't ready yet, keep the
       // original interaction reachable without guessing a quest state.
       if (npc.legacyLocationId && getNpcQuestAssociations(npc.name, worldId).length) {
-        navigate(`/world/${encodeURIComponent(worldId)}?legacyView=1&returnWorld=${encodeURIComponent(worldId)}`);
+        navigate(`/world/${encodeURIComponent(worldId)}?questNpc=${encodeURIComponent(npc.legacyLocationId)}&returnWorld=${encodeURIComponent(worldId)}`);
         return;
       }
       const message = chooseNpcMessage(parseNpcMetadata(npc.specialSkill).messages,
@@ -356,9 +356,6 @@ export default function WorldScenePlayerPage({
       <button data-testid="player-new-world-back" type="button"
         onClick={() => navigate("/map")}
         className="px-3 py-2 rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] text-sm">← Map</button>
-      <button data-testid="player-new-world-original-locations" type="button"
-        onClick={() => navigate(`/world/${encodeURIComponent(worldId)}?legacyView=1&returnWorld=${encodeURIComponent(worldId)}`)}
-        className="px-3 py-2 rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] text-xs">Original locations</button>
     </div>
     <div className="absolute right-3 top-4 z-30 flex items-center gap-1">
       <button type="button" aria-label="Zoom out" data-testid="player-world-zoom-out"

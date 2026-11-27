@@ -1,10 +1,11 @@
 import { isKnownWorldId, type WorldId } from "./worldRegistry";
 
-/** An independent, reversible player-facing choice for each registered world.
- * Saving an editor draft never changes this choice. */
+/** Current player-facing world status. The new scene is now always selected;
+ * the lock setting controls access independently. */
 export type WorldScenePublication = {
   worldId: WorldId;
   active: boolean;
+  locked?: boolean;
   hasBeenLive: boolean;
   updatedAt: string | null;
   firstEnabledAt: string | null;
