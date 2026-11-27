@@ -10,14 +10,13 @@ import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import brokenRodIcon from "@assets/broken_rod.svg";
 import bobberIcon from "@assets/Photoroom_20260317_35839_PM_1773781228635.png";
-import volcanicBobberIcon from "@assets/bobber_volcanic.png";
 import fishBookIcon from "@assets/Photoroom_20260324_65241_AM_1774353229077.png";
 import leaderboardIcon from "@assets/Photoroom_20260623_111411_AM_1782231282456.png";
 import { PARA_PETS_COIN_IMAGE as coinIconImg } from "@/lib/coinAssets";
 import { playPlop, playCatch, playReelTick } from "@/lib/sounds";
 import { fishingCompletionOutcome, type FishingCompletionResponse } from "@/lib/fishingAttemptResult";
-import PlayerAvatarButton from "@/components/PlayerAvatarButton";
-import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import FishingLeaderboardPanel from "@/components/world/FishingLeaderboardPanel";
+import { getFishingWorldTheme, type FloatStyle } from "@/lib/fishingWorldTheme";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 
@@ -34,6 +33,8 @@ interface FishingPageProps {
     profileImage?: string | null;
   };
   onClose: () => void;
+  /** World-scene modal already owns the full-device surface; keep pond art in it. */
+  inlineBackdrop?: boolean;
 }
 
 interface ShopItem {
@@ -94,108 +95,6 @@ const NIBBLE_MAX_BY_RARITY     = [3, 3, 2, 2, 1];             // 5★ gets 1 cha
 const NIBBLE_TIMEOUT_BY_RARITY = [2500, 2200, 1800, 1400, 1100]; // ms per window — all humanly achievable
 const ACCENT = "#5eead4"; // module-level default (used by sub-components)
 
-// Per-world fishing theme — accent colour, pond surface/glow gradients, shimmer lines and float style.
-// Add a new entry here whenever a new fishing world is introduced; all other worlds fall back to "swamp".
-type FloatStyle = "water" | "lava" | "ice" | "sky" | "sand" | "forest" | "dark";
-interface FishingWorldTheme {
-  accent: string;
-  pondGlow: string;
-  pondSurface: string;
-  shimmer1: string;
-  shimmer2: string;
-  floatStyle: FloatStyle;
-  pondBottom?: string;
-  bobberSrc?: string;
-}
-const FISHING_WORLD_THEMES: Record<string, FishingWorldTheme> = {
-  swamp: {
-    accent: "#5eead4",
-    pondGlow: "radial-gradient(ellipse at center, rgba(94,234,212,0.12) 0%, rgba(56,189,248,0.06) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
-    shimmer1: "rgba(200,240,240,0.25)",
-    shimmer2: "rgba(200,240,240,0.18)",
-    floatStyle: "water",
-  },
-  volcanic: {
-    accent: "#ff6520",
-    pondGlow: "radial-gradient(ellipse at center, rgba(255,100,20,0.18) 0%, rgba(200,60,10,0.08) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(255,140,30,0.22) 0%, rgba(200,80,10,0.14) 40%, rgba(100,30,5,0.10) 70%, transparent 100%)",
-    shimmer1: "rgba(255,180,80,0.28)",
-    shimmer2: "rgba(255,160,60,0.20)",
-    floatStyle: "lava",
-    pondBottom: "26%",
-    bobberSrc: volcanicBobberIcon,
-  },
-  snowy_mountain: {
-    accent: "#88ccff",
-    pondGlow: "radial-gradient(ellipse at center, rgba(136,204,255,0.15) 0%, rgba(180,220,255,0.07) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(180,220,255,0.20) 0%, rgba(136,204,255,0.12) 40%, rgba(80,140,200,0.08) 70%, transparent 100%)",
-    shimmer1: "rgba(200,230,255,0.30)",
-    shimmer2: "rgba(180,210,255,0.22)",
-    floatStyle: "ice",
-  },
-  sky_realm: {
-    accent: "#ffd700",
-    pondGlow: "radial-gradient(ellipse at center, rgba(255,215,0,0.15) 0%, rgba(255,200,0,0.07) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(255,235,100,0.22) 0%, rgba(255,215,0,0.14) 40%, rgba(200,160,0,0.08) 70%, transparent 100%)",
-    shimmer1: "rgba(255,240,160,0.30)",
-    shimmer2: "rgba(255,220,100,0.22)",
-    floatStyle: "sky",
-  },
-  island: {
-    accent: "#20b2aa",
-    pondGlow: "radial-gradient(ellipse at center, rgba(32,178,170,0.14) 0%, rgba(0,180,160,0.07) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(32,200,180,0.20) 0%, rgba(0,180,160,0.12) 40%, rgba(0,120,110,0.08) 70%, transparent 100%)",
-    shimmer1: "rgba(100,230,210,0.28)",
-    shimmer2: "rgba(80,210,190,0.20)",
-    floatStyle: "water",
-  },
-  desert: {
-    accent: "#daa520",
-    pondGlow: "radial-gradient(ellipse at center, rgba(218,165,32,0.15) 0%, rgba(200,140,20,0.07) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(218,165,32,0.18) 0%, rgba(180,130,20,0.10) 40%, rgba(120,80,10,0.07) 70%, transparent 100%)",
-    shimmer1: "rgba(240,200,80,0.28)",
-    shimmer2: "rgba(220,180,60,0.20)",
-    floatStyle: "sand",
-  },
-  enchanted_grove: {
-    accent: "#7fffd4",
-    pondGlow: "radial-gradient(ellipse at center, rgba(127,255,212,0.14) 0%, rgba(80,220,160,0.07) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(127,255,212,0.18) 0%, rgba(80,220,160,0.10) 40%, rgba(40,160,100,0.07) 70%, transparent 100%)",
-    shimmer1: "rgba(160,255,220,0.28)",
-    shimmer2: "rgba(127,255,212,0.20)",
-    floatStyle: "forest",
-  },
-  haunted_woods: {
-    accent: "#bf5fff",
-    pondGlow: "radial-gradient(ellipse at center, rgba(139,0,139,0.20) 0%, rgba(100,0,100,0.09) 50%, transparent 75%)",
-    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(180,50,200,0.18) 0%, rgba(139,0,139,0.10) 40%, rgba(80,0,80,0.07) 70%, transparent 100%)",
-    shimmer1: "rgba(200,100,220,0.25)",
-    shimmer2: "rgba(180,80,200,0.18)",
-    floatStyle: "dark",
-  },
-};
-const DEFAULT_FISHING_THEME = FISHING_WORLD_THEMES.swamp;
-
-// World-flavoured leaderboard titles so each board feels native to its world.
-const LEADERBOARD_TITLES: Record<string, string> = {
-  swamp: "Bayou's Best Anglers",
-  volcanic: "Volcanic Champions",
-  snowy_mountain: "Frostpeak Anglers",
-  sky_realm: "Skyward Legends",
-  island: "Island Castaways",
-  desert: "Dune Drifters",
-  enchanted_grove: "Grove Wardens",
-  haunted_woods: "Haunted Hooks",
-};
-
-interface LeaderboardEntry {
-  userId: string;
-  username: string;
-  profileImage: string | null;
-  points: number;
-}
-
 function PondFloats({ floatStyle }: { floatStyle: FloatStyle }) {
   if (floatStyle === "lava") return (<>
     {/* Static lava globs floating on the surface */}
@@ -236,8 +135,8 @@ function PondFloats({ floatStyle }: { floatStyle: FloatStyle }) {
   </>);
 }
 
-export default function FishingPage({ locationId, locationName, bgUrl, worldId, user, onClose }: FishingPageProps) {
-  const theme = FISHING_WORLD_THEMES[worldId ?? ""] ?? DEFAULT_FISHING_THEME;
+export default function FishingPage({ locationId, locationName, bgUrl, worldId, user, onClose, inlineBackdrop = false }: FishingPageProps) {
+  const theme = getFishingWorldTheme(worldId);
   const accent = theme.accent;
   const pondBottom = theme.pondBottom ?? "18%";
   const bobberBottom = `${parseFloat(pondBottom) + 2}%`;
@@ -608,7 +507,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
         />
       )}
 
-      <ViewportBackdropPortal>
+      {!inlineBackdrop && <ViewportBackdropPortal>
         <div data-testid="fishing-viewport-backdrop" className="absolute inset-0 overflow-hidden">
           <img
             src={effectiveBg}
@@ -621,9 +520,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.7) 100%)",
           }} />
         </div>
-      </ViewportBackdropPortal>
+      </ViewportBackdropPortal>}
 
-      <div data-canonical-visual-layer="duplicate-backdrop" className="absolute inset-0">
+      <div data-canonical-visual-layer={inlineBackdrop ? undefined : "duplicate-backdrop"} className="absolute inset-0">
         <img
           src={effectiveBg}
           alt=""
@@ -1195,8 +1094,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       {showLeaderboard && (
         <FishingLeaderboardPanel
           worldId={worldId}
-          theme={theme}
-          accent={accent}
           currentUserId={user.id}
           onClose={() => setShowLeaderboard(false)}
         />
@@ -1493,153 +1390,6 @@ interface FishByWorld {
   fish: ShopItem[];
 }
 
-function FishingLeaderboardPanel({
-  onClose,
-  accent,
-  theme,
-  worldId,
-  currentUserId,
-}: {
-  onClose: () => void;
-  accent: string;
-  theme: FishingWorldTheme;
-  worldId?: string;
-  currentUserId: string;
-}) {
-  const title = LEADERBOARD_TITLES[worldId ?? ""] ?? "Top Anglers";
-
-  const { data, isLoading } = useQuery<{ top: LeaderboardEntry[]; me: { points: number; rank: number } | null }>({
-    queryKey: ["/api/fishing/leaderboard", worldId],
-    queryFn: async () => {
-      const res = await fetch(`/api/fishing/leaderboard/${worldId}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load leaderboard");
-      return res.json();
-    },
-    enabled: !!worldId,
-    staleTime: 10000,
-  });
-
-  const top = data?.top ?? [];
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const me = data?.me ?? null;
-  const meInTop = top.some(e => e.userId === currentUserId);
-
-  // Gold / silver / bronze for the podium; the numbers themselves carry the
-  // ranking (no emoji medals) — they're enlarged and glow to stand out.
-  const medalColor = (rank: number): string | null =>
-    rank === 1 ? "#ffd700" : rank === 2 ? "#cdd3da" : rank === 3 ? "#d08a4e" : null;
-
-  const renderRow = (e: LeaderboardEntry, rank: number) => {
-    const medal = medalColor(rank);
-    const isMe = e.userId === currentUserId;
-    return (
-      <div
-        key={e.userId}
-        data-testid={`row-leaderboard-${rank}`}
-        className="flex items-center gap-3 px-2.5 py-2 rounded-xl"
-        style={{
-          background: medal ? `${medal}14` : isMe ? `${accent}12` : "rgba(255,255,255,0.03)",
-          border: `1px solid ${medal ? `${medal}66` : isMe ? `${accent}55` : `${accent}20`}`,
-        }}
-      >
-        <div style={{ width: 34, textAlign: "center", flexShrink: 0 }}>
-          <span
-            className="font-fantasy"
-            style={{
-              fontSize: medal ? 24 : 16,
-              fontWeight: 900,
-              color: medal ?? `${accent}aa`,
-              textShadow: medal
-                ? `0 0 10px ${medal}99, 0 2px 4px rgba(0,0,0,0.7)`
-                : "0 1px 2px rgba(0,0,0,0.6)",
-              lineHeight: 1,
-            }}
-          >
-            {rank}
-          </span>
-        </div>
-        <PlayerAvatarButton userId={e.userId} username={e.username} onSelectPlayer={setSelectedPlayerId} testId={`button-fishing-avatar-${e.userId}`}>
-          <span
-            className="w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center"
-            style={{ border: `1px solid ${medal ?? `${accent}40`}`, background: "rgba(0,0,0,0.4)" }}
-          >
-            {e.profileImage
-              ? <img src={e.profileImage} alt="" className="w-full h-full object-cover" />
-              : <span className="font-fantasy text-xs" style={{ color: `${accent}70` }}>{e.username.charAt(0).toUpperCase()}</span>}
-          </span>
-        </PlayerAvatarButton>
-        <span
-          className="flex-1 font-fantasy text-xs truncate"
-          style={{ color: isMe ? accent : "#e8f5f0", fontWeight: isMe ? 700 : 500 }}
-        >
-          {e.username}{isMe ? " (you)" : ""}
-        </span>
-        <span className="font-fantasy text-sm font-bold whitespace-nowrap" style={{ color: accent }}>
-          {e.points.toLocaleString()}<span style={{ fontSize: 9, opacity: 0.6 }}> pts</span>
-        </span>
-      </div>
-    );
-  };
-
-  return (
-    <div className="absolute inset-x-0 bottom-0 z-[65] flex flex-col" style={{
-      top: 118,
-      borderRadius: "20px 20px 0 0",
-      background: "rgba(3,12,10,0.97)",
-      backdropFilter: "blur(12px)",
-      border: `1px solid ${accent}30`,
-      borderBottom: "none",
-      animation: "slideUp 0.2s ease-out",
-    }}>
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${accent}30`, background: theme.pondGlow }}>
-        <div className="flex items-center gap-2">
-          <img src={leaderboardIcon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
-          <div>
-            <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent }}>{title.toUpperCase()}</h3>
-            <p className="font-fantasy text-[9px]" style={{ color: `${accent}60` }}>Most fishing points in this world</p>
-          </div>
-        </div>
-        <button data-testid="button-fishing-leaderboard-close" onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.4)", color: `${accent}80`, cursor: "pointer" }}>
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: "thin" }}>
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32">
-            <p className="font-fantasy text-xs" style={{ color: `${accent}50` }}>Loading…</p>
-          </div>
-        ) : top.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 gap-2 text-center px-6">
-            <p className="font-fantasy text-sm" style={{ color: `${accent}80` }}>No anglers yet</p>
-            <p className="font-fantasy text-[10px]" style={{ color: `${accent}50` }}>Be the first to cast a line and claim the top spot!</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {top.map((e, i) => renderRow(e, i + 1))}
-          </div>
-        )}
-      </div>
-
-      {me && !meInTop && top.length > 0 && (
-        <div className="px-3 py-2.5" style={{ borderTop: `1px solid ${accent}25`, background: "rgba(0,0,0,0.45)" }}>
-          <div className="flex items-center gap-3 px-2.5 py-2 rounded-xl" style={{ background: `${accent}12`, border: `1px solid ${accent}45` }}>
-            <div style={{ width: 34, textAlign: "center", flexShrink: 0 }}>
-              <span className="font-fantasy" style={{ fontSize: 16, fontWeight: 900, color: `${accent}cc`, lineHeight: 1 }}>{me.rank}</span>
-            </div>
-            <span className="flex-1 font-fantasy text-xs font-bold" style={{ color: accent }}>You</span>
-            <span className="font-fantasy text-sm font-bold whitespace-nowrap" style={{ color: accent }}>
-              {me.points.toLocaleString()}<span style={{ fontSize: 9, opacity: 0.6 }}> pts</span>
-            </span>
-          </div>
-        </div>
-      )}
-      {selectedPlayerId && (
-        <PlayerDetailPanel userId={selectedPlayerId} currentUserId={currentUserId} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
-      )}
-    </div>
-  );
-}
 
 function FishBookPanel({
   onClose,

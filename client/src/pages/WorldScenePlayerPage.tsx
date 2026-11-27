@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import PetParkTerrain from "@/components/PetParkTerrain";
@@ -22,9 +22,11 @@ import {
 import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_MAX, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/worldScenePublication";
 import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import type { WorldSceneAsset, WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
-import { resolveWorldSceneAction } from "@shared/worlds/worldSceneActions";
+import { resolveWorldSceneAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
 import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
+
+const WorldSceneFishingDialog = lazy(() => import("@/components/world/WorldSceneFishingDialog"));
 
 interface PlayerScene extends WorldSceneContent {
   groundLevel: number;
@@ -54,6 +56,7 @@ export default function WorldScenePlayerPage({
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const moved = useRef(false);
   const [inside, setInside] = useState<string | null>(null);
+  const [fishingAction, setFishingAction] = useState<WorldSceneFishingAction | null>(null);
 
   const scene = useQuery<PlayerScene>({
     queryKey: ["/api/worlds", worldId, "player-scene"],
@@ -127,7 +130,8 @@ export default function WorldScenePlayerPage({
     [sceneContent?.assets]);
   const sceneActions = useMemo(() => new Map(placements.flatMap(p => {
     const asset = assetsById.get(p.assetId ?? "");
-    const action = asset?.imageUrl ? resolveWorldSceneAction(worldId, p.kind, asset) : null;
+    const action = p.worldId === worldId
+      ? resolveWorldSceneAction(worldId, p.kind, asset?.imageUrl ? asset : null, p.effectType) : null;
     return action ? [[p.id, action] as const] : [];
   })), [worldId, placements, assetsById]);
   const hasHauntedSpin = [...sceneActions.values()].includes("beau-prize-wheel");
@@ -221,8 +225,13 @@ export default function WorldScenePlayerPage({
   }
   function activate(item: WorldScenePlacement) {
     if (moved.current) { moved.current = false; return; }
-    if (sceneActions.get(item.id) === "beau-prize-wheel") {
+    const action = sceneActions.get(item.id);
+    if (action === "beau-prize-wheel") {
       void beauWheel.open();
+      return;
+    }
+    if (action === "fishing-leaderboard" || action === "fishing-spot") {
+      setFishingAction(action);
       return;
     }
     if (item.kind === "building") setInside(item.id);
@@ -306,7 +315,7 @@ export default function WorldScenePlayerPage({
               data-testid={`player-new-world-object-${p.id}`}
               disabled={!isInteractive}
               onClick={event => { event.stopPropagation(); activate(p); }}
-              aria-label={asset?.name ?? npc?.name ?? p.kind}
+              aria-label={action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? p.kind}
               className="absolute inset-0 h-full w-full border-0 bg-transparent p-0"
               style={{ pointerEvents: isInteractive ? "auto" : "none", touchAction: "none" }}>
             <span className="pointer-events-none absolute inset-0" style={{
@@ -395,6 +404,9 @@ export default function WorldScenePlayerPage({
       {beauWheel.notice}
     </div>}
     {beauWheel.state && <BeauPrizeWheelDialog state={beauWheel.state} onClose={beauWheel.close} onStateChange={beauWheel.onStateChange} />}
+    {fishingAction && <Suspense fallback={<div role="status" className="absolute inset-0 z-50 grid place-items-center bg-black/75 text-amber-100">Opening fishing…</div>}>
+      <WorldSceneFishingDialog action={fishingAction} onClose={() => setFishingAction(null)} />
+    </Suspense>}
     {(scene.isLoading || !viewportReady) && <div className="absolute inset-0 z-50 bg-[#0a1811] flex items-center justify-center text-[#f5dc9e]">
       Loading world…
     </div>}
