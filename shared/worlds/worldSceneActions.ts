@@ -31,3 +31,16 @@ export function resolveWorldSceneAction(
   }
   return null;
 }
+
+/** The new Soul Exchange stays inside the authored Haunted Woods room. */
+export const HAUNTED_SOUL_EXCHANGE_STONE_NAME = "The Soul Exchange Stone";
+
+export function resolveWorldSceneInteriorAction(
+  worldId: string, itemKind: string,
+  asset: { worldId: string; kind: string; name: string } | null | undefined,
+): "soul-exchange" | null {
+  return worldId === HAUNTED_WOODS_WORLD_ID && itemKind === "decor" &&
+    asset?.worldId === worldId && asset.kind === "decor" &&
+    asset.name.trim().toLowerCase() === HAUNTED_SOUL_EXCHANGE_STONE_NAME.toLowerCase()
+    ? "soul-exchange" : null;
+}
