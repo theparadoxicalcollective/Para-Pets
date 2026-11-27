@@ -24,7 +24,9 @@ test("admin controls and server publication use authenticated, validated reward 
   assert.match(admin, /validRate/);
   assert.match(admin, /\.for\("update"\)/);
   assert.match(admin, /Retrieve all deposited pets before changing earning rates/);
-  assert.match(panel, /Save reward rates & park availability/);
+  assert.match(panel, /Save reward rates\s*</);
+  assert.match(admin, /app.patch\("\/api\/admin\/pet-park\/availability", isAdmin/);
+  assert.match(admin, /app.put\("\/api\/admin\/pet-park\/reward-rates", isAdmin/);
   assert.match(panel, /Open Pet Park to players/);
 });
 test("collection is available without withdrawal and caps at 24 hours", () => {

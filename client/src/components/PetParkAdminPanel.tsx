@@ -12,9 +12,11 @@ import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
+import { PET_PARK_BASE_REWARD_RATES } from "@shared/petParkAccrual";
 
+type ParkSettings = { enabledForPlayers: boolean; enabledForModerators: boolean; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
 type ParkDraft = {
-  settings: { enabledForPlayers: boolean; enabledForModerators: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
+  settings: ParkSettings & { backgroundUrl: string | null };
   items: { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain" }[];
   buildings: { id: string }[];
 };
@@ -31,11 +33,12 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { data } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"] });
+  const { data } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"], enabled: mode === "create" });
+  const { data: settings, isError: settingsError, refetch: refetchSettings } = useQuery<ParkSettings>({
+    queryKey: ["/api/admin/pet-park/settings"], enabled: mode === "settings", staleTime: 0, refetchOnMount: "always",
+  });
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
-  const [publish, setPublish] = useState<boolean | null>(null);
-  const [moderatorPreview, setModeratorPreview] = useState<boolean | null>(null);
-  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [pendingTapImage, setPendingTapImage] = useState<string | null>(null);
   const [newDecorRole, setNewDecorRole] = useState<DecorRole>("barrier");
@@ -52,15 +55,25 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const items = data?.items ?? [];
   const buildings = data?.buildings ?? [];
   const mutation = useMutation({
-    mutationFn: async ({ method, url, body }: { method: "POST" | "PUT"; url: string; body?: unknown }) => {
+    mutationFn: async ({ method, url, body }: { method: "POST" | "PUT" | "PATCH"; url: string; body?: unknown }) => {
       const response = await apiRequest(method, url, body);
       return response.json();
     },
     onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
       if (variables.method !== "POST") {
-        setRates(null); setPublish(null); setModeratorPreview(null);
-        setSettingsSaved(true);
+        // The server returns the committed settings, including any first-open
+        // base rates. Update the displayed switches without a stale-cache flicker.
+        qc.setQueryData<ParkSettings>(["/api/admin/pet-park/settings"], result);
+        qc.invalidateQueries({ queryKey: ["/api/admin/pet-park/settings"] });
+        qc.setQueryData<ParkDraft>(["/api/admin/pet-park"], current => current
+          ? { ...current, settings: { ...current.settings, ...result } } : current);
+        if (variables.url === "/api/admin/pet-park/reward-rates") {
+          setRates(null);
+          setSettingsSaved("Pet Park reward rates saved.");
+        } else {
+          setSettingsSaved("Pet Park access saved.");
+        }
         qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] });
         qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
         return;
@@ -99,26 +112,27 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
     <div className={mode === "create" ? "space-y-4 font-fantasy text-[#f5cf64]" : "space-y-4 pb-8 text-amber-100"} data-testid="pet-park-admin">
       {mode === "settings" ? <>
         <h2 className="text-xl font-semibold text-amber-300">Pet Park — Administration</h2>
-        <p className="text-sm text-amber-100/75">Player access and earning rates are managed here. Scene placement is managed directly from Pet Park.</p>
+        <p className="text-sm text-amber-100/75">Open or close access here. Once open, saved scene edits become visible to players automatically; no separate publication is needed.</p>
       <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
-        <div className="text-sm">Player access: <strong>{data?.settings.enabledForPlayers ? "Open (check readiness)" : "Closed — Under Construction"}</strong></div>
+        <div className="text-sm">Player access: <strong>{!settings ? (settingsError ? "Unavailable" : "Loading…") : settings.enabledForPlayers ? "Open" : "Closed — Under Construction"}</strong></div>
+        {settingsError && <button type="button" className="rounded bg-[#245037] px-3 py-2 text-sm" onClick={() => void refetchSettings()}>Retry loading park settings</button>}
         <div className="rounded-lg border border-amber-600/40 p-3 space-y-2">
           <h3 className="font-semibold">Park rewards & player access</h3>
-          <p className="text-xs">Rates are stored per hour. The recommended preset equals 1 coin/minute, 5 pet XP/minute and 2 essence/5 minutes. Closing pauses earning but preserves deposits and rewards.</p>
-          <button type="button" className="rounded bg-[#245037] px-3 py-2 text-sm" onClick={() => { setSettingsSaved(false); setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 }); }}>Use recommended reward rates</button>
+          <p className="text-xs">Rates are stored per hour. The recommended preset equals 1 coin/minute, 5 pet XP/minute and 2 essence/5 minutes. First opening uses this preset only if all saved rates are zero and no pets are deposited. Closing pauses earning but preserves deposits and rewards.</p>
+          <button type="button" disabled={!settings || mutation.isPending} className="rounded bg-[#245037] px-3 py-2 text-sm disabled:opacity-50" onClick={() => { setSettingsSaved(null); setRates({ ...PET_PARK_BASE_REWARD_RATES }); }}>Use recommended reward rates</button>
           {(["coinsPerHour", "essencePerHour", "petXpPerHour"] as const).map(key => <label key={key} className="flex items-center justify-between gap-2 text-sm">
             <span>{key === "coinsPerHour" ? "Coins / hour" : key === "essencePerHour" ? "Essence / hour" : "Pet XP / hour"}</span>
-            <input type="number" min={0} max={10000} step={1} aria-label={key} className="w-24 rounded bg-[#0b2016] p-2"
-              value={(rates ?? data?.settings)?.[key] ?? 0}
-              onChange={e => { setSettingsSaved(false); setRates({ coinsPerHour: (rates ?? data?.settings)?.coinsPerHour ?? 0,
-                essencePerHour: (rates ?? data?.settings)?.essencePerHour ?? 0,
-                petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) }); }} />
+            <input type="number" min={0} max={10000} step={1} aria-label={key} disabled={!settings || mutation.isPending} className="w-24 rounded bg-[#0b2016] p-2"
+              value={(rates ?? settings)?.[key] ?? 0}
+              onChange={e => { setSettingsSaved(null); setRates({ coinsPerHour: (rates ?? settings)?.coinsPerHour ?? 0,
+                essencePerHour: (rates ?? settings)?.essencePerHour ?? 0,
+                petXpPerHour: (rates ?? settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) }); }} />
           </label>)}
           {([
-            { key: "players", label: "Open Pet Park to players", checked: publish ?? data?.settings.enabledForPlayers ?? false,
-              setChecked: setPublish, description: "Allow all players to enter the park." },
-            { key: "moderators", label: "Open Pet Park to moderators", checked: moderatorPreview ?? data?.settings.enabledForModerators ?? false,
-              setChecked: setModeratorPreview, description: "Allow moderators to enter the normal player park while public access is closed." },
+            { key: "players", field: "enabledForPlayers", label: "Open Pet Park to players", checked: settings?.enabledForPlayers ?? false,
+              description: "Allow all players to enter the park. Changes save immediately." },
+            { key: "moderators", field: "enabledForModerators", label: "Open Pet Park to moderators", checked: settings?.enabledForModerators ?? false,
+              description: "Allow moderators to enter the normal player park while public access is closed." },
           ] as const).map(option => <div key={option.key}
             className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/45 bg-[#10291d]/75 p-3">
             <div className="min-w-0">
@@ -129,25 +143,24 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             <button type="button" role="switch" aria-checked={option.checked}
               aria-labelledby={`park-access-${option.key}`}
               aria-label={option.key === "players" ? "Allow players into Pet Park" : "Allow moderators into Pet Park"}
-              disabled={!data || mutation.isPending}
-              onClick={() => { setSettingsSaved(false); option.setChecked(!option.checked); }}
+              disabled={!settings || mutation.isPending}
+              onClick={() => {
+                setSettingsSaved(null);
+                mutation.mutate({ method: "PATCH", url: "/api/admin/pet-park/availability", body: { [option.field]: !option.checked } });
+              }}
               className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5cf64] disabled:opacity-50 ${option.checked ? "border-[#f5cf64] bg-[#245037]" : "border-amber-800/70 bg-[#24312b]"}`}>
               <span aria-hidden="true" className={`absolute top-1 h-6 w-6 rounded-full shadow transition-[left] ${option.checked ? "left-7 bg-[#f5cf64]" : "left-1 bg-[#c5bda4]"}`} />
             </button>
           </div>)}
-          {(publish !== null || moderatorPreview !== null) && <p role="status" className="text-xs text-[#f5cf64]">Unsaved access changes — tap Save below to apply.</p>}
-          {settingsSaved && <p role="status" className="text-xs font-semibold text-[#b6dcab]">Pet Park settings saved.</p>}
-          <p className="text-xs text-amber-100/70">Moderator access allows staff to preview the normal player park without editing controls. It does not publish the park to everyone.</p>
-          <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
+          {mutation.isPending && <p role="status" className="text-xs text-[#f5cf64]">Saving…</p>}
+          {settingsSaved && <p role="status" className="text-xs font-semibold text-[#b6dcab]">{settingsSaved}</p>}
+          {settings?.enabledForPlayers && settings.coinsPerHour + settings.essencePerHour + settings.petXpPerHour === 0 &&
+            <p role="status" className="text-xs text-[#f5cf64]">Park is open, but reward rates are zero. Retrieve any deposited pets before configuring rates.</p>}
+          <p className="text-xs text-amber-100/70">Moderator access lets staff preview the normal player park without editing controls or opening it to everyone. Reward rates are saved separately from access.</p>
+          <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !settings || !rates}
             onClick={() => {
-              mutation.mutate({ method: "PUT", url: "/api/admin/pet-park/publishing",
-                body: { enabledForPlayers: publish ?? data!.settings.enabledForPlayers,
-                  enabledForModerators: moderatorPreview ?? data!.settings.enabledForModerators,
-                  coinsPerHour: (rates ?? data!.settings).coinsPerHour,
-                  essencePerHour: (rates ?? data!.settings).essencePerHour,
-                  petXpPerHour: (rates ?? data!.settings).petXpPerHour } });
-              // Keep local edits until the server confirms success; the response invalidates both park views.
-            }}>Save reward rates & park availability</button>
+              if (rates) mutation.mutate({ method: "PUT", url: "/api/admin/pet-park/reward-rates", body: rates });
+            }}>Save reward rates</button>
         </div>
         <p className="rounded-lg border border-emerald-700/45 bg-emerald-950/35 p-3 text-sm text-emerald-100">
           Pet Park starts with grassy ground. Build your scene using the existing Building, Decor, and Effects controls.

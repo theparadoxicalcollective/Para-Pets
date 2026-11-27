@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { PET_PARK_BASE_REWARD_RATES } from "../shared/petParkAccrual";
 const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const editor = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8");
 const server = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
@@ -26,8 +27,9 @@ test("admin settings and direct creation retain water effects, player access and
   assert.match(editor, /mode === "settings"/);
   assert.match(page, /\["scene", "\+ Building"\]/);
   assert.match(page, /\["decor", "\+ Decor"\]/);
-  assert.match(editor, /coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300/);
-  assert.match(editor, /Save reward rates & park availability/);
+  assert.deepEqual(PET_PARK_BASE_REWARD_RATES, { coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 });
+  assert.match(editor, /setRates\(\{ \.\.\.PET_PARK_BASE_REWARD_RATES \}\)/);
+  assert.match(editor, /Save reward rates\s*</);
 });
 test("reward ledger carries partial units across frequent manual claims", () => {
   assert.match(server, /SUM\(\$\{petParkRewardClaims\.earnedDurationMs\}\)/);
@@ -47,13 +49,15 @@ test("reward ledger carries partial units across frequent manual claims", () => 
   assert.deepEqual(earned(300, [60_000,60_000]), [5,5]);
 });
 
-test("park access controls are real switches with explicit on/off state and save feedback", () => {
+test("park access switches save directly without submitting unsaved reward inputs", () => {
   assert.match(editor, /role="switch" aria-checked=\{option\.checked\}/);
-  assert.match(editor, /option\.setChecked\(!option\.checked\)/);
-  assert.match(editor, /Unsaved access changes/);
-  assert.match(editor, /Pet Park settings saved/);
-  assert.match(editor, /enabledForPlayers: publish \?\? data!\.settings\.enabledForPlayers/);
-  assert.match(editor, /enabledForModerators: moderatorPreview \?\? data!\.settings\.enabledForModerators/);
+  assert.match(editor, /method: "PATCH", url: "\/api\/admin\/pet-park\/availability", body: \{ \[option\.field\]: !option\.checked \}/);
+  assert.match(editor, /Pet Park access saved/);
+  assert.match(editor, /method: "PUT", url: "\/api\/admin\/pet-park\/reward-rates", body: rates/);
+  assert.match(editor, /queryKey: \["\/api\/admin\/pet-park\/settings"\], enabled: mode === "settings"/);
+  assert.doesNotMatch(editor, /Unsaved access changes|\/api\/admin\/pet-park\/publishing|Save reward rates & park availability/);
+  assert.match(page, /queryKey: \["\/api\/pet-park\/scene"\], staleTime: 0, refetchOnMount: "always"/);
+  assert.match(page, /refetchOnWindowFocus: true, refetchInterval: 30_000/);
 });
 
 test("saved Pet Park dirt and brush preview share a darker brown color", () => {

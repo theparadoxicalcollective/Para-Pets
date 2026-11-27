@@ -168,7 +168,10 @@ export default function PetParkPage() {
   const indoorPlacedPointer = useRef<{ id: number; petInventoryId: string; depositId: string;
     startX: number; startY: number; position: { x: number; y: number } } | null>(null);
   const [indoorPetDraft, setIndoorPetDraft] = useState<{ petInventoryId: string; x: number; y: number } | null>(null);
-  const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
+  const { data: scene, isLoading } = useQuery<ParkScene>({
+    queryKey: ["/api/pet-park/scene"], staleTime: 0, refetchOnMount: "always",
+    refetchOnWindowFocus: true, refetchInterval: 30_000,
+  });
   const { data: inventory = [], isFetching: isGardenInventoryLoading } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
   // Server owns stage transitions and the picked cooldown. Refetch without
   // inferring growth or advancing a plot on a local device clock.

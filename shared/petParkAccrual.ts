@@ -6,6 +6,8 @@
 export const PET_PARK_ACCRUAL_CAP_MS = 24 * 60 * 60 * 1000;
 export const PET_PARK_SECOND_SLOT_PRICE = 2_500;
 export const PET_PARK_THIRD_SLOT_PRICE = 5_000;
+/** Existing recommended hourly rates, also used when first opening an unconfigured park. */
+export const PET_PARK_BASE_REWARD_RATES = { coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 } as const;
 
 export type PetParkAccrualState = {
   /** Beginning of the currently unclaimed earning interval. */
