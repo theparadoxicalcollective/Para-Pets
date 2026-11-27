@@ -71,7 +71,7 @@ export default function WorldSceneCreateForm({
       createdAssetId = asset.id;
       const insidePayload = inside ? {
         kind: "decor", buildingId, assetId: asset.id, effectType: null,
-        xPct: 0.5, yPct: 0.5, size, flipped: false,
+        xPct: creationPosition.xPct, yPct: creationPosition.yPct, size, flipped: false,
       } : {
         kind, assetId: asset.id, effectType: null,
         xPct: creationPosition.xPct, yPct: creationPosition.yPct,
