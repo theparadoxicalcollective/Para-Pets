@@ -9,7 +9,7 @@ import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
 import { decorRole, decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
-import WorldLegacyPagePicker, { useWorldLegacyPages } from "./WorldLegacyPagePicker";
+import { useWorldLegacyPages } from "./WorldLegacyPagePicker";
 import { useWorldNpcCatalog, type WorldNpcCatalogEntry } from "./WorldNpcCatalog";
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
@@ -70,11 +70,6 @@ export default function WorldSceneControls(props: Props) {
   const [themeDraft, setThemeDraft] = useState<WorldGroundTheme>(props.groundTheme);
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
   const [decorNameDraft, setDecorNameDraft] = useState("");
-  // Keep the new legacy page choice visible immediately while the admin
-  // PATCH and React Query scene refresh complete. Roll back on a failed save.
-  const [legacyChoice, setLegacyChoice] = useState<{
-    buildingId: string; pageId: string | null;
-  } | null>(null);
   const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [expanded, setExpanded] = useState(false);
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
@@ -169,16 +164,11 @@ export default function WorldSceneControls(props: Props) {
         decorRole(props.selected) === pendingDecorRole.role)
       setPendingDecorRole(null);
   }, [props.selected?.id, props.selected?.decorSurface, props.selected?.isWaterSource, pendingDecorRole]);
-  const selectedLegacyPage = legacyChoice && legacyChoice.buildingId === props.selected?.id
-    ? legacyChoice.pageId : props.selected?.legacyLocationId ?? null;
-  useEffect(() => {
-    if (!legacyChoice) return;
-    if (props.selected?.id !== legacyChoice.buildingId ||
-        props.selected?.legacyLocationId === legacyChoice.pageId)
-      setLegacyChoice(null);
-  }, [props.selected?.id, props.selected?.legacyLocationId, legacyChoice]);
+  // Keep already-linked buildings and their rollback/retirement controls
+  // functional through the transition; the editor no longer assigns links.
+  const selectedLegacyPage = props.selected?.legacyLocationId ?? null;
   const queryClient = useQueryClient();
-  const legacyPages = useWorldLegacyPages(props.worldId, props.selected?.kind === "building");
+  const legacyPages = useWorldLegacyPages(props.worldId, props.selected?.kind === "building" && !!selectedLegacyPage);
   const linkedOriginal = legacyPages.data?.find(page => page.id === selectedLegacyPage);
   const retiredKey = ["/api/worlds", props.worldId, "retired-locations"];
   const retired = useQuery<string[]>({
@@ -198,15 +188,6 @@ export default function WorldSceneControls(props: Props) {
     } catch (error) {
       toast({ title: "Could not update original hotspot", description: String(error), variant: "destructive" });
     } finally { setBusy(false); }
-  };
-  const patchLegacyPage = async (id: string | null) => {
-    if (!props.selected || props.selected.kind !== "building") return;
-    const buildingId = props.selected.id;
-    setLegacyChoice({ buildingId, pageId: id });
-    const changed = await mutate("PATCH", `/placements/${buildingId}`, {
-      legacyLocationId: id,
-    });
-    if (!changed) setLegacyChoice(null);
   };
   const patchInterior = async (values: Record<string, unknown>) => {
     if (!props.selectedInterior) return;
@@ -670,13 +651,9 @@ export default function WorldSceneControls(props: Props) {
         </details>}
       </>}
       {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
-        <details className={disclosure} data-testid="world-edit-building-page">
-          <summary>Link existing world page (optional)</summary>
-          <div className="pt-2"><WorldLegacyPagePicker worldId={props.worldId}
-            value={selectedLegacyPage}
-            onChange={id => { void patchLegacyPage(id); }}
-            disabled={busy} preview /></div>
-          {linkedOriginal?.worldId === props.worldId && linkedOriginal.type !== "npc" && <div className="space-y-2 pt-2">
+        {linkedOriginal?.worldId === props.worldId && linkedOriginal.type !== "npc" && <details className={disclosure} data-testid="world-edit-original-hotspot">
+          <summary>Original hotspot retirement</summary>
+          <div className="space-y-2 pt-2">
             <p className="text-[11px] text-amber-100/75">After verifying the new building, retire its original map hotspot. Its page, quests and saved gameplay remain connected. Switching to Old restores all hotspots.</p>
             <button type="button" className={control} data-testid="button-retire-original-hotspot"
               disabled={!props.isLive || busy || retired.isLoading || retired.isError}
@@ -684,8 +661,8 @@ export default function WorldSceneControls(props: Props) {
               {isRetired ? "Restore original hotspot" : "Retire original hotspot"}
             </button>
             {!props.isLive && <p className="text-[10px] text-amber-100/70">Set this world live first.</p>}
-          </div>}
-        </details>
+          </div>
+        </details>}
         {currentAsset && <details className={disclosure}
           open={props.selected.decorEffects.length > 0} data-testid="world-edit-building-effects">
           <summary>{"Exterior building lights & effects"} ({props.selected.decorEffects.length})</summary>

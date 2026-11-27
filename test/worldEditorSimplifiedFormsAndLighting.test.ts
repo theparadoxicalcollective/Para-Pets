@@ -9,7 +9,7 @@ const src=(path:string)=>readFileSync(path,"utf8");
 
 test("World building and decor forms keep every tool but fold optional sections",()=>{
   const c=src("client/src/components/world-editor/WorldSceneCreateForm.tsx");
-  for(const key of ["world-create-legacy-options","world-create-shop-options","world-create-building-effects",
+  for(const key of ["world-create-shop-options","world-create-building-effects",
     "world-create-interior-artwork","world-create-decor-tap-image","world-create-decor-effects",
     "world-create-decor-behavior"]) assert.match(c,new RegExp(key));
   for(const field of ["Building Name","Building starting size","Building interior image",
@@ -21,13 +21,13 @@ test("World building and decor forms keep every tool but fold optional sections"
   for(const label of ["Barrier","Grass","Ground","Water Source"])
     assert.match(roles,new RegExp(`label: "${label}"`));
 });
-test("building/decor editing keeps placement, stock, page and lighting actions",()=>{
+test("building/decor editing keeps placement, stock, retirement and lighting actions",()=>{
   const c=src("client/src/components/world-editor/WorldSceneControls.tsx");
   for(const key of ["world-edit-decor-effects","world-decoration-tap-image-editor",
-    "world-edit-building-page","world-edit-building-effects","world-edit-building-artwork",
+    "world-edit-original-hotspot","world-edit-building-effects","world-edit-building-artwork",
     "world-water-effect-options"])assert.ok(c.includes(key));
   for(const key of ["Enter Building","Shop Setup","Add world effects","Duplicate",
-    "WorldLegacyPagePicker","onInteriorDarknessCommit","onInteriorPreviewClockChange",
+    "useWorldLegacyPages","onInteriorDarknessCommit","onInteriorPreviewClockChange",
     "patchInterior","world-editor-interior-darkness-slider"])assert.ok(c.includes(key),key);
   assert.ok(!c.includes("390×844"));
 });

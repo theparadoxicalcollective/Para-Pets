@@ -332,19 +332,11 @@ try {
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
     assert.equal(await page.getByLabel("Building starting size").inputValue(), "300");
     await page.getByLabel("Building name").fill("Enchanted Cottage");
-    // The form keeps optional page and shop tools, but hides them until needed.
-    assert.equal(await page.getByTestId("world-create-legacy-options").getAttribute("open"),null,
-      name+": optional old-world link does not crowd the main building form");
-    await page.getByTestId("world-create-legacy-options").locator("summary").click();
-    const creationLegacy = page.getByTestId("world-building-legacy-picker")
-      .getByTestId("select-world-legacy-page");
-    await creationLegacy.waitFor({ state: "visible" });
-    await creationLegacy.locator("optgroup").first().waitFor({ state: "attached" });
-    assert.equal(await creationLegacy.locator("optgroup").count(), 2,
-      name + ": original world pages are grouped by their old world");
-    await creationLegacy.selectOption(legacyPages[0].id);
-    assert.equal(await page.getByAltText("Old Manor Hall original world page").count(), 1,
-      name + ": creator previews original old-world page art");
+    // New buildings are independent; their gameplay can be connected through
+    // future code changes without a page-link selector in the editor.
+    assert.equal(await page.getByTestId("world-create-legacy-options").count(), 0,
+      name + ": creation no longer exposes an old-world link option");
+    assert.equal(await page.getByLabel("Add Old World Page").count(), 0);
     await page.getByTestId("world-create-shop-options").locator("summary").click();
     await page.getByRole("switch", { name: "Is Shop building" }).check();
     const png = Buffer.from(
@@ -352,33 +344,54 @@ try {
     await page.getByLabel("Building exterior image").setInputFiles({
       name: "Cottage.png", mimeType: "image/png", buffer: png,
     });
+    await page.getByTestId("world-create-interior-artwork").locator("summary").click();
+    await page.getByLabel("Building interior image").setInputFiles({
+      name: "Cottage Room.png", mimeType: "image/png", buffer: png,
+    });
+    await page.getByAltText("Interior background preview").waitFor();
     const createdBuilding = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
     await page.getByTestId("button-create-world-building").click();
     const savedShopBuilding = await (await createdBuilding).json();
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "building" &&
       w.body.size === 300 && w.body.isShop === true &&
-      w.body.legacyLocationId === legacyPages[0].id),
-      name + ": building created with its original old-world page link");
+      w.body.legacyLocationId === null),
+      name + ": new building starts without an old-world page link");
     assert.equal(await page.getByText("Shop", { exact: true }).count(), 0,
       name+": shop buildings never show a floating map label");
     assert.equal(await page.getByTestId("world-scene-selected-controls")
       .getByTestId("select-world-legacy-page").count(), 0);
     await page.getByRole("button", { name: "Edit selected object details" }).click();
-    const details = page.getByTestId("world-edit-building-page");
-    await details.locator("summary").click();
-    const selectedLegacy = details.getByTestId("select-world-legacy-page");
-    assert.equal(await selectedLegacy.inputValue(), legacyPages[0].id,
-      name + ": building legacy link is edited in its existing details");
-    const linkEdit = page.waitForResponse(r =>
-      r.request().method() === "PATCH" && r.url().includes("/placements/"));
-    await selectedLegacy.selectOption(legacyPages[1].id);
-    await linkEdit;
-    assert.equal(await selectedLegacy.inputValue(), legacyPages[1].id,
-      name + ": selected building can be linked to a different old world");
-    const linkReset = page.waitForResponse(r =>
-      r.request().method() === "PATCH" && r.url().includes("/placements/"));
-    await selectedLegacy.selectOption(legacyPages[0].id);
-    await linkReset;
+    assert.equal(await page.getByTestId("world-edit-building-page").count(), 0);
+    assert.equal(await page.getByLabel("Add Old World Page").count(), 0);
+    assert.equal(await page.getByTestId("world-edit-original-hotspot").count(), 0,
+      name + ": unlinked buildings have no legacy-specific controls");
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    await page.getByTestId("world-editor-interior").waitFor({ state: "visible" });
+    assert.equal(await page.getByTestId("world-editor-interior").locator("img").first().getAttribute("src"),
+      interior, name + ": standalone building uses its own saved interior artwork");
+    await page.getByRole("button", { name: "Exit Room" }).click();
+
+    // Model a link already saved before the UI was removed. Refresh the real
+    // editor, and verify it never clears that link or loses its original room.
+    worlds.haunted_woods.scene.placements.find(p => p.id === savedShopBuilding.id).legacyLocationId = legacyPages[0].id;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const linkedBuilding = page.getByTestId("world-scene-placement-" + savedShopBuilding.id);
+    await linkedBuilding.waitFor({ state: "visible" });
+    await linkedBuilding.focus();
+    await linkedBuilding.press("Enter");
+    await page.getByRole("button", { name: "Edit selected object details" }).click();
+    await page.getByTestId("world-edit-original-hotspot").waitFor({ state: "visible" });
+    assert.equal(await page.getByLabel("Add Old World Page").count(), 0,
+      name + ": linked buildings retain safe retirement without link editing");
+    await page.getByLabel("Rename world building").fill("Enchanted Cottage Renamed");
+    await Promise.all([
+      page.waitForResponse(r => r.url().endsWith("/assets/" + savedShopBuilding.assetId) && r.request().method() === "PATCH"),
+      page.getByRole("button", { name: "Save Name" }).click(),
+    ]);
+    assert.equal(worlds.haunted_woods.scene.placements.find(p => p.id === savedShopBuilding.id).legacyLocationId,
+      legacyPages[0].id, name + ": unrelated edits do not remove an existing link");
+    assert.ok(!apiWrites.some(w => w.method === "PATCH" && w.body && "legacyLocationId" in w.body));
     await page.getByRole("button", { name: "Close editor" }).click();
     await page.getByRole("button", { name: "Enter Building" }).click();
     try {
