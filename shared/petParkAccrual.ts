@@ -84,3 +84,23 @@ export function petParkRewardUnits(elapsedMs: number, unitsPerHour: number): num
       elapsedMs <= 0 || unitsPerHour <= 0) return 0;
   return Math.floor((Math.min(elapsedMs, PET_PARK_ACCRUAL_CAP_MS) / 3_600_000) * unitsPerHour);
 }
+
+export type PetParkRewardAmounts = { coins: number; essence: number; petXp: number };
+export type PetParkRewardRates = { coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
+
+/** Match the existing settlement ledger, including the two-essence preset
+ * and carry-over fractions. Only the new earning interval is capped at 24h.
+ * No wallet/pet writes are performed here. */
+export function claimablePetParkRewards(
+  duration: number, settledDuration: number, claimed: PetParkRewardAmounts, rates: PetParkRewardRates,
+): PetParkRewardAmounts {
+  if (!(duration > 0)) return { coins: 0, essence: 0, petXp: 0 };
+  const totalDuration = settledDuration + duration;
+  return {
+    coins: Math.max(0, Math.floor(totalDuration * rates.coinsPerHour / 3_600_000) - claimed.coins),
+    essence: Math.max(0, (rates.essencePerHour === 24
+      ? Math.floor(totalDuration / 300_000) * 2
+      : Math.floor(totalDuration * rates.essencePerHour / 3_600_000)) - claimed.essence),
+    petXp: Math.max(0, Math.floor(totalDuration * rates.petXpPerHour / 3_600_000) - claimed.petXp),
+  };
+}

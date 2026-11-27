@@ -6,6 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import PetParkTerrain from "@/components/PetParkTerrain";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
+import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
+import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
+import { isWorldEditorDoubleTap, worldEditorAttachedPage, worldEditorLegacyPagePath, type WorldEditorTap } from "@/lib/worldEditorPageGesture";
 import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import { useWorldLegacyPages } from "@/components/world-editor/WorldLegacyPagePicker";
 import { useWorldNpcCatalog } from "@/components/world-editor/WorldNpcCatalog";
@@ -62,9 +65,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const pendingObjectTap = useRef<{
     pointerId: number; id: string; x: number; y: number;
   } | null>(null);
+  const selectedPageTap = useRef<WorldEditorTap | null>(null);
+  const legacyOpening = useRef<AbortController | null>(null);
+  const resetPageGesture = () => {
+    selectedPageTap.current = null;
+    legacyOpening.current?.abort();
+    legacyOpening.current = null;
+  };
   const objectDrag = useRef<{
     id: number; itemId: string; kind: "outdoor" | "interior";
-    startX: number; startY: number; clientX: number; clientY: number;
+    startX: number; startY: number; clientX: number; clientY: number; startedAt: number;
     xPct: number; yPct: number;
     latest: { xPct: number; yPct: number }; moved: boolean;
   } | null>(null);
@@ -120,7 +130,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
 
   const known = isEditableWorldSceneId(worldId);
   const world = getWorldDefinition(worldId);
-  const legacyPages = useWorldLegacyPages(worldId, known && !!activeBuildingId);
   const npcCatalog = useWorldNpcCatalog(known);
   const queryKey = ["/api/admin/world-editor", worldId, "draft"];
   const sceneQueryKey = ["/api/admin/world-editor", worldId, "scene"];
@@ -179,6 +188,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       queuedCamera.current = null;
     }
     pendingObjectTap.current = null;
+    selectedPageTap.current = null;
     touchPoints.current.clear(); pinch.current = null;
   }, [worldId]);
   useEffect(() => {
@@ -188,6 +198,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     setEditingShopItem(false);
   }, [activeBuildingId]);
   useEffect(() => {
+    selectedPageTap.current = null;
     pendingObjectTap.current = null;
     objectDrag.current = null;
     touchPoints.current.clear();
@@ -272,6 +283,53 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     }
   };
   const selected = content.placements.find(p => p.id === selectedId) ?? null;
+  const selectedPage = worldEditorAttachedPage(worldId, selected, assetFor(selected?.assetId ?? null));
+  const legacyPages = useWorldLegacyPages(worldId, known && (!!activeBuildingId || selectedPage?.kind === "legacy"));
+  // Reuse the server-authoritative player dialog, including its admin controls,
+  // without a free-spin marker poll or publication dependency in the editor.
+  const beauWheel = useWorldSceneBeauWheel(selectedPage?.kind === "beau-prize-wheel", { pollStatus: false, adminOnly: true });
+
+  useEffect(() => {
+    selectedPageTap.current = null;
+    return () => {
+      legacyOpening.current?.abort();
+      legacyOpening.current = null;
+    };
+  }, [worldId, selectedId, paintMode, activeBuildingId]);
+
+  const openSelectedPage = async (item: WorldScenePlacement) => {
+    if (busyPlacement || paintMode || activeBuildingId || beauWheel.state || beauWheel.isOpening || legacyOpening.current) return;
+    const target = worldEditorAttachedPage(worldId, item, assetFor(item.assetId));
+    if (!target) return;
+    if (target.kind === "beau-prize-wheel") {
+      await beauWheel.open();
+      return;
+    }
+    if (target.kind === "room") {
+      // Keep the same selection and outdoor camera when closing the room.
+      setActiveBuildingId(item.id);
+      setSelectedInteriorId(null);
+      return;
+    }
+    const controller = new AbortController();
+    legacyOpening.current = controller;
+    try {
+      const result = await legacyPages.refetch();
+      if (controller.signal.aborted) return;
+      const page = result.isSuccess ? result.data?.find(entry => entry.id === target.locationId) : undefined;
+      const path = worldEditorLegacyPagePath(worldId, target.locationId, page);
+      if (!path) {
+        toast({ title: "Attached page unavailable", description: "The original page could not be found. Your world edits have not changed.", variant: "destructive" });
+        return;
+      }
+      navigate(path);
+    } catch (error) {
+      if (!controller.signal.aborted) toast({ title: "Could not open attached page", description: String(error), variant: "destructive" });
+    } finally {
+      if (legacyOpening.current === controller) legacyOpening.current = null;
+    }
+  };
+
   const selectedInterior = content.interiorItems.find(i => i.id === selectedInteriorId && i.buildingId === activeBuildingId) ?? null;
   const interiorAsset = activeBuilding ? assetFor(activeBuilding.assetId) : null;
   const linkedLegacyPage = legacyPages.data?.find(page =>
@@ -342,6 +400,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const changeZoom = (next: number, anchor = { x: size.width / 2, y: size.height / 2 }) => {
     const value = worldEditorClampZoom(next, size.width, size.height, groundLevel);
     if (value === zoom) return;
+    selectedPageTap.current = null;
     // A queued pinch frame must not overwrite a later button/slider change.
     if (cameraFrame.current !== null) {
       window.cancelAnimationFrame(cameraFrame.current);
@@ -400,7 +459,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     objectDrag.current = {
       kind, id: event.pointerId, itemId: item.id,
       startX: start.xPct, startY: start.yPct,
-      clientX: event.clientX, clientY: event.clientY,
+      clientX: event.clientX, clientY: event.clientY, startedAt: event.timeStamp,
       xPct: item.xPct, yPct: item.yPct, latest: { xPct: item.xPct, yPct: item.yPct }, moved: false,
     };
     if (kind === "outdoor") {
@@ -420,6 +479,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       touchPoints.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     // Tapping/slightly shifting an object must not save a new placement.
     if (Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) < 7) return;
+    selectedPageTap.current = null;
     const relative = drag.kind === "outdoor" ? viewportPoint(event.clientX, event.clientY) : {
       xPct: drag.startX + (event.clientX - drag.startX) / Math.max(1, interiorW),
       yPct: drag.startY + (event.clientY - drag.startY) / Math.max(1, interiorH),
@@ -448,7 +508,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       void updatePosition(drag.kind, drag.itemId, drag.latest);
     } else setObjectPreview(null);
   };
-  const cancelObject = () => { objectDrag.current = null; setObjectPreview(null); };
+  const cancelObject = () => { selectedPageTap.current = null; objectDrag.current = null; setObjectPreview(null); };
 
   const endTouch = (event: ReactPointerEvent<HTMLDivElement>) => {
     touchPoints.current.delete(event.pointerId);
@@ -471,6 +531,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const startCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (paintMode || activeBuilding || (event.button !== 0 && event.pointerType === "mouse")) return;
+    selectedPageTap.current = null;
     if (objectDrag.current && objectDrag.current.id !== event.pointerId) {
       // Starting a second finger means pinch/pan, never an object movement.
       cancelObject();
@@ -543,12 +604,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     PARK_GROUND_PALETTES[worldGroundRenderTheme(groundTheme)]).base;
   return <div className="relative w-full h-full overflow-hidden text-[#f3e5c5]"
     style={{ backgroundColor: groundBackdrop }}
-    data-testid="world-scene-editor">
+    data-testid="world-scene-editor"
+    onPointerDownCapture={event => {
+      if (event.target instanceof Node && !viewportRef.current?.contains(event.target)) resetPageGesture();
+    }}>
     <div ref={viewportRef} data-testid="world-scene-draft-viewport"
       className="absolute inset-0 overflow-hidden" style={{ touchAction: "none", cursor: "grab" }}
       onPointerDownCapture={event => {
-        if (paintMode || activeBuilding || !event.isPrimary ||
+        if (paintMode || activeBuilding || beauWheel.isOpening || beauWheel.state || !event.isPrimary ||
             (event.button !== 0 && event.pointerType === "mouse")) return;
+        if (legacyOpening.current) resetPageGesture();
         const art = viewportRef.current?.querySelector("[data-world-editor-artwork]");
         const hit = art && pickParkAdminArtwork(art, event.clientX, event.clientY, (_kind, id) =>
           content.placements.find(item => item.id === id) ?? null);
@@ -578,8 +643,23 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         // Only intercept ordinary outdoor placement gestures here.
         if (paintMode || activeBuilding) return;
         if (objectDrag.current?.id === event.pointerId) {
+          const drag = objectDrag.current;
+          const item = content.placements.find(placement => placement.id === drag.itemId);
+          const eligible = drag.kind === "outdoor" && !drag.moved && !pinch.current &&
+            touchPoints.current.size === 1 && event.isPrimary &&
+            Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) < 7 &&
+            event.timeStamp - drag.startedAt <= 450 && item?.id === selectedId &&
+            !!worldEditorAttachedPage(worldId, item ?? null, assetFor(item?.assetId ?? null));
           finishObject(event);
           endTouch(event);
+          if (eligible && item) {
+            const tap: WorldEditorTap = { itemId: item.id, pointerType: event.pointerType,
+              x: event.clientX, y: event.clientY, time: event.timeStamp };
+            if (isWorldEditorDoubleTap(selectedPageTap.current, tap)) {
+              selectedPageTap.current = null;
+              void openSelectedPage(item);
+            } else selectedPageTap.current = tap;
+          } else selectedPageTap.current = null;
           event.stopPropagation();
           return;
         }
@@ -594,6 +674,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       }}
       onPointerCancelCapture={event => {
         if (paintMode || activeBuilding) return;
+        selectedPageTap.current = null;
         if (pendingObjectTap.current?.pointerId === event.pointerId)
           pendingObjectTap.current = null;
         if (objectDrag.current?.id === event.pointerId) cancelObject();
@@ -664,7 +745,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               onClick={event => {
                 // Pointer selection is handled at pointer-up on opaque art.
                 // Ignore rectangular button clicks in transparent PNG padding.
-                if (event.detail === 0) setSelectedId(p.id);
+                if (event.detail === 0) { resetPageGesture(); setSelectedId(p.id); }
                 event.stopPropagation();
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
@@ -820,7 +901,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         darknessSaving={darknessSaving}
         onInteriorDarknessChange={changeInteriorDarkness} onInteriorDarknessCommit={() => void saveInteriorDarkness()}
         onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
-        onSelect={setSelectedId} onSelectInterior={setSelectedInteriorId}
+        onSelect={id => { resetPageGesture(); setSelectedId(id); }} onSelectInterior={setSelectedInteriorId}
+        selectedPageAvailable={!!selectedPage}
         onEnter={id => { setActiveBuildingId(id); setSelectedInteriorId(null); setPan(null); }}
         onPaint={() => setPaintMode(true)}
         groundTheme={groundTheme}
@@ -836,5 +918,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           cache.setQueryData(queryKey, await response.json());
           setEdited(null);
         }} />}
+    {beauWheel.notice && <div role="status" className="pointer-events-none absolute inset-x-5 top-20 z-50 rounded-xl border border-[#b99952] bg-[#122a20]/95 p-3 text-center text-sm text-[#f6da97]">
+      {beauWheel.notice}
+    </div>}
+    {beauWheel.state && <BeauPrizeWheelDialog state={beauWheel.state} onClose={beauWheel.close} onStateChange={beauWheel.onStateChange} />}
   </div>;
 }

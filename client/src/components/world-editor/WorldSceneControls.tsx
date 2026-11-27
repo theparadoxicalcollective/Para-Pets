@@ -49,6 +49,7 @@ type Props = {
   onSelect: (id: string | null) => void;
   onSelectInterior: (id: string | null) => void;
   onEnter: (id: string) => void;
+  selectedPageAvailable?: boolean;
   onPaint: () => void;
   groundTheme: WorldGroundTheme;
   zoom: number;
@@ -375,6 +376,9 @@ export default function WorldSceneControls(props: Props) {
             : "Drag selected artwork to move · swipe background to pan"}
         </span>}
       </div>
+      {!props.activeBuilding && props.selectedPageAvailable && <p className="text-center text-[10px] text-amber-100/80">
+        Double-tap selected artwork to open its attached page
+      </p>}
     </section>}
     {expanded && panel === "settings" && !props.activeBuilding && <section
       role="dialog" aria-label="World Settings"

@@ -13,6 +13,7 @@ import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems, playerClothingDrafts, worldScenePlacements } from "@shared/schema";
+import { xpForLevel } from "@shared/petLevelXp";
 import { isHomeXpAnchor } from "@shared/homeXpAnchor";
 import { playerTimeZoneSchema } from "@shared/accountValidation";
 import { executeRewardClaim } from "./rewardClaim";
@@ -178,10 +179,6 @@ async function incrementQuestProgress(userId: string, questKey: string): Promise
 }
 
 // ── Pet leveling helper ───────────────────────────────────────────────────────
-// XP needed to advance from `level` to `level + 1`.
-function xpForLevel(level: number): number {
-  return Math.floor(100 + level * 30 + level * level * 5);
-}
 // Apply `pointsToAdd` XP to a pet's current level/points and return the new values.
 function applyPetXp(currentLevel: number, currentPoints: number, pointsToAdd: number): { newLevel: number; newPoints: number } {
   let totalPoints = currentPoints + pointsToAdd;

@@ -4381,3 +4381,27 @@ img[data-interactive], button img, a img {
     animation: none !important;
   }
 }
+
+/* One short entrance/pulse on a server-confirmed Pet Park reward receipt.
+   The card stays readable after motion ends and never intercepts world input. */
+.pet-park-reward-receipt {
+  animation: pet-park-reward-rise .42s cubic-bezier(.2,.8,.25,1) both;
+  box-shadow: 0 7px 25px #0009, 0 0 24px #dfb95e42, inset 0 0 16px #b6953730;
+}
+.pet-park-reward-receipt__amount {
+  animation: pet-park-reward-glow .7s ease-out both;
+}
+.pet-park-reward-receipt__amount:nth-child(2) { animation-delay: .08s; }
+.pet-park-reward-receipt__amount:nth-child(3) { animation-delay: .16s; }
+.pet-park-reward-receipt__spark { display: inline-block; animation: pet-park-reward-glow .6s ease-out both; }
+@keyframes pet-park-reward-rise {
+  from { opacity: 0; transform: translateY(12px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes pet-park-reward-glow {
+  0%,100% { filter: none; }
+  38% { filter: brightness(1.45); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-park-reward-receipt, .pet-park-reward-receipt__amount, .pet-park-reward-receipt__spark { animation: none !important; }
+}

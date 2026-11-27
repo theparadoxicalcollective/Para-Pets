@@ -103,6 +103,9 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const legacyView = !!legacyLocationId || params.get("legacyView") === "1" ||
     ["fishHint", "shopHint", "moltenHint", "openFishMarket"].some(name => params.has(name));
   const returnWorld = params.get("returnWorld") ?? worldId;
+  const editorReturnWorld = params.get("returnEditor");
+  const canReturnToEditor = !!legacyLocationId && user?.isAdmin && user?.emailVerified &&
+    !!editorReturnWorld && isKnownWorldId(editorReturnWorld);
   const { data: publications, isLoading: publicationLoading } = useQuery<WorldScenePublication[]>({
     queryKey: ["/api/world-scene-publications"],
     queryFn: async () => {
@@ -188,7 +191,12 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
         </ViewportModalPortal>
       )}
-      {screenDone && legacyView && isKnownWorldId(returnWorld) && isPublishedWorld(returnWorld, publications ?? []) && (
+      {screenDone && canReturnToEditor && (
+        <button type="button" data-testid="button-return-to-world-editor"
+          className="absolute right-3 top-[max(60px,env(safe-area-inset-top))] z-[90] rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-xs font-semibold text-amber-200"
+          onClick={() => navigate(`/world-editor/${encodeURIComponent(editorReturnWorld!)}`)}>← World Editor</button>
+      )}
+      {screenDone && !canReturnToEditor && legacyView && isKnownWorldId(returnWorld) && isPublishedWorld(returnWorld, publications ?? []) && (
         <div className="absolute right-3 top-[max(60px,env(safe-area-inset-top))] z-[90] flex flex-col items-end gap-1">
           <button type="button" data-testid="button-return-to-new-world"
             className="rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-xs font-semibold text-amber-200"
