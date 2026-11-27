@@ -64,7 +64,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
             assetId: worldScenePlacements.assetId, npcId: worldScenePlacements.npcId,
             legacyLocationId: worldScenePlacements.legacyLocationId, isShop: worldScenePlacements.isShop })
             .from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId)).limit(4501),
-          db.select({ id: worldSceneAssets.id, kind: worldSceneAssets.kind,
+          db.select({ id: worldSceneAssets.id, kind: worldSceneAssets.kind, worldId: worldSceneAssets.worldId, name: worldSceneAssets.name,
             imageUrl: sql<string>`CASE WHEN length(${worldSceneAssets.imageUrl}) > 0 THEN 'ready' ELSE '' END` })
             .from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId)).limit(301),
           db.select({ id: shopItems.id, name: shopItems.name,

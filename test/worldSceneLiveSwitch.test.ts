@@ -86,7 +86,7 @@ const original = [
   { id: "janson", worldId: "swamp", name: "Janson", type: "npc", isShop: false },
   { id: "other", worldId: "haunted_woods", name: "Casino", type: "scenic", isShop: false },
 ];
-const assets = [{ id: "building", kind: "building", imageUrl: "art" }];
+const assets = [{ id: "building", kind: "building", worldId: "swamp", name: "Building", imageUrl: "art" }];
 const npcs = [{ id: "npc", name: "Janson", imageUrl: "art" }];
 const basePlacement = { kind: "building", assetId: "building", npcId: null, isShop: false };
 const ready: Parameters<typeof auditWorldActivation>[1]["placements"] = [

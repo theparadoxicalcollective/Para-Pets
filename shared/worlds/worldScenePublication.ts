@@ -1,4 +1,6 @@
 import { isKnownWorldId, type WorldId } from "./worldRegistry";
+import { BEAU_PRIZE_WHEEL_NPC_NAME } from "../beauPrizeWheel";
+import { resolveWorldSceneAction } from "./worldSceneActions";
 
 /** An independent, reversible player-facing choice for each registered world.
  * Saving an editor draft never changes this choice. */
@@ -30,7 +32,7 @@ type PublicationPlacement = {
   id: string; kind: string; assetId: string | null; npcId: string | null;
   legacyLocationId: string | null; isShop: boolean;
 };
-type PublicationAsset = { id: string; kind: string; imageUrl: string | null };
+type PublicationAsset = { id: string; kind: string; worldId: string; name: string; imageUrl: string | null };
 
 const normalizeName = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
 /** Use a unique same-world match only. Never silently bind an unrelated NPC
@@ -51,8 +53,8 @@ export function resolveLegacyNpcLocation(
 }
 
 /** A reversible first activation/re-activation must not strand any of the
- * original hotspots. Cross-world building links are supported by the editor,
- * but only a link to the original location itself satisfies its coverage. */
+ * original hotspots. A direct, code-owned gameplay entrance or a link to
+ * the original location itself can satisfy coverage; cross-world links cannot. */
 export function auditWorldActivation(worldId: string, input: {
   hasGround: boolean; placements: readonly PublicationPlacement[];
   assets: readonly PublicationAsset[]; npcs: readonly PublicationNpc[];
@@ -97,6 +99,13 @@ export function auditWorldActivation(worldId: string, input: {
   for (const item of input.interiorItems ?? []) {
     if (!buildings.has(item.buildingId) || (item.kind === "decor" && art.get(item.assetId ?? "")?.kind !== "decor"))
       blockers.add("A room decoration or its parent building is missing.");
+  }
+  // A migrated gameplay entrance can satisfy its original hotspot without
+  // keeping a redundant NPC or linking through legacy page data. Only the
+  // placed, valid artwork for this specific action counts as coverage.
+  if (input.placements.some(p => resolveWorldSceneAction(worldId, p.kind, art.get(p.assetId ?? "")) === "beau-prize-wheel")) {
+    const oldBeau = resolveLegacyNpcLocation(worldId, BEAU_PRIZE_WHEEL_NPC_NAME, input.locations);
+    if (oldBeau) covered.add(oldBeau.id);
   }
   for (const loc of input.locations) {
     if (loc.worldId === worldId && !covered.has(loc.id))

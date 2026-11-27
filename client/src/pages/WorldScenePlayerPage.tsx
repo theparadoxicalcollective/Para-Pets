@@ -22,6 +22,9 @@ import {
 import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_MAX, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/worldScenePublication";
 import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import type { WorldSceneAsset, WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
+import { resolveWorldSceneAction } from "@shared/worlds/worldSceneActions";
+import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
+import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
 
 interface PlayerScene extends WorldSceneContent {
   groundLevel: number;
@@ -122,6 +125,13 @@ export default function WorldScenePlayerPage({
   const placements = sceneContent?.placements ?? [];
   const assetsById = useMemo(() => new Map((sceneContent?.assets ?? []).map(a => [a.id, a])),
     [sceneContent?.assets]);
+  const sceneActions = useMemo(() => new Map(placements.flatMap(p => {
+    const asset = assetsById.get(p.assetId ?? "");
+    const action = asset?.imageUrl ? resolveWorldSceneAction(worldId, p.kind, asset) : null;
+    return action ? [[p.id, action] as const] : [];
+  })), [worldId, placements, assetsById]);
+  const hasHauntedSpin = [...sceneActions.values()].includes("beau-prize-wheel");
+  const beauWheel = useWorldSceneBeauWheel(hasHauntedSpin);
   const npcsById = useMemo(() => new Map((sceneContent?.npcs ?? []).map(n => [n.id, n])),
     [sceneContent?.npcs]);
   const linkedById = useMemo(() => new Map((sceneContent?.linkedPages ?? []).map(p => [p.id, p])),
@@ -211,6 +221,10 @@ export default function WorldScenePlayerPage({
   }
   function activate(item: WorldScenePlacement) {
     if (moved.current) { moved.current = false; return; }
+    if (sceneActions.get(item.id) === "beau-prize-wheel") {
+      void beauWheel.open();
+      return;
+    }
     if (item.kind === "building") setInside(item.id);
     if (item.kind === "npc") {
       const npc = item.npcId ? npcsById.get(item.npcId) : null;
@@ -236,7 +250,7 @@ export default function WorldScenePlayerPage({
     <button onClick={() => navigate("/map")} className="border border-amber-600 rounded-lg px-4 py-2">Back to Map</button>
   </div>;
 
-  return <div data-testid="player-new-world" className="relative w-full h-full overflow-hidden bg-[#08140d]">
+  return <div data-testid="player-new-world" data-has-haunted-spin={hasHauntedSpin ? "true" : undefined} className="relative w-full h-full overflow-hidden bg-[#08140d]">
     <div ref={viewportRef} data-testid="player-new-world-viewport" data-quest-guide-pan-surface
       className="absolute inset-0 z-0 isolate overflow-hidden touch-none"
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onEnd}
@@ -267,7 +281,8 @@ export default function WorldScenePlayerPage({
           const asset = p.assetId ? assetsById.get(p.assetId) : null;
           const npc = p.npcId ? npcsById.get(p.npcId) : null;
           const art = asset?.imageUrl ?? npc?.imageUrl ?? null;
-          const isInteractive = p.kind === "building" || p.kind === "npc";
+          const action = sceneActions.get(p.id);
+          const isInteractive = p.kind === "building" || p.kind === "npc" || !!action;
           const height = p.kind === "terrain" ? size * parkTerrainHeightRatio(p.effectType) : size;
           const legacyId = p.kind === "npc" ? npc?.legacyLocationId : p.legacyLocationId;
           // Portal mounts are the stable original location IDs used by Ginny,
@@ -276,6 +291,7 @@ export default function WorldScenePlayerPage({
           return <div key={p.id}
             data-testid={localLegacyId ? `location-${localLegacyId}` : undefined}
             data-new-world-npc={localLegacyId && p.kind === "npc" ? "true" : undefined}
+            data-world-scene-action={action}
             className="absolute pointer-events-none"
             style={{
               left: x, top: y, width: size, height,
@@ -309,6 +325,9 @@ export default function WorldScenePlayerPage({
                 <PetParkTerrainDetail type={p.effectType} />}
             </span>
           </button>
+          {action === "beau-prize-wheel" && beauWheel.freeSpinAvailable && <span
+            className="beau-free-spin-indicator" data-testid="haunted-spin-free-indicator"
+            aria-label="Beau has a free spin available"><span aria-hidden="true">!</span></span>}
           </div>;
         })}
         </div>
@@ -372,6 +391,10 @@ export default function WorldScenePlayerPage({
       </div>
       <p className="text-sm mt-2">{selectedNpc.message}</p>
     </div>}
+    {beauWheel.notice && <div role="status" className="pointer-events-none absolute inset-x-5 bottom-6 z-50 rounded-xl border border-[#b99952] bg-[#122a20]/95 p-3 text-center text-sm text-[#f6da97]">
+      {beauWheel.notice}
+    </div>}
+    {beauWheel.state && <BeauPrizeWheelDialog state={beauWheel.state} onClose={beauWheel.close} onStateChange={beauWheel.onStateChange} />}
     {(scene.isLoading || !viewportReady) && <div className="absolute inset-0 z-50 bg-[#0a1811] flex items-center justify-center text-[#f5dc9e]">
       Loading world…
     </div>}
