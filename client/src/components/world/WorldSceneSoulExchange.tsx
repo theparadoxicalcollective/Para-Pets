@@ -182,6 +182,12 @@ export default function WorldSceneSoulExchange({ stoneRef, geometryKey, onClose 
   const trayAbove = below < 170 && above > below;
   const available = Math.max(0, trayAbove ? above : below);
   const trayHeight = stone ? Math.max(100, Math.min(210, available - 12)) : 210;
+  // Anchor the chooser to the space directly beside the stone, not the
+  // bottom edge of the screen. Authored positions and viewport sizes vary.
+  const trayAnchor = stone ? Math.max(6, Math.min(
+    (trayAbove ? stone.height - stone.top : stone.bottom) + 6,
+    stone.height - trayHeight - 6,
+  )) : 6;
   return <div ref={root} className="pointer-events-none absolute inset-0 z-30"
     data-testid="world-soul-exchange">
     <style>{`
@@ -198,7 +204,7 @@ export default function WorldSceneSoulExchange({ stoneRef, geometryKey, onClose 
     `}</style>
     <section aria-label="Available pets for Soul Exchange"
       className="pointer-events-auto absolute inset-x-2 mx-auto flex max-w-md flex-col overflow-hidden rounded-xl border border-[#b48acb]/80 bg-[#21102e]/95 px-2 py-2 text-[#fff0ce] shadow-[0_0_18px_#a64ce145]"
-      style={{ [trayAbove ? "top" : "bottom"]: 6, maxHeight: trayHeight }}>
+      style={{ [!stone || trayAbove ? "bottom" : "top"]: trayAnchor, maxHeight: trayHeight }}>
       <div className="flex shrink-0 items-center justify-between gap-2 px-1">
         <span className="font-serif text-sm font-bold">Soul Exchange</span>
         {state && <span key={reward?.actionId ?? "balance"} data-testid="soul-exchange-essence-balance"

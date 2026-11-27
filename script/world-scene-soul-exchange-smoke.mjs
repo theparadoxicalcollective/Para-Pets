@@ -74,6 +74,9 @@ try{
     await stone.click();
     const petCard=tray.getByTestId("soul-exchange-pet-a"),handle=tray.getByTestId("soul-exchange-drag-a");
     await petCard.waitFor({state:"visible"});
+    const stoneBounds=await stone.boundingBox(),trayBounds=await tray.getByRole("region",{name:"Available pets for Soul Exchange"}).boundingBox();
+    assert.ok(stoneBounds&&trayBounds);
+    assert.ok(Math.abs(trayBounds.y-stoneBounds.y-stoneBounds.height)<20,"tray sits just below the stone when room allows");
     assert.match(await petCard.innerText(),/Shade/);
     assert.match(await petCard.innerText(),/Lvl 17/);
     assert.match(await petCard.innerText(),/★★★/);
