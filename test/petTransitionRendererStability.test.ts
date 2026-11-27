@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { normalizeCostumePlacements } from "../shared/costumeFeature";
-import { normalizePetParts, shouldUseLowMemoryPetRenderer, petCanvasScale } from "../client/src/lib/petRenderSafety";
+import { normalizePetParts, shouldUseLowMemoryPetRenderer, petCanvasScale, petArtworkCanvasFrame, petResponsiveFitTranslation } from "../client/src/lib/petRenderSafety";
 import type { RuntimeMode } from "../client/src/lib/runtimeMode";
 
 const app = readFileSync("client/src/App.tsx", "utf8");
@@ -128,4 +128,23 @@ test("mobile startup and costume layers do not request unused image or GPU alloc
   assert.match(app, /petImageUrl && !lowMemoryPreload/);
   assert.doesNotMatch(animator, /willChange: (?:animName|wrapper\.animation) \?/);
   assert.match(animator, /lowMemory=\{evolvedLowMemory\}/);
+});
+
+test("Home visible-fit canvases have a CSS square and normalized alpha translation, without resizing other pet pages", () => {
+  const expected = { top: 0, left: 0, width: "100%", height: "auto", aspectRatio: "1 / 1" };
+  // The deprecated fallback size cannot affect a responsive Home portrait.
+  assert.deepEqual(petArtworkCanvasFrame(58, 0, true), expected);
+  assert.deepEqual(petArtworkCanvasFrame(174, -12, true), expected);
+  // All non-Home callers retain their existing fixed-pixel canvas contract.
+  assert.deepEqual(petArtworkCanvasFrame(200, -26, false), { top: -26, left: -26, width: 200, height: 200 });
+  assert.equal(petResponsiveFitTranslation(500, 500, 1000), "translate(0.0000%, 0.0000%)");
+  assert.equal(petResponsiveFitTranslation(300, 700, 1000), "translate(20.0000%, -20.0000%)");
+  for (const source of [animator, animatorCore]) {
+    assert.match(source, /responsiveHomeCanvas = lowMemory && fillContainer && fitVisible && preciseLowMemoryFit/);
+    assert.match(source, /if \(responsiveHomeCanvas \|\|/);
+    assert.match(source, /petArtworkCanvasFrame\(/);
+  }
+  assert.match(animatorCore, /petResponsiveFitTranslation\(/);
+  assert.match(animatorCore, /responsive: responsiveHomeCanvas/);
+  assert.match(animator, /artworkCanvas\.responsive/);
 });
