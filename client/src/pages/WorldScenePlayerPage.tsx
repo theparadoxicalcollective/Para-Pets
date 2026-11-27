@@ -22,10 +22,11 @@ import {
 import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_MAX, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/worldScenePublication";
 import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import type { WorldSceneAsset, WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
-import { resolveWorldSceneAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
+import { resolveWorldSceneAction, resolveWorldSceneInteriorAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
 import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
 
+const WorldSceneSoulExchange = lazy(() => import("@/components/world/WorldSceneSoulExchange"));
 const WorldSceneFishingDialog = lazy(() => import("@/components/world/WorldSceneFishingDialog"));
 
 interface PlayerScene extends WorldSceneContent {
@@ -380,7 +381,7 @@ export default function WorldScenePlayerPage({
         {interiorUrl ? <PlayerRoom key={activeBuilding.id}
           imageUrl={interiorUrl}
           nightImageUrl={activeAsset?.interiorImageUrl ? activeAsset.nightInteriorImageUrl : null}
-          building={activeBuilding}
+          worldId={worldId} building={activeBuilding}
           items={(sceneContent?.interiorItems ?? []).filter(item => item.buildingId === activeBuilding.id)}
           assets={assetsById} lighting={lighting} />
           : <div className="flex items-center justify-center h-full">This room has no interior artwork yet.</div>}
@@ -416,14 +417,18 @@ export default function WorldScenePlayerPage({
 
 /** Match the authored room's natural aspect ratio and editor-relative 850px
  * size basis. A separate viewport keeps the room and UI above outdoor depth. */
-function PlayerRoom({ imageUrl, nightImageUrl, building, items, assets, lighting }: {
-  imageUrl: string; nightImageUrl: string | null; building: WorldScenePlacement;
+function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets, lighting }: {
+  worldId: string; imageUrl: string; nightImageUrl: string | null; building: WorldScenePlacement;
   items: WorldSceneInteriorItem[]; assets: Map<string, WorldSceneAsset>;
   lighting: ReturnType<typeof useHomeOutdoorLighting>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [ratio, setRatio] = useState(4 / 3);
+  const [soulStoneId, setSoulStoneId] = useState<string | null>(null);
+  const soulStoneRef = useRef<HTMLButtonElement>(null);
+  const soulStone = items.find(item => item.id === soulStoneId &&
+    resolveWorldSceneInteriorAction(worldId, item.kind, assets.get(item.assetId ?? "")) === "soul-exchange");
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
@@ -459,13 +464,20 @@ function PlayerRoom({ imageUrl, nightImageUrl, building, items, assets, lighting
       {items.map(item => {
         const asset = item.assetId ? assets.get(item.assetId) : null;
         const size = item.size * width / 850;
+        const isSoulStone = resolveWorldSceneInteriorAction(worldId, item.kind, asset) === "soul-exchange";
         return <div key={item.id} data-testid={`player-new-world-interior-item-${item.id}`}
           className="absolute pointer-events-none" style={{
             left: item.xPct * width, top: item.yPct * height, width: size, height: size,
             transform: `translate(-50%,-50%)${item.flipped ? " scaleX(-1)" : ""}`,
             zIndex: Math.round(item.yPct * 10000),
           }}>
-          {asset && <img src={asset.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" />}
+          {asset && (isSoulStone ? <button type="button"
+            ref={soulStoneId === item.id ? soulStoneRef : undefined}
+            data-testid="world-soul-exchange-stone" aria-label="The Soul Exchange Stone"
+            className="pointer-events-auto absolute inset-0 h-full w-full touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+            onClick={() => { if (!soulStone) setSoulStoneId(item.id); }}>
+            <img src={asset.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" />
+          </button> : <img src={asset.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" />)}
           {item.kind === "effect" && item.effectType && <span className="absolute inset-0"
             style={{ opacity: item.effectType === "warm_glow" ? lighting.daylightStrength : 1 }}>
             <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} />
@@ -473,5 +485,10 @@ function PlayerRoom({ imageUrl, nightImageUrl, building, items, assets, lighting
         </div>;
       })}
     </div>
+    {soulStone && <Suspense fallback={<div role="status" className="pointer-events-none absolute inset-x-3 bottom-3 rounded-lg bg-[#21102e]/95 p-3 text-center text-amber-100">Opening Soul Exchange…</div>}>
+      <WorldSceneSoulExchange key={soulStone.id} stoneRef={soulStoneRef}
+        geometryKey={`${width}:${height}:${soulStone.xPct}:${soulStone.yPct}:${soulStone.size}`}
+        onClose={() => setSoulStoneId(null)} />
+    </Suspense>}
   </div>;
 }
