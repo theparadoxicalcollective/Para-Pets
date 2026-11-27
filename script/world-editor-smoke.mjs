@@ -55,7 +55,7 @@ const shopMerchandise = {
   price: 150, imageUrl: art, eggImageUrl: null, hatchedImageUrl: null,
 };
 const interior = "data:image/svg+xml;base64," + Buffer.from(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#62513b"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900" fill="#62513b"/></svg>',
 ).toString("base64");
 const ids = {
   decor: "10000000-0000-4000-8000-000000000001",
@@ -280,6 +280,16 @@ try {
             : roleEdited && p.kind === "decor" && p.assetId === original.assetId ? { ...p, ...linked } : p);
         return route.fulfill({ json: record.scene.placements.find(p => p.id === id) });
       }
+      if (req.method() === "POST" && tail === "interior-items") {
+        const item = { id: `50000000-0000-4000-8000-${String(createdIndex++).padStart(12, "0")}`,
+          worldId, ...req.postDataJSON() };
+        record.scene.interiorItems.push(item);
+        return route.fulfill({ status: 201, json: item });
+      }
+      if (req.method() === "DELETE" && tail.startsWith("interior-items/")) {
+        record.scene.interiorItems = record.scene.interiorItems.filter(item => item.id !== tail.slice("interior-items/".length));
+        return route.fulfill({ json: { deleted: true } });
+      }
       if (req.method() === "PATCH" && tail.startsWith("interior-items/")) {
         const id = tail.slice("interior-items/".length);
         record.scene.interiorItems = record.scene.interiorItems.map(p => p.id === id ? { ...p, ...req.postDataJSON() } : p);
@@ -370,6 +380,18 @@ try {
     await page.getByTestId("world-editor-interior").waitFor({ state: "visible" });
     assert.equal(await page.getByTestId("world-editor-interior").locator("img").first().getAttribute("src"),
       interior, name + ": standalone building uses its own saved interior artwork");
+    const shopArt = page.getByTestId("world-editor-interior");
+    const shopAddButton = page.getByTestId("world-shop-add-item");
+    const shopButtonBefore = await shopAddButton.boundingBox();
+    const shopArtBefore = await shopArt.boundingBox();
+    await page.mouse.move(width * .8, height * .32);
+    await page.mouse.down();
+    await page.mouse.move(width * .2, height * .32, { steps: 6 });
+    await page.mouse.up();
+    assert.ok((await shopArt.boundingBox()).x < shopArtBefore.x - 50,
+      name + ": shop artwork pans like an ordinary room");
+    assert.deepEqual(await shopAddButton.boundingBox(), shopButtonBefore,
+      name + ": shop Add Item stays onscreen while artwork pans");
     await page.getByRole("button", { name: "Exit Room" }).click();
 
     // Model a link already saved before the UI was removed. Refresh the real
@@ -720,12 +742,105 @@ try {
     // The existing fixture includes an interior lamp, so the SVG mask is live.
     await page.getByRole("button", { name: "Deselect world object" }).click();
     await page.getByTestId("world-scene-placement-" + ids.building).click();
+    const exteriorBeforeRoom = await page.getByTestId("world-scene-placement-" + ids.building).boundingBox();
     await page.getByRole("button", { name: "Enter Building" }).click();
     const darknessSlider = page.getByTestId("world-editor-interior-darkness-slider");
     await darknessSlider.waitFor({ state: "visible" });
     assert.equal(await darknessSlider.inputValue(), "35",
       name + ": existing world building has a 35% starting darkness");
-    const interiorMask = page.getByTestId("world-editor-interior").getByTestId("home-interior-darkness-layer");
+    const room = page.getByTestId("world-editor-interior");
+    {
+      const roomViewport = page.getByTestId("world-scene-draft-viewport");
+      // Actual wide room artwork must fill the height, not shrink into a strip.
+      await room.locator("img").first().evaluate(img => img.decode());
+      await page.waitForFunction(() => {
+        const room = document.querySelector('[data-testid="world-editor-interior"]').getBoundingClientRect();
+        const viewport = document.querySelector('[data-testid="world-scene-draft-viewport"]').getBoundingClientRect();
+        return Math.abs(room.height - viewport.height) < 2 &&
+          Math.abs(room.width / room.height - 16 / 9) < .01;
+      });
+      const fullRoom = await room.boundingBox();
+      const visibleViewport = await roomViewport.boundingBox();
+      const writesBeforePan = apiWrites.length;
+      const beforePanItems = structuredClone(worlds.haunted_woods.scene.interiorItems);
+      // Genuine touch input: drag background sideways, without altering items.
+      const cdp = await context.newCDPSession(page);
+      const swipeRoom = async (fromX, toX, y) => {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: fromX, y }] });
+        for (let i = 1; i <= 6; i++)
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: fromX + (toX - fromX) * i / 6, y }] });
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      };
+      await swipeRoom(width * .75, width * .25, height * .28);
+      assert.ok((await room.boundingBox()).x < fullRoom.x - 50, name + ": swiping the artwork pans the full-height room");
+      assert.deepEqual(worlds.haunted_woods.scene.interiorItems, beforePanItems, name + ": panning changes no placement");
+      assert.equal(apiWrites.length, writesBeforePan, name + ": pans do not save changes");
+      const pannedBox = await room.boundingBox();
+      const expectedX = (visibleViewport.x + visibleViewport.width / 2 - pannedBox.x) / pannedBox.width;
+      await page.getByRole("button", { name: "+ Decor", exact: true }).click();
+      await page.getByLabel("Scene item artwork").setInputFiles({
+        name: "Interior Decor.png", mimeType: "image/png", buffer: png,
+      });
+      await page.getByAltText("New decoration preview").waitFor();
+      const newInteriorSaved = page.waitForResponse(r => r.url().endsWith("/interior-items") && r.request().method() === "POST");
+      await page.getByTestId("button-create-world-decoration").click();
+      const newInterior = await (await newInteriorSaved).json();
+      assert.equal(await roomViewport.evaluate(el => el.scrollLeft), 0,
+        name + ": focus does not scroll the camera viewport");
+      assert.ok(Math.abs(newInterior.xPct - expectedX) < .003,
+        name + ": a new decoration appears in the panned region, not offscreen at the center of the full artwork: " +
+          JSON.stringify({ actual: newInterior.xPct, expectedX, pannedBox, after: await room.boundingBox(), visibleViewport,
+            scroll: await roomViewport.evaluate(el => ({ left: el.scrollLeft, top: el.scrollTop })) }));
+      await page.getByTestId("world-interior-item-" + newInterior.id).waitFor();
+      const newItemBox = await page.getByTestId("world-interior-item-" + newInterior.id).boundingBox();
+      assert.ok(Math.abs(newItemBox.x + newItemBox.width / 2 - (visibleViewport.x + visibleViewport.width / 2)) < 2);
+      await Promise.all([
+        page.waitForResponse(r => r.url().endsWith("/interior-items/" + newInterior.id) && r.request().method() === "DELETE"),
+        page.getByRole("button", { name: "Remove", exact: true }).click(),
+      ]);
+      await page.getByTestId("world-editor-interior-darkness-slider").waitFor();
+      const writesBeforeZoom = apiWrites.length;
+      // The bottom controls are fixed; drag the room upward to expose art
+      // that would otherwise remain hidden behind them.
+      await page.mouse.move(width * .85, height * .58);
+      await page.mouse.down();
+      await page.mouse.move(width * .85, height * .28, { steps: 5 });
+      await page.mouse.up();
+      assert.ok((await room.boundingBox()).y < -50, name + ": room floor can be brought above the toolbar");
+      await page.getByRole("button", { name: "Fit room", exact: true }).click();
+      const fitted = await room.boundingBox();
+      assert.ok(fitted.width <= visibleViewport.width + 1 && fitted.height < visibleViewport.height,
+        name + ": Fit room restores a whole-room overview");
+      await page.getByRole("button", { name: "Full room", exact: true }).click();
+      await page.getByRole("button", { name: "Zoom room in" }).click();
+      assert.ok((await room.boundingBox()).height > visibleViewport.height * 1.2,
+        name + ": room-only zoom allows finer placement");
+      await page.getByRole("button", { name: "Zoom room out" }).click();
+      assert.ok(Math.abs((await room.boundingBox()).height - fullRoom.height) < 2);
+      assert.equal(apiWrites.length, writesBeforeZoom, name + ": room camera never saves changes");
+      // Fit then Full recenters the room. Drag a selected item in the enlarged
+      // room and verify its PATCH still uses the original artwork fractions.
+      const itemForDrag = page.getByTestId("world-interior-item-" + ids.room);
+      await itemForDrag.tap();
+      await page.getByTestId("world-scene-selected-controls").waitFor();
+      const itemBox = await itemForDrag.boundingBox();
+      const roomBox = await room.boundingBox();
+      const dx = width * .08, dy = -36;
+      const beforeMove = worlds.haunted_woods.scene.interiorItems.find(i => i.id === ids.room);
+      const itemSaved = page.waitForResponse(r => r.url().endsWith("/interior-items/" + ids.room) && r.request().method() === "PATCH");
+      await page.mouse.move(itemBox.x + itemBox.width / 2, itemBox.y + itemBox.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(itemBox.x + itemBox.width / 2 + dx, itemBox.y + itemBox.height / 2 + dy, { steps: 5 });
+      await page.mouse.up();
+      await itemSaved;
+      const afterMove = worlds.haunted_woods.scene.interiorItems.find(i => i.id === ids.room);
+      assert.ok(Math.abs(afterMove.xPct - beforeMove.xPct - dx / roomBox.width) < .003);
+      assert.ok(Math.abs(afterMove.yPct - beforeMove.yPct - dy / roomBox.height) < .003);
+      assert.equal(apiWrites.filter(w => w.tail === "interior-items/" + ids.room).length, 1);
+      await page.getByRole("button", { name: "Deselect world object" }).click();
+      await cdp.detach();
+    }
+    const interiorMask = room.getByTestId("home-interior-darkness-layer");
     assert.equal(await interiorMask.evaluate(element => element.tagName.toLowerCase()), "svg",
       name + ": interior uses a consistent SVG darkness mask with an active light");
     assert.equal(await interiorMask.locator("mask circle").count(),2,
@@ -758,7 +873,11 @@ try {
       write.body.interiorDarkness !== undefined).length, 1,
       name + ": a single keyboard gesture sends one save request");
     await page.getByRole("button", { name: "Exit Room" }).click();
-    await page.getByTestId("world-scene-placement-" + ids.building).click();
+    // Leaving preserves both the exterior camera and building selection.
+    // Re-enter via the already-visible movement toolbar, without a redundant
+    // tap that could hit the toolbar if the building is behind it.
+    assert.deepEqual(await page.getByTestId("world-scene-placement-" + ids.building).boundingBox(), exteriorBeforeRoom,
+      name + ": interior pan/zoom never changes the outdoor camera");
     await page.getByRole("button", { name: "Enter Building" }).click();
     assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
       name + ": reopening the building retains its saved darkness");

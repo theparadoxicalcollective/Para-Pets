@@ -24,6 +24,7 @@ import {
   worldEditorCameraGeometry, worldEditorClampZoom, worldEditorMinZoom,
   worldEditorClampCamera, worldEditorZoomAnchorPan,
 } from "@/lib/worldEditorCamera";
+import { worldEditorInteriorCamera, interiorCameraCenter } from "@/lib/worldEditorInteriorCamera";
 import { PARK_GROUND_PALETTES } from "@/lib/petParkGroundPalette";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { decorDrawDepth, decorRole } from "@shared/decorSurface";
@@ -120,7 +121,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const darknessSaveInFlight = useRef(false);
   const [darknessSaving, setDarknessSaving] = useState(false);
   const [objectPreview, setObjectPreview] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const [interiorRatio, setInteriorRatio] = useState(4 / 3);
+  const [interiorArtwork, setInteriorArtwork] = useState<{ url: string; aspect: number } | null>(null);
+  const [interiorZoom, setInteriorZoom] = useState(1);
+  const [interiorCenter, setInteriorCenter] = useState({ x: .5, y: .5 });
+  const interiorDrag = useRef<{ id: number; x: number; y: number; pan: { x: number; y: number } } | null>(null);
   const [busyPlacement, setBusyPlacement] = useState(false);
   // Preview the same viewer-local visual clock as Pet Park.
   const { data: clockAccount } = useQuery<{ timeZone?: string | null }>({
@@ -337,8 +341,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   // A linked legacy page takes priority as this new building's interior
   // preview. The original legacy page assets are never copied or edited.
   const interiorImageUrl = linkedLegacyPage?.bgUrl ?? interiorAsset?.interiorImageUrl;
-  const interiorW = Math.min(size.width, size.height * interiorRatio);
-  const interiorH = interiorW / interiorRatio;
+  const interiorRatio = interiorArtwork && interiorArtwork.url === interiorImageUrl ? interiorArtwork.aspect : 4 / 3;
+  const roomCamera = worldEditorInteriorCamera(size, interiorRatio, interiorZoom, interiorCenter);
+  const interiorW = roomCamera.width;
+  const interiorH = roomCamera.height;
+  const roomPoint = { xPct: roomCamera.center.x, yPct: roomCamera.center.y };
   const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
     .filter(item => item.buildingId === activeBuilding.id &&
       (isHouseInteriorEffectType(item.effectType) || item.effectType === "colored_light"))
@@ -349,7 +356,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       type: (item.effectType === "colored_light" ? "lamp_light" : item.effectType) as HouseInteriorEffect["type"],
       x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
 
-  useEffect(() => { setInteriorRatio(4 / 3); }, [activeBuildingId, interiorImageUrl]);
+  useEffect(() => {
+    setInteriorZoom(1);
+    setInteriorCenter({ x: .5, y: .5 });
+    interiorDrag.current = null;
+  }, [activeBuildingId, interiorImageUrl]);
 
   const saveDraft = useMutation({
     mutationFn: async (payload: WorldSceneDraftSettings) => {
@@ -417,7 +428,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     return parkBrushWorldPoint(x, y, rect, size,
       { x: actualPan.x, y: actualPan.y }, { width: camera.sceneWidth, height: camera.sceneHeight });
   };
-  const createPoint = {
+  const createPoint = activeBuilding ? roomPoint : {
     xPct: Math.max(0, Math.min(1, (size.width / 2 - actualPan.x) / camera.sceneWidth)),
     yPct: Math.max(0, Math.min(1, (size.height / 2 - actualPan.y) / camera.sceneHeight)),
   };
@@ -481,8 +492,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     if (Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) < 7) return;
     selectedPageTap.current = null;
     const relative = drag.kind === "outdoor" ? viewportPoint(event.clientX, event.clientY) : {
-      xPct: drag.startX + (event.clientX - drag.startX) / Math.max(1, interiorW),
-      yPct: drag.startY + (event.clientY - drag.startY) / Math.max(1, interiorH),
+      xPct: drag.startX + (event.clientX - drag.startX) / Math.max(1, interiorRef.current?.getBoundingClientRect().width ?? interiorW),
+      yPct: drag.startY + (event.clientY - drag.startY) / Math.max(1, interiorRef.current?.getBoundingClientRect().height ?? interiorH),
     };
     const next = {
       xPct: Math.max(0, Math.min(1, drag.xPct + relative.xPct - drag.startX)),
@@ -511,6 +522,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const cancelObject = () => { selectedPageTap.current = null; objectDrag.current = null; setObjectPreview(null); };
 
   const endTouch = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (activeBuilding) {
+      if (interiorDrag.current?.id === event.pointerId) interiorDrag.current = null;
+      return;
+    }
     touchPoints.current.delete(event.pointerId);
     if (pendingObjectTap.current?.pointerId === event.pointerId)
       pendingObjectTap.current = null;
@@ -585,6 +600,34 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     }
   };
 
+  // Room-only background gestures never update authored placements or the
+  // exterior camera. Selected artwork and shop merchandise own their drags.
+  const startRoomPan = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interiorImageUrl || !event.isPrimary || objectDrag.current ||
+        (event.pointerType === "mouse" && event.button !== 0)) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("button") && !target.closest('[data-testid^="world-interior-item-"]')) return;
+    interiorDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, pan: roomCamera.pan };
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+  };
+  const moveRoomPan = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = interiorDrag.current;
+    if (drag?.id !== event.pointerId) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pan = {
+      x: drag.pan.x + (event.clientX - drag.x) * size.width / Math.max(1, rect.width),
+      y: drag.pan.y + (event.clientY - drag.y) * size.height / Math.max(1, rect.height),
+    };
+    const next = worldEditorInteriorCamera(size, interiorRatio, interiorZoom,
+      interiorCameraCenter(size, roomCamera, pan));
+    setInteriorCenter(next.center);
+  };
+  const changeRoomZoom = (value: number) => {
+    if (objectDrag.current || interiorDrag.current) return;
+    setInteriorCenter(roomCamera.center);
+    setInteriorZoom(value);
+  };
+
   const dirtPatches = useMemo(() => content.placements.filter(p => p.kind === "terrain" && p.effectType === "dirt_path")
     .map(p => ({ xPct: p.xPct, yPct: p.yPct, size: p.size })), [content.placements]);
   const stonePatches = useMemo(() => content.placements.filter(p => p.kind === "terrain" && p.effectType === "stone_path")
@@ -608,8 +651,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     onPointerDownCapture={event => {
       if (event.target instanceof Node && !viewportRef.current?.contains(event.target)) resetPageGesture();
     }}>
+    {/* Use clipping, not a scroll container: browser focus must not scroll
+        the artwork independently of the authored camera. */}
     <div ref={viewportRef} data-testid="world-scene-draft-viewport"
-      className="absolute inset-0 overflow-hidden" style={{ touchAction: "none", cursor: "grab" }}
+      className="absolute inset-0 overflow-clip" style={{ touchAction: "none", cursor: "grab" }}
       onPointerDownCapture={event => {
         if (paintMode || activeBuilding || beauWheel.isOpening || beauWheel.state || !event.isPrimary ||
             (event.button !== 0 && event.pointerType === "mouse")) return;
@@ -681,13 +726,20 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         endTouch(event);
         event.stopPropagation();
       }}
-      onPointerDown={startCamera} onPointerMove={moveCamera}
+      onPointerDown={activeBuilding ? startRoomPan : startCamera}
+      onPointerMove={activeBuilding ? moveRoomPan : moveCamera}
       onPointerUp={endTouch} onPointerCancel={endTouch}
       onLostPointerCapture={endTouch}
       onWheel={event => {
-        // Match Pet Park: plain trackpad/wheel zoom and pointer-centered focus,
-        // without requiring Ctrl or Shift on a desktop editing browser.
+        // Desktop wheel zoom is scoped to the currently open room or world.
+        // The exterior keeps its existing pointer-centered focus.
         event.preventDefault();
+        if (activeBuilding) {
+          if (interiorImageUrl) changeRoomZoom(event.deltaY > 0
+            ? (interiorZoom <= 1 ? 0 : Math.max(1, interiorZoom - .25))
+            : Math.min(2, interiorZoom === 0 ? 1 : interiorZoom + .25));
+          return;
+        }
         const rect = event.currentTarget.getBoundingClientRect();
         changeZoom(zoom * (event.deltaY > 0 ? 0.94 : 1.06), {
           x: (event.clientX - rect.left) * size.width / Math.max(1, rect.width),
@@ -783,17 +835,17 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         </div>
       </> : interiorImageUrl ? <div
         ref={interiorRef} data-testid="world-editor-interior"
-        className="absolute overflow-hidden border border-[#9d8651]/60"
+        className="absolute overflow-hidden"
         style={{
-          left: (size.width - interiorW) / 2, top: (size.height - interiorH) / 2,
+          left: roomCamera.pan.x, top: roomCamera.pan.y,
           width: interiorW, height: interiorH,
         }}>
-        <img src={interiorImageUrl} alt={(linkedLegacyPage?.name ?? interiorAsset?.name ?? "World building") + " interior"}
+        <img key={interiorImageUrl} src={interiorImageUrl} alt={(linkedLegacyPage?.name ?? interiorAsset?.name ?? "World building") + " interior"}
           className="absolute inset-0 h-full w-full object-fill" draggable={false}
           onLoad={event => {
             const img = event.currentTarget;
             if (img.naturalWidth > 0 && img.naturalHeight > 0)
-              setInteriorRatio(img.naturalWidth / img.naturalHeight);
+              setInteriorArtwork({ url: interiorImageUrl, aspect: img.naturalWidth / img.naturalHeight });
           }} />
         {!linkedLegacyPage && interiorAsset?.nightInteriorImageUrl && <img
           src={interiorAsset.nightInteriorImageUrl} alt="" aria-hidden="true" draggable={false}
@@ -841,7 +893,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           </button>;
         })}
         {activeBuilding.isShop && <WorldShopShelf worldId={worldId} building={activeBuilding}
-          roomWidth={interiorW} roomHeight={interiorH}
+          roomWidth={interiorW} roomHeight={interiorH} roomPoint={roomPoint}
+          visibleRoomWidth={Math.min(1, size.width / interiorW)}
+          visibleRoomHeight={Math.min(1, size.height / interiorH)}
           onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
           onSelectionChange={setEditingShopItem} />}
       </div> : <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-[#decba0]">
@@ -882,6 +936,20 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             {saveDraft.isPending ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "⛶ Expand"}
           </button>}
       </div>
+      {activeBuilding && interiorImageUrl && <div
+        className="mt-2 flex justify-center gap-1.5" aria-label="Room view">
+        <button type="button" aria-label="Zoom room out" disabled={interiorZoom === 0}
+          className="pointer-events-auto rounded-full border border-amber-500/40 bg-black/80 px-3 py-2 text-xs text-[#f5cf64] disabled:opacity-40"
+          onClick={() => changeRoomZoom(interiorZoom <= 1 ? 0 : Math.max(1, interiorZoom - .25))}>−</button>
+        <button type="button" aria-pressed={interiorZoom === 0}
+          className="pointer-events-auto rounded-full border border-amber-500/40 bg-black/80 px-3 py-2 text-xs text-[#f5cf64]"
+          onClick={() => changeRoomZoom(interiorZoom === 0 ? 1 : 0)}>
+          {interiorZoom === 0 ? "Full room" : "Fit room"}
+        </button>
+        <button type="button" aria-label="Zoom room in" disabled={interiorZoom >= 2}
+          className="pointer-events-auto rounded-full border border-amber-500/40 bg-black/80 px-3 py-2 text-xs text-[#f5cf64] disabled:opacity-40"
+          onClick={() => changeRoomZoom(Math.min(2, interiorZoom === 0 ? 1 : interiorZoom + .25))}>+</button>
+      </div>}
     </header>
     {!paintMode && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
       style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
@@ -903,7 +971,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
         onSelect={id => { resetPageGesture(); setSelectedId(id); }} onSelectInterior={setSelectedInteriorId}
         selectedPageAvailable={!!selectedPage}
-        onEnter={id => { setActiveBuildingId(id); setSelectedInteriorId(null); setPan(null); }}
+        onEnter={id => { setActiveBuildingId(id); setSelectedInteriorId(null); }}
         onPaint={() => setPaintMode(true)}
         groundTheme={groundTheme}
         zoom={zoom} minZoom={minZoom}

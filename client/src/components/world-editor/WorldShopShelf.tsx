@@ -58,9 +58,10 @@ function ShopPriceTag({ itemBoxSize }: { itemBoxSize: number }) {
  * pricing mutations, new coordinate stages, or catalog duplication.
  */
 export default function WorldShopShelf({
-  worldId, building, roomWidth, roomHeight, onChanged, onSelectionChange,
+  worldId, building, roomWidth, roomHeight, roomPoint, visibleRoomWidth, visibleRoomHeight, onChanged, onSelectionChange,
 }: {
   worldId: string; building: WorldScenePlacement; roomWidth: number; roomHeight: number;
+  roomPoint: { xPct: number; yPct: number }; visibleRoomWidth: number; visibleRoomHeight: number;
   onChanged: () => void; onSelectionChange?: (editing: boolean) => void;
 }) {
   const { toast } = useToast();
@@ -166,7 +167,15 @@ export default function WorldShopShelf({
   const addItem = (itemId: string) => {
     if (ids.includes(itemId) || ids.length >= PARK_SHOP_MAX_ITEMS || savingRef.current) return;
     const nextIds = [...ids, itemId];
-    const next = [...layoutRef.current, defaultParkShopPlacement(itemId, ids.length)];
+    const placement = defaultParkShopPlacement(itemId, ids.length);
+    // Preserve the normal stock layout, except when the new item would
+    // appear outside the camera. In that case place it in the visible room.
+    const visible = Math.abs(placement.xPct - roomPoint.xPct) < visibleRoomWidth / 2 &&
+      Math.abs(placement.yPct - roomPoint.yPct) < visibleRoomHeight / 2;
+    const next = [...layoutRef.current, visible ? placement : { ...placement,
+      xPct: Math.max(.03, Math.min(.97, roomPoint.xPct)),
+      yPct: Math.max(.03, Math.min(.97, roomPoint.yPct)),
+    }];
     void save(nextIds, next, ids, layoutRef.current);
   };
   const removeItem = () => {
@@ -269,10 +278,13 @@ export default function WorldShopShelf({
   if (!building.isShop) return null;
 
   return <>
+    <ViewportModalPortal blocking={false}>
     <button type="button" data-testid="world-shop-add-item" aria-label="Add shop merchandise"
+      onPointerDown={event => event.stopPropagation()}
       onClick={event => { event.stopPropagation(); setShowPicker(true); }}
       className="pointer-events-auto absolute left-3 z-50 rounded-full border border-[#e6c77f]/75 bg-[#214d35]/95 px-3 py-2.5 text-xs font-semibold text-[#f5d795] shadow-xl"
       style={{ top: "max(117px, calc(env(safe-area-inset-top, 0px) + 65px))" }}>+ Add Item</button>
+    </ViewportModalPortal>
     <div data-testid="world-shop-shelf" className="pointer-events-none absolute inset-0 z-[15]">
       {layout.map(p => {
         const item = byId.get(p.itemId);
@@ -413,8 +425,8 @@ export default function WorldShopShelf({
         </section>
       </div>
     </ViewportModalPortal>}
-    {saving && <div role="status" className="pointer-events-none absolute bottom-2 right-3 z-50 rounded-lg bg-[#10291d]/90 px-2 py-1 text-xs text-amber-200">
+    {saving && <ViewportModalPortal blocking={false}><div role="status" className="pointer-events-none absolute bottom-2 right-3 z-50 rounded-lg bg-[#10291d]/90 px-2 py-1 text-xs text-amber-200">
       Saving shop…
-    </div>}
+    </div></ViewportModalPortal>}
   </>;
 }

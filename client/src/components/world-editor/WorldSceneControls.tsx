@@ -142,7 +142,7 @@ export default function WorldSceneControls(props: Props) {
     if (!props.activeBuilding) return;
     const result = await mutate("POST", "/interior-items", {
       buildingId: props.activeBuilding.id, kind, assetId, effectType,
-      xPct: 0.5, yPct: 0.5, size, flipped: false,
+      xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct, size, flipped: false,
     }) as WorldSceneInteriorItem | null;
     if (result) { props.onSelectInterior(result.id); setPanel("selected"); setExpanded(false); }
   };
@@ -371,9 +371,8 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-        {props.selected?.kind !== "building" && <span className="ml-auto self-center text-[10px] text-amber-100/65">
-          {props.activeBuilding ? "Drag selected artwork to move"
-            : "Drag selected artwork to move · swipe background to pan"}
+        {(props.activeBuilding || props.selected?.kind !== "building") && <span className="ml-auto self-center text-[10px] text-amber-100/65">
+          Drag selected artwork to move · swipe background to pan
         </span>}
       </div>
       {!props.activeBuilding && props.selectedPageAvailable && <p className="text-center text-[10px] text-amber-100/80">
