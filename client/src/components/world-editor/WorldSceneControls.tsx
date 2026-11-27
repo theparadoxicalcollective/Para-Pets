@@ -69,6 +69,7 @@ export default function WorldSceneControls(props: Props) {
   const [search, setSearch] = useState("");
   const [themeDraft, setThemeDraft] = useState<WorldGroundTheme>(props.groundTheme);
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
+  const [decorNameDraft, setDecorNameDraft] = useState("");
   // Keep the new legacy page choice visible immediately while the admin
   // PATCH and React Query scene refresh complete. Roll back on a failed save.
   const [legacyChoice, setLegacyChoice] = useState<{
@@ -248,6 +249,12 @@ export default function WorldSceneControls(props: Props) {
   };
 
   const selectedItem = props.activeBuilding ? props.selectedInterior : props.selected;
+  const selectedDecorAsset = selectedItem?.kind === "decor"
+    ? props.scene.assets.find(asset => asset.kind === "decor" && asset.id === selectedItem.assetId)
+    : undefined;
+  useEffect(() => {
+    setDecorNameDraft(selectedDecorAsset?.name ?? "");
+  }, [selectedDecorAsset?.id, selectedDecorAsset?.name, expanded]);
   const patchShop = async (values: Record<string, unknown>) => {
     if (!shopBuilding) return;
     await mutate("PATCH", `/placements/${shopBuilding.id}`, values);
@@ -594,6 +601,20 @@ export default function WorldSceneControls(props: Props) {
             <p className="text-[11px] text-amber-100/75">
               Close this panel to move the selected object. Size, flip and duplicate stay available on the scene.
             </p>
+      {selectedDecorAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-3"
+        data-testid="world-decoration-name-editor">
+        <label className="block space-y-1 text-xs font-semibold">Decoration Name
+          <input value={decorNameDraft} maxLength={80} disabled={busy} className={field}
+            onChange={event => setDecorNameDraft(event.target.value)} />
+        </label>
+        <button type="button" className={control}
+          disabled={busy || !decorNameDraft.trim() || decorNameDraft.trim() === selectedDecorAsset.name}
+          onClick={async () => {
+            const saved = await mutate("PATCH", `/assets/${selectedDecorAsset.id}`, { name: decorNameDraft.trim() });
+            if (saved) toast({ title: "Decoration name saved" });
+          }}>Save Name</button>
+        <p className="text-[11px] font-normal text-amber-100/70">All linked copies share this name.</p>
+      </div>}
       {!props.activeBuilding && props.selected?.kind === "decor" && <>
         <DecorSurfaceSelector name={`world-decor-role-${props.selected.id}`}
           testId="world-decoration-behavior"

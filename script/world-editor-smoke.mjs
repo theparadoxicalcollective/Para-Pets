@@ -228,6 +228,16 @@ try {
         record.scene.assets.push(asset);
         return route.fulfill({ status: 201, json: asset });
       }
+      if (req.method() === "PATCH" && tail.startsWith("assets/")) {
+        const id = tail.slice("assets/".length);
+        const asset = record.scene.assets.find(a => a.id === id);
+        const body = req.postDataJSON();
+        if (!asset) return route.fulfill({ status: 404, json: { message: "Asset not found in this world" } });
+        if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 80)
+          return route.fulfill({ status: 400, json: { message: "Invalid asset name" } });
+        asset.name = body.name.trim();
+        return route.fulfill({ json: asset });
+      }
       if (req.method() === "POST" && tail === "placements") {
         const id = `40000000-0000-4000-8000-${String(createdIndex++).padStart(12, "0")}`;
         // Model the actual DB-returned defaults, not just the POST request.
@@ -486,6 +496,33 @@ try {
     assert.equal(secondDecor.decorSurface, "grass",
       name + ": copying a Grass decoration must inherit Grass automatically");
     await page.getByRole("button", { name: "Edit selected object details" }).click();
+    const decorNamePanel = page.getByTestId("world-decoration-name-editor");
+    await decorNamePanel.waitFor({ state: "visible" });
+    const decorName = decorNamePanel.getByLabel("Decoration Name");
+    const saveDecorName = decorNamePanel.getByRole("button", { name: "Save Name" });
+    assert.equal(await decorName.inputValue(), "Haunted Lantern", name + ": decor name starts with the saved asset name");
+    assert.equal(await saveDecorName.isDisabled(), true);
+    await decorName.fill("   ");
+    assert.equal(await saveDecorName.isDisabled(), true, name + ": blank names cannot be saved");
+    await decorName.fill("  Haunted Fishing Leaderboard  ");
+    const originalAsset = structuredClone(worlds.haunted_woods.scene.assets.find(a => a.id === firstDecor.assetId));
+    const originalPlacements = structuredClone(worlds.haunted_woods.scene.placements);
+    const otherWorld = structuredClone(worlds.swamp.scene);
+    const [renamedResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().endsWith("/assets/" + firstDecor.assetId) && r.request().method() === "PATCH"),
+      saveDecorName.click(),
+    ]);
+    assert.ok(renamedResponse.ok());
+    assert.deepEqual(apiWrites.at(-1).body, { name: "Haunted Fishing Leaderboard" });
+    await page.getByRole("heading", { name: "Edit Haunted Fishing Leaderboard" }).waitFor();
+    assert.deepEqual(worlds.haunted_woods.scene.assets.find(a => a.id === firstDecor.assetId),
+      { ...originalAsset, name: "Haunted Fishing Leaderboard" }, name + ": renaming changes only the asset name");
+    assert.deepEqual(worlds.haunted_woods.scene.placements, originalPlacements,
+      name + ": all linked copies preserve their IDs, position, size, behavior and effects");
+    assert.deepEqual(worlds.swamp.scene, otherWorld, name + ": no other world is changed");
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await page.getByRole("button", { name: "Edit selected object details" }).click();
+    assert.equal(await decorName.inputValue(), "Haunted Fishing Leaderboard", name + ": reopening shows the saved name");
     const rolePanel = page.getByTestId("world-decoration-behavior");
     await rolePanel.waitFor({ state: "visible" });
     await Promise.all([
@@ -712,6 +749,23 @@ try {
     await page.getByRole("button", { name: "Enter Building" }).click();
     assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
       name + ": reopening the building retains its saved darkness");
+    // The same shared asset can also be named from an interior decoration.
+    const roomItem = page.getByTestId("world-interior-item-" + ids.room);
+    await roomItem.focus();
+    await roomItem.press("Enter");
+    await page.getByRole("button", { name: "Edit selected object details" }).click();
+    const insideName = page.getByTestId("world-decoration-name-editor").getByLabel("Decoration Name");
+    assert.equal(await insideName.inputValue(), worlds.haunted_woods.scene.assets.find(a => a.id === ids.decor).name);
+    const beforeRoomItems = structuredClone(worlds.haunted_woods.scene.interiorItems);
+    await insideName.fill("Room Lantern");
+    await Promise.all([
+      page.waitForResponse(r => r.url().endsWith("/assets/" + ids.decor) && r.request().method() === "PATCH"),
+      page.getByTestId("world-decoration-name-editor").getByRole("button", { name: "Save Name" }).click(),
+    ]);
+    await page.getByRole("heading", { name: "Edit Room Lantern" }).waitFor();
+    assert.deepEqual(worlds.haunted_woods.scene.interiorItems, beforeRoomItems, name + ": interior placement stays unchanged");
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await page.getByRole("button", { name: "Deselect world object" }).click();
     await page.getByRole("button", { name: "Exit Room" }).click();
     // The previously selected building intentionally stays selected when
     // leaving its room. Deselect before using the outdoor terrain toolbar.
