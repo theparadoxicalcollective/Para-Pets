@@ -1,17 +1,28 @@
 import { BEAU_PRIZE_WHEEL_WORLD_ID, HAUNTED_SPIN_DECOR_ART } from "../beauPrizeWheel";
+import { HAUNTED_WOODS_WORLD_ID } from "./hauntedWoods";
 
 /** Code-owned gameplay connections for authored world objects. No arbitrary
  * route names or gameplay configuration come from artwork or player input. */
-export type WorldSceneAction = "beau-prize-wheel";
+export type WorldSceneFishingAction = "fishing-leaderboard" | "fishing-spot";
+export type WorldSceneAction = "beau-prize-wheel" | WorldSceneFishingAction;
 export const HAUNTED_SPIN_DECOR_NAME = "Haunted Spin";
+export const HAUNTED_FISH_LEADERBOARD_DECOR_NAME = "Fish Leaderboard";
 
-/** The editor's linked copies retain the same asset and name. Match only this
- * exact named outdoor decoration (or its exact bundled artwork) in its own world, never a similarly named
- * building, NPC or decoration in a different world. */
+/** Connections are world-scoped and apply only to outdoor placements. Match
+ * exact decoration names (or the existing Spin artwork), and standalone water
+ * ripple effects — never terrain, attached effects or similarly named buildings. */
 export function resolveWorldSceneAction(
   worldId: string, placementKind: string,
   asset: { worldId: string; kind: string; name: string; imageUrl?: string | null } | null | undefined,
+  effectType?: string | null,
 ): WorldSceneAction | null {
+  if (worldId === HAUNTED_WOODS_WORLD_ID) {
+    if (placementKind === "effect" && effectType === "water_ripple") return "fishing-spot";
+    if (placementKind === "decor" && asset?.worldId === worldId && asset.kind === "decor" &&
+        asset.name.trim().toLowerCase() === HAUNTED_FISH_LEADERBOARD_DECOR_NAME.toLowerCase()) {
+      return "fishing-leaderboard";
+    }
+  }
   if (worldId === BEAU_PRIZE_WHEEL_WORLD_ID && placementKind === "decor" &&
       asset?.worldId === worldId && asset.kind === "decor" &&
       (asset.name.trim().toLowerCase() === HAUNTED_SPIN_DECOR_NAME.toLowerCase() ||

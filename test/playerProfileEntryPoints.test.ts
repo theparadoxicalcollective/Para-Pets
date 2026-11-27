@@ -26,7 +26,7 @@ test("forum posts, comments, and nested replies route stable author ids to one s
 
 test("player leaderboards mount one shared panel per logical overlay instead of one per row", () => {
   const files = [
-    "client/src/pages/FishingPage.tsx",
+    "client/src/components/world/FishingLeaderboardPanel.tsx",
     "client/src/pages/RaidLeaderboardPage.tsx",
     "client/src/pages/LavaCrawlPage.tsx",
     "client/src/pages/MoltenBlocksPage.tsx",

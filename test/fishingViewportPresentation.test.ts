@@ -8,8 +8,8 @@ const shell = readFileSync("client/src/tabletStageShell.css", "utf8");
 test("Fishing scenery owns the full viewport on larger devices", () => {
   assert.match(fishing, /import ViewportBackdropPortal from "@\/components\/ViewportBackdropPortal"/);
   assert.match(fishing, /data-testid="fishing-page"[\s\S]*data-stage-coordinate-space="canonical"[\s\S]*data-viewport-visual-owner="backdrop"/);
-  assert.match(fishing, /<ViewportBackdropPortal>[\s\S]*data-testid="fishing-viewport-backdrop"/);
-  assert.match(fishing, /data-canonical-visual-layer="duplicate-backdrop"/);
+  assert.match(fishing, /!inlineBackdrop && <ViewportBackdropPortal>[\s\S]*data-testid="fishing-viewport-backdrop"/);
+  assert.match(fishing, /data-canonical-visual-layer=\{inlineBackdrop \? undefined : "duplicate-backdrop"\}/);
   assert.match(shell, /\[data-viewport-visual-owner="backdrop"\][\s\S]*background-color: transparent !important/);
   assert.match(shell, /\[data-canonical-visual-layer="duplicate-backdrop"\][\s\S]*display: none !important/);
 });
