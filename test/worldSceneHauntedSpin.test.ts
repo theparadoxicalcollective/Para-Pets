@@ -25,19 +25,19 @@ test("only the named Haunted Woods decoration is connected to the original prize
     assert.equal(resolveWorldSceneAction("haunted_woods", kind, asset), null);
 });
 
-test("valid placed Haunted Spin covers only the uniquely identified original Beau entrance", () => {
+test("Haunted Spin can migrate independently of Beau and other old entrances", () => {
   const input = { hasGround: true, placements: [placement], assets: [asset], npcs: [], locations: [beau] };
   assert.deepEqual(auditWorldActivation("haunted_woods", input), []);
   // Old Beau is optional, and the migration doesn't rely on his data surviving.
   assert.deepEqual(auditWorldActivation("haunted_woods", { ...input, locations: [] }), []);
-  assert.ok(auditWorldActivation("haunted_woods", { ...input, placements: [] }).includes("Connect original NPC: Beau"));
-  assert.ok(auditWorldActivation("haunted_woods", { ...input, assets: [{ ...asset, imageUrl: "" }] }).includes("Connect original NPC: Beau"));
-  assert.ok(auditWorldActivation("haunted_woods", { ...input, assets: [{ ...asset, name: "Ordinary Wheel" }] }).includes("Connect original NPC: Beau"));
+  assert.deepEqual(auditWorldActivation("haunted_woods", { ...input, placements: [] }), [],
+    "the spin entrance can be added after activation");
+  assert.ok(auditWorldActivation("haunted_woods", { ...input, assets: [{ ...asset, imageUrl: "" }] })
+    .some(blocker => blocker.includes("artwork")), "placed artwork still must be valid");
+  assert.deepEqual(auditWorldActivation("haunted_woods", { ...input, assets: [{ ...asset, name: "Ordinary Wheel" }] }), []);
   const casino = { id: "casino", worldId: "haunted_woods", type: "scenic", name: "Haunted Casino", isShop: false };
-  assert.deepEqual(auditWorldActivation("haunted_woods", { ...input, locations: [beau, casino] }),
-    ["Connect original location: Haunted Casino"]);
-  assert.ok(auditWorldActivation("haunted_woods", { ...input, locations: [beau, { ...beau, id: "another" }] }).includes("Connect original NPC: Beau"),
-    "ambiguous original NPC names must not bypass the activation guard");
+  assert.deepEqual(auditWorldActivation("haunted_woods", { ...input, locations: [beau, casino] }), []);
+  assert.deepEqual(auditWorldActivation("haunted_woods", { ...input, locations: [beau, { ...beau, id: "another" }] }), []);
   assert.deepEqual(auditWorldActivation("haunted_woods", {
     ...input, placements: [placement, { ...placement, id: "linked-copy" }],
   }), [], "linked copies share the same wheel, not a second reward system");

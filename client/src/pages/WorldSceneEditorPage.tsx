@@ -388,7 +388,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       setEdited(null);
       void cache.invalidateQueries({ queryKey: sceneQueryKey });
       toast({ title: "World changes saved",
-        description: isLive ? "Your saved changes are now available to players." : "Select Save & Set Live when this world is ready." });
+        description: isLive ? "Your saved changes are now available to players." : "Select Save & Set Live whenever you want to switch." });
     },
     onError: (error: Error) => toast({
       title: "Unable to save world", description: error.message, variant: "destructive",

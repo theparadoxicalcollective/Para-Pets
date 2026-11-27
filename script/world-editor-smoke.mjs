@@ -1059,8 +1059,10 @@ try {
       name + ": NPC has selection, resize, flip, and edit controls");
     await page.getByRole("button", { name: "Deselect world object" }).click();
 
-    // Save & Set Live is one explicit admin action. Saved subsequent changes
-    // will use the same world tables, while the other world remains Old.
+    // Save & Set Live is one explicit admin action even for partially migrated
+    // worlds. Ground saves thereafter use the same world tables, without republishing.
+    assert.ok(worlds.haunted_woods.scene.placements.some(p => p.kind === "building" && !p.legacyLocationId),
+      name + ": the scene still has unlinked buildings");
     await page.getByTestId("button-world-settings").click();
     await page.getByTestId("button-save-and-set-world-live").waitFor({ state: "visible" });
     page.once("dialog", dialog => dialog.accept());
@@ -1068,6 +1070,7 @@ try {
       r.url().endsWith("/publication") && r.request().method() === "PUT");
     await page.getByTestId("button-save-and-set-world-live").click();
     await liveResponse;
+    await page.getByTestId("button-save-and-set-world-live").waitFor({ state: "hidden" });
     assert.equal(publications.haunted_woods.active, true,
       name + ": Save & Set Live enables only the selected world");
     assert.equal(publications.swamp.active, false,
@@ -1075,6 +1078,15 @@ try {
     assert.ok(apiWrites.some(w => w.worldId === "haunted_woods" && w.tail === "publication" &&
       w.body.active === true && w.body.saveAndSetLive === true),
       name + ": only explicit Save & Set Live authorizes the new world");
+    const publicationWrites = apiWrites.filter(w => w.tail === "publication").length;
+    await page.getByTestId("select-world-draft-ground-theme").selectOption("haunted");
+    const liveGroundSave = page.waitForResponse(r => r.url().endsWith("/draft") && r.request().method() === "PUT");
+    await page.getByTestId("button-save-world-draft").click();
+    await liveGroundSave;
+    assert.equal(worlds.haunted_woods.draft.groundTheme, "haunted");
+    assert.equal(publications.haunted_woods.active, true);
+    assert.equal(apiWrites.filter(w => w.tail === "publication").length, publicationWrites,
+      name + ": editing the live scene requires no additional publishing");
     await page.getByRole("button", { name: "Close World Settings" }).click();
 
     // Crossing to another saved world cannot display or edit Haunted Woods assets.

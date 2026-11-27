@@ -1,6 +1,4 @@
 import { isKnownWorldId, type WorldId } from "./worldRegistry";
-import { BEAU_PRIZE_WHEEL_NPC_NAME } from "../beauPrizeWheel";
-import { resolveWorldSceneAction } from "./worldSceneActions";
 
 /** An independent, reversible player-facing choice for each registered world.
  * Saving an editor draft never changes this choice. */
@@ -52,9 +50,10 @@ export function resolveLegacyNpcLocation(
   return matches.length === 1 ? matches[0] : undefined;
 }
 
-/** A reversible first activation/re-activation must not strand any of the
- * original hotspots. A direct, code-owned gameplay entrance or a link to
- * the original location itself can satisfy coverage; cross-world links cannot. */
+/** Only require a renderable saved scene and valid existing references.
+ * Migration is incremental: missing old entrances, unlinked buildings/shops
+ * and even a ground-only scene are legitimate. The original world remains
+ * available via the reversible per-world switch. */
 export function auditWorldActivation(worldId: string, input: {
   hasGround: boolean; placements: readonly PublicationPlacement[];
   assets: readonly PublicationAsset[]; npcs: readonly PublicationNpc[];
@@ -63,8 +62,6 @@ export function auditWorldActivation(worldId: string, input: {
 }): string[] {
   const blockers = new Set<string>();
   if (!input.hasGround) blockers.add("Save this world's ground settings first.");
-  if (!input.placements.some(p => p.kind === "building" || p.kind === "npc" || p.kind === "decor"))
-    blockers.add("Place at least one building, NPC or decoration.");
   if (input.assets.length > 300 || input.placements.length > 4500 || (input.interiorItems?.length ?? 0) > 4500)
     blockers.add("This world exceeds the supported player scene limits.");
   const art = new Map(input.assets.filter(a => !!a.imageUrl).map(a => [a.id, a]));
@@ -84,8 +81,6 @@ export function auditWorldActivation(worldId: string, input: {
         covered.add(old.id);
       }
     }
-    if (p.kind === "building" && p.isShop && !locations.get(p.legacyLocationId ?? "")?.isShop)
-      blockers.add("Connect each shop building to a working original shop.");
     if (p.kind === "npc") {
       const npc = npcs.get(p.npcId ?? "");
       if (!npc) { blockers.add("A placed NPC is missing its catalog artwork."); continue; }
@@ -99,17 +94,6 @@ export function auditWorldActivation(worldId: string, input: {
   for (const item of input.interiorItems ?? []) {
     if (!buildings.has(item.buildingId) || (item.kind === "decor" && art.get(item.assetId ?? "")?.kind !== "decor"))
       blockers.add("A room decoration or its parent building is missing.");
-  }
-  // A migrated gameplay entrance can satisfy its original hotspot without
-  // keeping a redundant NPC or linking through legacy page data. Only the
-  // placed, valid artwork for this specific action counts as coverage.
-  if (input.placements.some(p => resolveWorldSceneAction(worldId, p.kind, art.get(p.assetId ?? "")) === "beau-prize-wheel")) {
-    const oldBeau = resolveLegacyNpcLocation(worldId, BEAU_PRIZE_WHEEL_NPC_NAME, input.locations);
-    if (oldBeau) covered.add(oldBeau.id);
-  }
-  for (const loc of input.locations) {
-    if (loc.worldId === worldId && !covered.has(loc.id))
-      blockers.add("Connect original " + (loc.type === "npc" ? "NPC: " : "location: ") + loc.name);
   }
   return [...blockers];
 }
