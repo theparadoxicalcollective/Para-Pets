@@ -1678,6 +1678,15 @@ export const worldSceneDrafts = pgTable("world_scene_drafts", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+/** Per-world live selector: false by default, reversible, never copies legacy content. */
+export const worldScenePublications = pgTable("world_scene_publications", {
+  worldId: text("world_id").primaryKey(),
+  active: boolean("active").notNull().default(false),
+  /** First Save & Set Live grants the ability to switch back to this scene. */
+  firstEnabledAt: timestamp("first_enabled_at"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 /** Private World Editor content. Pet Park and live world state remain separate. */
 export const worldSceneAssets = pgTable("world_scene_assets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

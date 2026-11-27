@@ -68,6 +68,7 @@ export default function WorldNpcPlacementOverlay() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [newPlayerScene, setNewPlayerScene] = useState(false);
   const [catalog, setCatalog] = useState<NpcCatalogRow[]>([]);
   const [locations, setLocations] = useState<WorldLocationRow[]>([]);
   const [mounts, setMounts] = useState<Record<string, HTMLElement>>({});
@@ -139,6 +140,7 @@ export default function WorldNpcPlacementOverlay() {
   useEffect(() => {
     if (!worldId) return;
     const refreshMounts = () => {
+      setNewPlayerScene(!!document.querySelector('[data-testid="player-new-world"]'));
       const next: Record<string, HTMLElement> = {};
       for (const loc of locations) {
         if (loc.type !== "npc") continue;
@@ -428,7 +430,7 @@ export default function WorldNpcPlacementOverlay() {
 
         return createPortal(
           <>
-            <div
+            {mount.dataset.newWorldNpc !== "true" && <div
               aria-hidden="true"
               data-testid={`world-npc-art-${loc.id}`}
               data-npc-animation={metadata.animation}
@@ -456,7 +458,7 @@ export default function WorldNpcPlacementOverlay() {
                     : "drop-shadow(0 7px 9px rgba(0,0,0,.68)) drop-shadow(0 2px 3px rgba(0,0,0,.5)) drop-shadow(0 0 2px rgba(255,244,214,.18))",
                 }}
               />
-            </div>
+            </div>}
 
             {canUsePlayerTalkHitbox && (
               <button
@@ -518,7 +520,7 @@ export default function WorldNpcPlacementOverlay() {
         );
       })}
 
-      {isAdmin && (
+      {isAdmin && !newPlayerScene && (
         <div className="fixed right-3 z-[75] flex flex-col items-end gap-2" style={{ top: "max(env(safe-area-inset-top, 0px) + 76px, 86px)" }}>
           <button
             type="button"
@@ -542,7 +544,7 @@ export default function WorldNpcPlacementOverlay() {
         </div>
       )}
 
-      {isAdmin && pickerOpen && (
+      {isAdmin && pickerOpen && !newPlayerScene && (
         <div className="fixed inset-0 z-[1300] grid place-items-center bg-black/80 p-4" onClick={() => setPickerOpen(false)}>
           <div
             className="w-full max-w-md rounded-2xl p-4"

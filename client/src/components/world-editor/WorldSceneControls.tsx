@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
@@ -9,7 +9,7 @@ import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
 import { decorRole, decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
-import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
+import WorldLegacyPagePicker, { useWorldLegacyPages } from "./WorldLegacyPagePicker";
 import { useWorldNpcCatalog, type WorldNpcCatalogEntry } from "./WorldNpcCatalog";
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
@@ -56,6 +56,9 @@ type Props = {
   onZoom: (value: number) => void;
   onResetZoom: () => void;
   onSaveGroundTheme: (theme: WorldGroundTheme) => Promise<void>;
+  isLive: boolean;
+  saveLivePending: boolean;
+  onSaveAndSetLive: (selectedGroundTheme: WorldGroundTheme) => void;
 };
 
 export default function WorldSceneControls(props: Props) {
@@ -173,6 +176,28 @@ export default function WorldSceneControls(props: Props) {
         props.selected?.legacyLocationId === legacyChoice.pageId)
       setLegacyChoice(null);
   }, [props.selected?.id, props.selected?.legacyLocationId, legacyChoice]);
+  const queryClient = useQueryClient();
+  const legacyPages = useWorldLegacyPages(props.worldId, props.selected?.kind === "building");
+  const linkedOriginal = legacyPages.data?.find(page => page.id === selectedLegacyPage);
+  const retiredKey = ["/api/worlds", props.worldId, "retired-locations"];
+  const retired = useQuery<string[]>({
+    queryKey: retiredKey, enabled: props.isLive && !!linkedOriginal && linkedOriginal.worldId === props.worldId,
+    queryFn: async () => (await apiRequest("GET", `/api/worlds/${props.worldId}/retired-locations`)).json(),
+    staleTime: 0,
+  });
+  const isRetired = !!linkedOriginal && Array.isArray(retired.data) && retired.data.includes(linkedOriginal.id);
+  const changeRetirement = async () => {
+    if (!props.selected || busy || retired.isLoading || retired.isError) return;
+    if (!isRetired && !window.confirm("Have you tested this building as a player? Hiding the original hotspot keeps its gameplay and data; rollback restores it automatically.")) return;
+    setBusy(true);
+    try {
+      await apiRequest("PUT", `${root}/placements/${props.selected.id}/retirement`, { retired: !isRetired });
+      await queryClient.invalidateQueries({ queryKey: retiredKey });
+      toast({ title: isRetired ? "Original hotspot restored" : "Original hotspot retired", description: "The original location and gameplay are preserved." });
+    } catch (error) {
+      toast({ title: "Could not update original hotspot", description: String(error), variant: "destructive" });
+    } finally { setBusy(false); }
+  };
   const patchLegacyPage = async (id: string | null) => {
     if (!props.selected || props.selected.kind !== "building") return;
     const buildingId = props.selected.id;
@@ -242,7 +267,8 @@ export default function WorldSceneControls(props: Props) {
     if (busy || !props.scene.placements.some(item => item.kind === "terrain")) return;
     const result = await mutate("DELETE", "/terrain");
     if (result) {
-      toast({ title: "World terrain cleared", description: "Only this private world draft was changed." });
+      toast({ title: "World terrain cleared",
+  description: props.isLive ? "Saved terrain changes are visible to players." : "The original world remains active until Save & Set Live." });
       setExpanded(false);
     }
   };
@@ -251,7 +277,8 @@ export default function WorldSceneControls(props: Props) {
     setBusy(true);
     try {
       await props.onSaveGroundTheme(themeDraft);
-      toast({ title: "World ground updated", description: "Only the private world draft was changed." });
+      toast({ title: "World ground updated",
+  description: props.isLive ? "Saved ground changes are visible to players." : "Choose Save & Set Live when ready." });
     } catch (error) {
       toast({ title: "World ground could not be saved", description: String(error), variant: "destructive" });
     } finally {
@@ -410,9 +437,33 @@ export default function WorldSceneControls(props: Props) {
             disabled={busy || themeDraft === props.groundTheme}
             onClick={() => void saveTheme()}>{busy ? "Saving…" : "Save Ground Theme"}</button>
         </div>
+        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523]/90 p-3"
+          data-testid="world-editor-publication-settings">
+          <strong className="text-xs text-[#f5d77b]">Player world</strong>
+          <p className="text-[11px] text-[#e8caa0]">
+            {props.isLive
+              ? "This new world is LIVE. Every saved scene change is available to players without another publish step."
+              : "Players still see the original world. Save & Set Live once to switch this world over."}
+          </p>
+          <button type="button"
+            data-testid="button-save-and-set-world-live"
+            className={quickAccent}
+            disabled={busy || props.saveLivePending}
+            onClick={() => {
+              if (!props.isLive && !window.confirm(
+                "Save this world and make it live for players? The original world remains available to restore from the map. Make sure quests, NPCs, and shops are connected."
+              )) return;
+              props.onSaveAndSetLive(themeDraft);
+            }}>
+            {props.saveLivePending ? "Saving & going live…" : "Save & Set Live"}
+          </button>
+          <p className="text-[10px] text-[#d1b77c]">
+            The saved scene is the live scene. Use this world's map Switch to restore the original world when needed.
+          </p>
+        </div>
         <details className={disclosure} data-testid="world-settings-clear-terrain">
           <summary>Clear painted terrain (advanced)</summary>
-          <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted ground paths and garden plots from this private world only. Buildings and decorations remain.</p>
+          <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted paths and garden plots from this world only. If live, players will see this change. Buildings and decorations remain.</p>
           <button type="button" className={quickDanger} aria-label="Clear all world terrain"
             disabled={busy || !props.scene.placements.some(item => item.kind === "terrain")}
             onClick={() => void clearTerrain()}>{busy ? "Clearing…" : "Clear terrain"}</button>
@@ -458,8 +509,8 @@ export default function WorldSceneControls(props: Props) {
           data-testid="world-editor-npc-picker" className="space-y-3">
           <p className="text-xs text-amber-100/75">
             Choose an NPC already created in Admin → NPCs. Artwork, dialogue,
-            and quest settings stay linked to the original NPC. This world
-            remains a private draft until published.
+            and quest settings stay linked to the original NPC. Saved
+            placements become visible to players once this world is live.
           </p>
           {npcCatalog.isLoading ? <p className="text-xs">Loading NPCs…</p>
             : npcCatalog.isError ? <p className="text-xs text-red-200">Could not load saved NPCs.</p>
@@ -604,6 +655,15 @@ export default function WorldSceneControls(props: Props) {
             value={selectedLegacyPage}
             onChange={id => { void patchLegacyPage(id); }}
             disabled={busy} preview /></div>
+          {linkedOriginal?.worldId === props.worldId && linkedOriginal.type !== "npc" && <div className="space-y-2 pt-2">
+            <p className="text-[11px] text-amber-100/75">After verifying the new building, retire its original map hotspot. Its page, quests and saved gameplay remain connected. Switching to Old restores all hotspots.</p>
+            <button type="button" className={control} data-testid="button-retire-original-hotspot"
+              disabled={!props.isLive || busy || retired.isLoading || retired.isError}
+              onClick={() => void changeRetirement()}>
+              {isRetired ? "Restore original hotspot" : "Retire original hotspot"}
+            </button>
+            {!props.isLive && <p className="text-[10px] text-amber-100/70">Set this world live first.</p>}
+          </div>}
         </details>
         {currentAsset && <details className={disclosure}
           open={props.selected.decorEffects.length > 0} data-testid="world-edit-building-effects">

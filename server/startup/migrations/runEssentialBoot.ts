@@ -6,6 +6,7 @@ import { ensurePlayerClothingStorage } from "./ensurePlayerClothingStorage";
 import { ensurePlayerAvatarEquipmentStorage } from "./ensurePlayerAvatarEquipmentStorage";
 import { ensureWorldSceneDraftStorage } from "./ensureWorldSceneDraftStorage";
 import { ensureWorldSceneContentStorage } from "./ensureWorldSceneContentStorage";
+import { ensureWorldScenePublicationStorage } from "./ensureWorldScenePublicationStorage";
 import { ensureWorldGardenStorage } from "./ensureWorldGardenStorage";
 import { db } from "../../db";
 import { sql } from "drizzle-orm";
@@ -37,6 +38,7 @@ export async function runEssentialBoot(): Promise<void> {
   // Private world drafts must exist before admin endpoints begin serving.
   await ensureWorldSceneDraftStorage();
   await ensureWorldSceneContentStorage();
+  await ensureWorldScenePublicationStorage();
   await ensureWorldGardenStorage();
   // Required by inventory/catalog reads: do not start with a partial schema.
   await db.execute(sql`
