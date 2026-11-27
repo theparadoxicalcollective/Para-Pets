@@ -52,6 +52,9 @@ test("Save & Set Live is a per-world admin action, no second draft publication",
   assert.doesNotMatch(schema, /snapshot: jsonb\("snapshot"\)/);
   assert.doesNotMatch(migration, /snapshot jsonb/);
   assert.match(controls, /data-testid="button-save-and-set-world-live"/);
+  assert.match(controls, /\{!props\.isLive && <button type="button"\s+data-testid="button-save-and-set-world-live"/,
+    "a live world no longer presents a redundant publishing button");
+  assert.match(controls, /even with unfinished or unlinked buildings/);
   assert.match(editor, /saveAndSetLive: true/);
   assert.match(editor, /onSaveAndSetLive=\{theme => saveAndSetLive\.mutate\(theme\)\}/);
   assert.match(controls, /props\.onSaveAndSetLive\(themeDraft\)/);
@@ -100,17 +103,28 @@ function audit(placements: Parameters<typeof auditWorldActivation>[1]["placement
   overrides: Partial<Parameters<typeof auditWorldActivation>[1]> = {}) {
   return auditWorldActivation("swamp", { hasGround: true, placements, assets, npcs, locations: original, ...overrides });
 }
-test("activation requires original NPCs, fishing, shops and other locations while preserving cross-world links", () => {
+test("activation allows incremental migration, including no legacy entrances or buildings yet", () => {
   assert.deepEqual(audit(), []);
-  assert.ok(audit([ready[0]]).some(blocker => blocker.includes("Fishing Hole")));
-  assert.ok(audit([ready[0]]).some(blocker => blocker.includes("Janson")));
-  assert.ok(audit([ready[0]]).some(blocker => blocker.includes("Clearing")));
-  assert.ok(audit(ready.filter(p => p.id !== "new-shop")).some(blocker => blocker.includes("Potion Shop")));
+  assert.deepEqual(audit([ready[0]]), [], "other old locations need not be migrated");
+  assert.deepEqual(audit([{ ...ready[0], legacyLocationId: null }]), [], "an unfinished shop need not be linked");
+  assert.deepEqual(audit([{ ...ready[0], legacyLocationId: "arena" }]), [], "a shop need not rely on an original shop");
+  assert.deepEqual(audit([{ ...ready[2], legacyLocationId: null }]), [], "buildings do not need old pages or room interiors");
+  assert.deepEqual(audit([ready[3]]), [], "valid cross-world links still work");
+  assert.deepEqual(audit([], { assets: [], npcs: [] }), [], "saved ground alone is a renderable scene");
+});
+test("activation still checks saved-scene integrity and protects existing links", () => {
   assert.ok(audit(ready, { hasGround: false }).some(blocker => blocker.includes("ground")));
+  assert.ok(audit([], { hasGround: false }).some(blocker => blocker.includes("ground")));
   assert.ok(audit(ready, { assets: [] }).some(blocker => blocker.includes("artwork")));
+  assert.ok(audit(ready, { assets: [{ ...assets[0], kind: "decor" }] }).some(blocker => blocker.includes("artwork")));
+  assert.ok(audit([{ ...ready[0], legacyLocationId: "missing" }]).some(blocker => blocker.includes("invalid original location")));
+  assert.ok(audit([{ ...ready[0], legacyLocationId: "janson" }]).some(blocker => blocker.includes("invalid original location")));
+  assert.ok(audit(Array.from({ length: 4501 }, (_, i) => ({ ...ready[2], id: "building-" + i, legacyLocationId: null })))
+    .some(blocker => blocker.includes("limits")));
   assert.ok(audit(ready, { npcs: [] }).some(blocker => blocker.includes("NPC")));
   assert.ok(audit([...ready, { ...ready[1], id: "duplicate-fish" }]).some(blocker => blocker.includes("more than once")));
   assert.ok(audit(ready, { interiorItems: [{ kind: "decor", assetId: "missing", buildingId: "new-shop" }] }).some(blocker => blocker.includes("room decoration")));
+  assert.ok(audit(ready, { interiorItems: [{ kind: "effect", assetId: null, buildingId: "missing" }] }).some(blocker => blocker.includes("parent building")));
 });
 test("NPC lookup is scoped to the original world, tolerates names with titles, and rejects ambiguity", () => {
   assert.equal(resolveLegacyNpcLocation("swamp", " Janson  ", original)?.id, "janson");

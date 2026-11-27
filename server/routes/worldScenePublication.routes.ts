@@ -48,14 +48,14 @@ export function registerWorldScenePublicationRoutes(app: Express, {
     try {
       const [existing] = await db.select().from(worldScenePublications)
         .where(eq(worldScenePublications.worldId, worldId)).limit(1);
-      // A map toggle cannot accidentally expose an unfinished world. Only
-      // Save & Set Live from the admin editor first authorizes that scene.
+      // Keep the first switch explicit; saving scenery alone must never
+      // change whether players see the original or new world.
       if (active && !saveAndSetLive && !existing?.firstEnabledAt)
         return res.status(409).json({
           message: "Open this world's editor and select Save & Set Live first.",
         });
-      // Recheck all connections whenever enabling from Old, including when
-      // a previously live world was edited while offline. Never impede rollback.
+      // Check saved scene integrity when enabling from Old, not migration
+      // completeness. Never impede rollback or require all old page links.
       if (active && !existing?.active) {
         const [ground, placements, assets, npcs, locations, interiorItems] = await Promise.all([
           db.select({ worldId: worldSceneDrafts.worldId }).from(worldSceneDrafts)

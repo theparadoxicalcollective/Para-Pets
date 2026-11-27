@@ -269,7 +269,7 @@ export default function WorldSceneControls(props: Props) {
     try {
       await props.onSaveGroundTheme(themeDraft);
       toast({ title: "World ground updated",
-  description: props.isLive ? "Saved ground changes are visible to players." : "Choose Save & Set Live when ready." });
+  description: props.isLive ? "Saved ground changes are visible to players." : "Use Save & Set Live whenever you want to switch." });
     } catch (error) {
       toast({ title: "World ground could not be saved", description: String(error), variant: "destructive" });
     } finally {
@@ -436,20 +436,20 @@ export default function WorldSceneControls(props: Props) {
           <p className="text-[11px] text-[#e8caa0]">
             {props.isLive
               ? "This new world is LIVE. Every saved scene change is available to players without another publish step."
-              : "Players still see the original world. Save & Set Live once to switch this world over."}
+              : "Players still see the original world. Switch whenever you like, even with unfinished or unlinked buildings."}
           </p>
-          <button type="button"
+          {!props.isLive && <button type="button"
             data-testid="button-save-and-set-world-live"
             className={quickAccent}
             disabled={busy || props.saveLivePending}
             onClick={() => {
-              if (!props.isLive && !window.confirm(
-                "Save this world and make it live for players? The original world remains available to restore from the map. Make sure quests, NPCs, and shops are connected."
+              if (!window.confirm(
+                "Save this world and make it live for players? Unfinished buildings are allowed, but missing entrances will not be available until you add them. You can switch back to the original world from the map."
               )) return;
               props.onSaveAndSetLive(themeDraft);
             }}>
             {props.saveLivePending ? "Saving & going live…" : "Save & Set Live"}
-          </button>
+          </button>}
           <p className="text-[10px] text-[#d1b77c]">
             The saved scene is the live scene. Use this world's map Switch to restore the original world when needed.
           </p>
