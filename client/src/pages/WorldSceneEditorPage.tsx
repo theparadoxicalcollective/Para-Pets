@@ -913,7 +913,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                   opacity: item.effectType === "warm_glow" ? worldLighting.daylightStrength : 1,
                   transition: "opacity 1200ms linear",
                 }}>
-                  <ParkEffectVisual type={item.effectType as ParkEffectType} reducedMotion={false} adminPreview />
+                  <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} adminPreview />
                 </span>}
             </span>
           </button>;

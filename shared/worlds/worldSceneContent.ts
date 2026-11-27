@@ -1,7 +1,7 @@
 import type { ParkDecorEffect } from "../petParkDecorEffects";
 import type { ParkShopPlacement } from "../petParkShopPlacements";
 import { isValidParkDecorEffects } from "../petParkDecorEffects";
-import { isParkEffect, type ParkEffectType } from "../petParkEffects";
+import { isParkEffect, isValidParkLightColor, type ParkEffectType } from "../petParkEffects";
 import { isPaintableParkTerrainDetail } from "../petParkTerrainDetails";
 import type { DecorSurface } from "../decorSurface";
 
@@ -31,6 +31,8 @@ export type WorldScenePlacement = {
 export type WorldSceneInteriorItem = {
   id: string; worldId: string; buildingId: string;
   kind: WorldSceneInteriorKind; assetId: string | null; effectType: string | null;
+  /** Optional for older saved scenes; null preserves the original lamp artwork. */
+  effectColor?: string | null;
   xPct: number; yPct: number; size: number; flipped: boolean;
 };
 
@@ -76,6 +78,11 @@ export function validDecorEffects(value: unknown): value is ParkDecorEffect[] {
 export function validEffect(value: unknown): value is ParkEffectType {
   // Sleep spots are Pet Park-only interactive areas, not world scenery.
   return value !== "sleep" && isParkEffect(value);
+}
+/** Only standalone interior lamp effects can store a custom orb color. */
+export function validInteriorEffectColor(kind: unknown, effectType: unknown, color: unknown): color is string {
+  return kind === "effect" && (effectType === "lamp_light" || effectType === "colored_light") &&
+    isValidParkLightColor(color);
 }
 export function validShopIds(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 40 &&

@@ -134,6 +134,8 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
         OR (kind = 'effect' AND asset_id IS NULL AND effect_type IS NOT NULL)
       )
     );
+    -- Existing interior lamps keep their original appearance when no color is saved.
+    ALTER TABLE world_scene_interior_items ADD COLUMN IF NOT EXISTS effect_color text;
     CREATE INDEX IF NOT EXISTS world_scene_interior_building_idx
       ON world_scene_interior_items (world_id, building_id);
   `);

@@ -6,7 +6,7 @@ import {
 import { defaultWorldSceneDraft, isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
 import {
   validWorldArtwork, validPosition, validSize, validLayer, validSceneId,
-  validDecorEffects, validEffect, validPlacementTransform, validShopIds,
+  validDecorEffects, validEffect, validInteriorEffectColor, validPlacementTransform, validShopIds,
   isWorldTerrainType, WORLD_TERRAIN_BRUSH_SIZES, worldTerrainCell,
 } from "@shared/worlds/worldSceneContent";
 import { parkGroundSize } from "@shared/petParkGround";
@@ -593,6 +593,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
       } else if (!validEffect(body.effectType) || body.assetId != null) {
         return res.status(400).json({ message: "Invalid interior effect" });
       }
+      if (body.effectColor != null && !validInteriorEffectColor(body.kind, body.effectType, body.effectColor))
+        return res.status(400).json({ message: "Invalid interior lamp light color" });
       const [row] = await db.select({ total: count() }).from(worldSceneInteriorItems).where(
         and(eq(worldSceneInteriorItems.worldId, worldId), eq(worldSceneInteriorItems.buildingId, building.id)));
       if (row.total >= MAX_INTERIOR) return res.status(409).json({ message: "Interior item limit reached" });
@@ -600,6 +602,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         worldId, buildingId: building.id, kind: body.kind,
         assetId: body.kind === "decor" ? body.assetId : null,
         effectType: body.kind === "effect" ? body.effectType : null,
+        effectColor: body.effectColor ?? null,
         xPct: body.xPct, yPct: body.yPct, size: body.size, flipped: body.flipped,
       }).returning();
       return res.status(201).json(created);
@@ -620,6 +623,11 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if (!saved) return res.status(404).json({ message: "Interior item not found" });
       const body = req.body ?? {};
       const changes: Partial<typeof worldSceneInteriorItems.$inferInsert> = {};
+      if ("effectColor" in body) {
+        if (!validInteriorEffectColor(saved.kind, saved.effectType, body.effectColor))
+          return res.status(400).json({ message: "Invalid interior lamp light color" });
+        changes.effectColor = body.effectColor;
+      }
       for (const key of ["xPct", "yPct"] as const) if (key in body) {
         if (!validPosition(body[key])) return res.status(400).json({ message: "Invalid position" });
         changes[key] = body[key];

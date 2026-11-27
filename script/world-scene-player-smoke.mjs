@@ -69,7 +69,7 @@ try{
         {...base,id:"janson",kind:"npc",npcId:npc.id,xPct:.38,yPct:.43},
         {...base,id:"effect",kind:"effect",effectType:"sparkles",xPct:.5,yPct:.15,size:300}],
       interiorItems:[{id:"room-decor",worldId:"swamp",buildingId:"shop",kind:"decor",assetId:"decor-art",effectType:null,xPct:.55,yPct:.6,size:130,flipped:false},
-        {id:"room-lamp",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"lamp_light",xPct:.3,yPct:.3,size:70,flipped:false}],
+        {id:"room-lamp",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"lamp_light",effectColor:"#7b5cff",xPct:.3,yPct:.3,size:70,flipped:false}],
       linkedPages:[oldShop,oldJanson],npcs:[npc]};
     let state={quests:[quest,{...quest,questKey:"sell_fish",title:"Sell Fish",status:"locked"}],dailyQuest:{...quest,questKey:"daily_catch_fish",status:"locked"},marketUnlocked:false};
     await page.route("**/api/**",route=>{
@@ -96,16 +96,23 @@ try{
     const interior=page.getByTestId("player-new-world-interior");
     await interior.waitFor({state:"visible"});
     await page.getByTestId("player-new-world-interior-item-room-decor").waitFor({state:"visible"});
-    await page.getByTestId("player-new-world-interior-item-room-lamp").waitFor({state:"visible"});
+    const roomLamp = page.getByTestId("player-new-world-interior-item-room-lamp");
+    await roomLamp.waitFor({state:"visible"});
+    assert.match(await roomLamp.getByTestId("home-lamp-light-core").evaluate(node => node.style.backgroundImage), /123,\s*92,\s*255/,
+      "players see the saved interior lamp color");
     await page.getByTestId("home-interior-darkness-layer").waitFor({state:"visible"});
     await page.getByTestId("player-new-world-interior-night").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("player-new-world-object-effect").count(),0,"outdoor sprites are not mounted over rooms");
     const child=await page.getByTestId("player-new-world-interior-item-room-decor").boundingBox(), bg=await interior.boundingBox();
     assert.ok(Math.abs(child.width/bg.width-130/850)<.02,"room decor uses the authored image scale");
     scene.interiorItems[0].xPct=.25;
+    scene.interiorItems[1].effectColor="#44dd88";
     await page.evaluate(()=>window.refreshScene());
     await page.waitForFunction(()=>document.querySelector('[data-testid="player-new-world-interior-item-room-decor"]')?.style.left &&
       Math.abs(parseFloat(document.querySelector('[data-testid="player-new-world-interior-item-room-decor"]').style.left)/document.querySelector('[data-testid="player-new-world-interior"]').clientWidth-.25)<.02);
+    await page.waitForFunction(() => /68,\s*221,\s*136/.test(document.querySelector(
+      '[data-testid="player-new-world-interior-item-room-lamp"] [data-testid="home-lamp-light-core"]')?.style.backgroundImage ?? ""),
+      undefined, { timeout: 10000 });
     await page.getByTestId("player-new-world-enter-linked-page").tap();
     await page.getByTestId("legacy-view").waitFor({state:"visible"});
     await page.waitForFunction(()=>document.querySelector('[data-testid="opened-legacy"]')?.textContent==="old-shop");

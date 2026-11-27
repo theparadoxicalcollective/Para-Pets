@@ -143,6 +143,7 @@ export default function WorldSceneControls(props: Props) {
     if (!props.activeBuilding) return;
     const result = await mutate("POST", "/interior-items", {
       buildingId: props.activeBuilding.id, kind, assetId, effectType,
+      effectColor: (effectType === "colored_light" || effectType === "lamp_light") ? lampLightColor : null,
       xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct, size, flipped: false,
     }) as WorldSceneInteriorItem | null;
     if (result) { props.onSelectInterior(result.id); setPanel("selected"); setExpanded(false); }
@@ -520,17 +521,17 @@ export default function WorldSceneControls(props: Props) {
               </div>}
         </section>}
 
-        {panel === "effects" && <section aria-label="World outdoor effects" className="space-y-3">
+        {panel === "effects" && <section aria-label={props.activeBuilding ? "World interior effects" : "World outdoor effects"} className="space-y-3">
           <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
-            Outdoor Effects
+            {props.activeBuilding ? "Room Effects" : "Outdoor Effects"}
           </div>
-          {!props.activeBuilding && <label className="flex items-center justify-between gap-3 rounded-xl border border-[#b99a4c]/55 p-3 text-xs">
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-[#b99a4c]/55 p-3 text-xs">
             Lamp Light color
             <input type="color" aria-label="New world lamp light color"
               data-testid="world-standalone-light-color" value={lampLightColor}
               onChange={event => setColoredLightColor(event.target.value)}
               className="h-9 w-14 rounded border border-[#b99a4c]/60 bg-transparent"/>
-          </label>}
+          </label>
           <div className="grid grid-cols-2 gap-2">
             {EFFECT_CHOICES.filter(effect => effect.group === "outdoor" &&
               (!props.activeBuilding || effect.type !== "fireflies")).map(effect =>
@@ -573,13 +574,15 @@ export default function WorldSceneControls(props: Props) {
             NPC: {selectedNpc?.name ?? "Loading NPC"} · Artwork and dialogue are shared with
             Admin → NPCs. This placement has its own position, size and flip.
           </p>}
-          {props.selected?.kind === "effect" && (props.selected.effectType === "colored_light" || props.selected.effectType === "lamp_light") &&
+          {selectedItem?.kind === "effect" && (selectedItem.effectType === "colored_light" || selectedItem.effectType === "lamp_light") &&
             <label className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 p-2 text-xs">
               Lamp Light color
               <input type="color" aria-label="Edit world lamp light color"
-                value={props.selected.effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
+                value={selectedItem.effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
                 disabled={busy}
-                onChange={event => void patchSelected({ effectColor: event.target.value })}
+                onChange={event => void (props.activeBuilding
+                  ? patchInterior({ effectColor: event.target.value })
+                  : patchSelected({ effectColor: event.target.value }))}
                 className="h-9 w-14 rounded border border-[#b99a4c]/60 bg-transparent"/>
             </label>}
           {!selectedItem ? <p className="text-xs">Select an object to edit its artwork and settings.</p> : <>
