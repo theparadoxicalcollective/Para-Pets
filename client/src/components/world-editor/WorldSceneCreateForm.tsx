@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Image, Minus, Plus, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { readPetParkImageData } from "@/lib/petParkImageData";
+import { readWorldArtwork } from "@/lib/worldArtworkUpload";
+import { WORLD_ARTWORK_ACCEPT, worldArtworkRequestFits } from "@shared/worlds/worldSceneContent";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
 import { decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
@@ -38,6 +39,7 @@ export default function WorldSceneCreateForm({
   const [newDecorRole, setNewDecorRole] = useState<DecorRole>("barrier");
   const [effects, setEffects] = useState<ParkDecorEffect[]>([]);
   const [saving, setSaving] = useState(false);
+  const [reading, setReading] = useState(0);
   const isBuilding = kind === "building";
   const inside = !!buildingId;
   const border = "border-[#b99a4c]/50";
@@ -47,16 +49,21 @@ export default function WorldSceneCreateForm({
   const safeFileName = (file: File) =>
     file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 80) || "Decoration";
 
-  const choose = async (file: File | undefined, setter: (value: string) => void) => {
+  const choose = async (file: File | undefined, setter: (value: string) => void, maxSize: 2000 | 2400 = 2000) => {
     if (!file) return;
-    try { setter(await readPetParkImageData(file)); }
+    setReading(count => count + 1);
+    try { setter(await readWorldArtwork(file, maxSize)); }
     catch (error) {
       toast({ title: "Could not read artwork", description: String(error), variant: "destructive" });
-    }
+    } finally { setReading(count => count - 1); }
   };
 
   const create = async () => {
-    if (!pendingImage || saving || (isBuilding && !name.trim())) return;
+    if (!pendingImage || saving || reading > 0 || (isBuilding && !name.trim())) return;
+    if (!worldArtworkRequestFits([pendingImage, tapImage, interiorImage, nightInteriorImage])) {
+      toast({ title: "Artwork upload is too large", description: "Add the main artwork first, then upload additional images using Edit.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const root = `/api/admin/world-editor/${worldId}`;
     let createdAssetId: string | null = null;
@@ -108,8 +115,8 @@ export default function WorldSceneCreateForm({
         className="absolute right-2 top-2 rounded-full bg-black/80 p-2"><X size={16}/></button>
     </div> : <label className={picker}>
       <Image size={16} className="mr-2 inline"/>
-      {isBuilding ? "Upload Building Image (PNG/JPEG)" : "Upload Image (PNG/JPEG)"}
-      <input type="file" accept="image/png,image/jpeg" className="sr-only"
+      {isBuilding ? "Upload Building Image (PNG/JPEG/WebP/GIF)" : "Upload Image (PNG/JPEG/WebP/GIF)"}
+      <input type="file" accept={WORLD_ARTWORK_ACCEPT} disabled={saving || reading > 0} className="sr-only"
         aria-label={isBuilding ? "Building exterior image" : "Scene item artwork"}
         onChange={event => {
           const file = event.target.files?.[0];
@@ -167,17 +174,17 @@ export default function WorldSceneCreateForm({
         <div className="space-y-3 pt-2">
       <label className={picker}>
         {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
-        <input aria-label="Building interior image" type="file" accept="image/png,image/jpeg"
+        <input aria-label="Building interior image" type="file" accept={WORLD_ARTWORK_ACCEPT} disabled={saving || reading > 0}
           className="mt-2 block w-full text-xs"
-          onChange={event => { void choose(event.target.files?.[0], setInteriorImage); event.target.value = ""; }}/>
+          onChange={event => { void choose(event.target.files?.[0], setInteriorImage, 2400); event.target.value = ""; }}/>
       </label>
       {interiorImage && <img src={interiorImage} alt="Interior background preview"
         className="mx-auto h-28 max-w-full object-contain"/>}
       <label className={picker}>
         {nightInteriorImage ? "Nighttime interior selected — tap to replace" : "Nighttime Interior Background (optional)"}
-        <input aria-label="New world nighttime interior image" type="file" accept="image/png,image/jpeg"
+        <input aria-label="New world nighttime interior image" type="file" accept={WORLD_ARTWORK_ACCEPT} disabled={saving || reading > 0}
           className="mt-2 block w-full text-xs" onChange={event => {
-            void choose(event.target.files?.[0], setNightInteriorImage); event.target.value = "";
+            void choose(event.target.files?.[0], setNightInteriorImage, 2400); event.target.value = "";
           }}/>
       </label>
       {nightInteriorImage && <img src={nightInteriorImage} alt="Nighttime interior preview"
@@ -205,8 +212,8 @@ export default function WorldSceneCreateForm({
         </div>}
         <label className={picker}>
           <Image size={15} className="mr-1 inline"/>
-          {tapImage ? "Replace Tap Image" : "Upload Tap Image (PNG/JPEG)"}
-          <input aria-label="Decoration Tap Image" type="file" accept="image/png,image/jpeg"
+          {tapImage ? "Replace Tap Image" : "Upload Tap Image (PNG/JPEG/WebP/GIF)"}
+          <input aria-label="Decoration Tap Image" type="file" accept={WORLD_ARTWORK_ACCEPT} disabled={saving || reading > 0}
             className="sr-only" onChange={event => { void choose(event.target.files?.[0], setTapImage); event.target.value = ""; }}/>
         </label>
       </div>
@@ -242,11 +249,11 @@ export default function WorldSceneCreateForm({
         value={newDecorRole} onChange={setNewDecorRole} disabled={saving} />}
     </>}
 
-    <button type="button" disabled={saving || !pendingImage || (isBuilding && !name.trim())}
+    <button type="button" disabled={saving || reading > 0 || !pendingImage || (isBuilding && !name.trim())}
       data-testid={isBuilding ? "button-create-world-building" : "button-create-world-decoration"}
       className="w-full rounded-xl border border-[#b99a4c]/60 bg-[#1a4029]/85 py-3 text-sm font-semibold text-[#f5d98e] disabled:opacity-35"
       onClick={() => void create()}>
-      {saving ? "Adding…" : isBuilding ? "Add Building" : "Add Decoration"}
+      {reading > 0 ? "Preparing artwork…" : saving ? "Adding…" : isBuilding ? "Add Building" : "Add Decoration"}
     </button>
   </section>;
 }

@@ -8,6 +8,8 @@ import {
   WORLD_DEFINITION_LIST, isKnownWorldId,
 } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
+import { referencedWorldAssetFilter } from "../worldSceneAssetUsage";
+import { WORLD_SCENE_MAX_ASSETS } from "@shared/worlds/worldSceneContent";
 import { effectiveWorldLocked, worldLockKey } from "@shared/worlds/worldAccess";
 import { defaultWorldSceneDraft } from "@shared/worlds/worldSceneDraft";
 import { auditWorldActivation, resolveLegacyNpcLocation, retiredLocationKey, effectiveRetiredLocations } from "@shared/worlds/worldScenePublication";
@@ -72,7 +74,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
             .from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId)).limit(4501),
           db.select({ id: worldSceneAssets.id, kind: worldSceneAssets.kind, worldId: worldSceneAssets.worldId, name: worldSceneAssets.name,
             imageUrl: sql<string>`CASE WHEN length(${worldSceneAssets.imageUrl}) > 0 THEN 'ready' ELSE '' END` })
-            .from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId)).limit(301),
+            .from(worldSceneAssets).where(referencedWorldAssetFilter(worldId)).limit(WORLD_SCENE_MAX_ASSETS + 1),
           db.select({ id: shopItems.id, name: shopItems.name,
             imageUrl: sql<string>`CASE WHEN length(${shopItems.imageUrl}) > 0 THEN 'ready' ELSE '' END` })
             .from(shopItems).where(and(eq(shopItems.type, "npc"), eq(shopItems.worldId, "__npc_catalog__"))),
@@ -169,14 +171,14 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       }
       const [draft, assets, placements, interiorItems] = await Promise.all([
         db.select().from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId)).limit(1),
-        db.select().from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId))
-          .orderBy(asc(worldSceneAssets.createdAt)).limit(301),
+        db.select().from(worldSceneAssets).where(referencedWorldAssetFilter(worldId))
+          .orderBy(asc(worldSceneAssets.createdAt)).limit(WORLD_SCENE_MAX_ASSETS + 1),
         db.select().from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId))
           .orderBy(asc(worldScenePlacements.createdAt)).limit(4501),
         db.select().from(worldSceneInteriorItems).where(eq(worldSceneInteriorItems.worldId, worldId))
           .orderBy(asc(worldSceneInteriorItems.createdAt)).limit(4501),
       ]);
-      if (assets.length > 300 || placements.length > 4500 ||
+      if (assets.length > WORLD_SCENE_MAX_ASSETS || placements.length > 4500 ||
           interiorItems.length > 4500)
         return res.status(409).json({ message: "This world is not ready for players" });
       const linkedIds = [...new Set(placements.map(p => p.legacyLocationId).filter((id): id is string => !!id))];

@@ -320,6 +320,40 @@ try {
       throw error;
     }
     await page.getByRole("button", { name: "+ Building" }).waitFor({ state: "visible" });
+    if (name === "phone") {
+      const result = await page.evaluate(async () => {
+        const { readWorldArtwork } = await import("/src/lib/worldArtworkUpload.ts");
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 2200;
+        const ctx = canvas.getContext("2d");
+        const pixels = ctx.createImageData(2200, 2200);
+        let seed = 192837;
+        for (let i = 0; i < pixels.data.length; i += 4) {
+          seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+          pixels.data[i] = seed & 255;
+          pixels.data[i + 1] = (seed >>> 8) & 255;
+          pixels.data[i + 2] = (seed >>> 16) & 255;
+          pixels.data[i + 3] = i < 2200 * 4 * 200 ? 0 : 255;
+        }
+        ctx.putImageData(pixels, 0, 0);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+        const data = await readWorldArtwork(new File([blob], "large-transparent.png", { type: "image/png" }));
+        const decoded = new Image();
+        decoded.src = data;
+        await decoded.decode();
+        canvas.width = decoded.naturalWidth;
+        canvas.height = decoded.naturalHeight;
+        ctx.drawImage(decoded, 0, 0);
+        return { inputBytes: blob.size, outputBytes: data.length, width: decoded.naturalWidth,
+          height: decoded.naturalHeight, alpha: ctx.getImageData(10, 10, 1, 1).data[3] };
+      });
+      assert.ok(result.inputBytes > 6_000_000, "fixture exceeds the original upload limit");
+      assert.ok(result.outputBytes < 8_000_000, "large artwork is optimized below the old request limit");
+      assert.equal(result.width, 2000);
+      assert.equal(result.height, 2000);
+      assert.equal(result.alpha, 0, "transparent artwork retains transparent pixels");
+    }
+
     await page.getByRole("button", { name: "+ Building" }).click();
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
     assert.equal(await page.getByLabel("Building starting size").inputValue(), "300");
@@ -336,6 +370,7 @@ try {
     await page.getByLabel("Building exterior image").setInputFiles({
       name: "Cottage.png", mimeType: "image/png", buffer: png,
     });
+    await page.getByAltText("New building preview").waitFor();
     await page.getByTestId("world-create-interior-artwork").locator("summary").click();
     await page.getByLabel("Building interior image").setInputFiles({
       name: "Cottage Room.png", mimeType: "image/png", buffer: png,

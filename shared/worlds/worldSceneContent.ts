@@ -50,9 +50,27 @@ export function isWorldTerrainType(value: unknown): value is WorldTerrainType {
 export function validSceneId(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9-]{36}$/i.test(value);
 }
+/** Match the existing processWorldImage base64 limit; keep request bodies below Express's 50 MiB limit. */
+export const WORLD_ARTWORK_MAX_BASE64 = 30 * 1024 * 1024;
+export const WORLD_ARTWORK_TARGET_BYTES = 5_900_000;
+export const WORLD_ARTWORK_MAX_REQUEST_DATA = 48 * 1024 * 1024;
+export const WORLD_SCENE_MAX_ASSETS = 300;
+export const WORLD_ARTWORK_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
+const artworkHeader = /^data:image\/(?:png|jpeg|webp|gif);base64,/;
+export function worldArtworkError(value: unknown): "format" | "size" | null {
+  if (typeof value !== "string") return "format";
+  const header = artworkHeader.exec(value);
+  if (!header) return "format";
+  if (value.length - header[0].length > WORLD_ARTWORK_MAX_BASE64) return "size";
+  const payload = value.slice(header[0].length);
+  return payload.length % 4 === 0 && /^[a-zA-Z0-9+/]+={0,2}$/.test(payload) ? null : "format";
+}
 export function validWorldArtwork(value: unknown): value is string {
-  return typeof value === "string" && value.length < 8_000_000 &&
-    /^data:image\/(?:png|jpeg|webp|gif);base64,[a-zA-Z0-9+/=]+$/.test(value);
+  return worldArtworkError(value) === null;
+}
+export function worldArtworkRequestFits(values: unknown[]): boolean {
+  return values.reduce<number>((total, value) => total + (typeof value === "string" ? value.length : 0), 0)
+    <= WORLD_ARTWORK_MAX_REQUEST_DATA;
 }
 export function validPosition(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
