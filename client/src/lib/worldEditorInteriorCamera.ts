@@ -1,41 +1,28 @@
 import { worldEditorClampCamera } from "./worldEditorCamera";
 
-type Point = { x: number; y: number };
 type Size = { width: number; height: number };
 
-/** Room zoom is independent of outdoor terrain. A zero zoom is the room
- * overview; 1 fills the screen height, like Pet Park's expanded room. */
-export function worldEditorInteriorCamera(viewport: Size, aspect: number, zoom: number, center: Point) {
+/** Match the expanded Pet Park room: artwork owns the entire visible height
+ * and keeps its native aspect ratio. Only its horizontal scroll position can
+ * change. Wide rooms never expose space beyond their edges; narrower artwork
+ * is centered rather than stretched or cropped vertically. */
+export function worldEditorInteriorCamera(viewport: Size, aspect: number, centerX = .5) {
   const ratio = Number.isFinite(aspect) && aspect > 0 ? aspect : 4 / 3;
-  const height = zoom === 0
-    ? Math.min(viewport.height, viewport.width / ratio)
-    : viewport.height * zoom;
+  const height = Math.max(1, viewport.height);
   const width = height * ratio;
-  const bounds = {
-    sceneWidth: width, sceneHeight: height,
-    limitX: Math.max(0, width - viewport.width), limitY: Math.max(0, height - viewport.height),
-  };
+  const center = Number.isFinite(centerX) ? centerX : .5;
   const pan = worldEditorClampCamera({
-    x: viewport.width / 2 - center.x * width,
-    y: viewport.height / 2 - center.y * height,
-  }, bounds, viewport);
-  // In edit mode allow a little vertical travel beyond the physical edges,
-  // so artwork under the fixed top/bottom toolbars can be brought into view.
-  // The default centered view still fills the viewport; Fit remains contained.
-  if (zoom !== 0) {
-    const topClearance = Math.min(112, viewport.height * .18);
-    const bottomClearance = Math.min(250, viewport.height * .33);
-    pan.y = Math.max(viewport.height - height - bottomClearance,
-      Math.min(topClearance, viewport.height / 2 - center.y * height));
-  }
-  return { width, height, pan, center: interiorCameraCenter(viewport, { width, height }, pan) };
+    x: viewport.width / 2 - center * width,
+    y: 0,
+  }, {
+    sceneWidth: width, sceneHeight: height,
+    limitX: Math.max(0, width - viewport.width), limitY: 0,
+  }, viewport);
+  return { width, height, pan: { x: pan.x, y: 0 },
+    center: { x: interiorCameraCenterX(viewport.width, width, pan.x), y: .5 } };
 }
 
-/** Store the visible center in authored image coordinates, not screen pixels.
- * This keeps the same area in view on device resize or room-only zoom. */
-export function interiorCameraCenter(viewport: Size, artwork: Size, pan: Point): Point {
-  return {
-    x: Math.max(0, Math.min(1, (viewport.width / 2 - pan.x) / Math.max(1, artwork.width))),
-    y: Math.max(0, Math.min(1, (viewport.height / 2 - pan.y) / Math.max(1, artwork.height))),
-  };
+/** Preserve the artwork point at viewport center across device resizing. */
+export function interiorCameraCenterX(viewportWidth: number, artworkWidth: number, panX: number): number {
+  return Math.max(0, Math.min(1, (viewportWidth / 2 - panX) / Math.max(1, artworkWidth)));
 }

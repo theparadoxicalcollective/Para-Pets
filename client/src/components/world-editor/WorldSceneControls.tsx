@@ -38,6 +38,7 @@ type Props = {
   selectedInterior: WorldSceneInteriorItem | null;
   activeBuilding: WorldScenePlacement | null;
   shopItemEditing?: boolean;
+  roomToolsHidden?: boolean;
   placementPoint: { xPct: number; yPct: number };
   interiorDarkness: number;
   interiorPreviewClock: "live" | "day" | "night";
@@ -285,7 +286,7 @@ export default function WorldSceneControls(props: Props) {
   const quickDanger = "min-h-12 rounded-xl border border-[#be8d62]/65 bg-[#463028]/95 px-2 py-2 text-xs font-semibold text-[#f9d6a6] shadow-lg disabled:opacity-40";
 
   return <>
-    {!expanded && !selectedItem && !props.shopItemEditing && <div
+    {!expanded && !props.roomToolsHidden && !selectedItem && !props.shopItemEditing && <div
       data-testid="world-scene-controls" aria-label="World editing toolbar"
       className={`pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg gap-1.5 ${props.activeBuilding && !props.activeBuilding.isShop ? "grid-cols-2" : "grid-cols-3"}`}
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
@@ -332,7 +333,7 @@ export default function WorldSceneControls(props: Props) {
           aria-label="World Settings" onClick={() => openCreator("settings")}>World Settings</button>
       </>}
     </div>}
-    {!expanded && selectedItem && <section
+    {!expanded && selectedItem && !props.roomToolsHidden && <section
       data-testid="world-scene-selected-controls" aria-label="Move selected world object"
       className="pointer-events-auto absolute inset-x-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-xl"
       style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
@@ -372,7 +373,7 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
         {(props.activeBuilding || props.selected?.kind !== "building") && <span className="ml-auto self-center text-[10px] text-amber-100/65">
-          Drag selected artwork to move · swipe background to pan
+          {props.activeBuilding ? "Drag selected artwork to move · swipe left/right to view the room" : "Drag selected artwork to move · swipe background to pan"}
         </span>}
       </div>
       {!props.activeBuilding && props.selectedPageAvailable && <p className="text-center text-[10px] text-amber-100/80">
