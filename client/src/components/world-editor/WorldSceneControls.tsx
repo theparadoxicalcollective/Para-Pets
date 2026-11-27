@@ -58,9 +58,6 @@ type Props = {
   onZoom: (value: number) => void;
   onResetZoom: () => void;
   onSaveGroundTheme: (theme: WorldGroundTheme) => Promise<void>;
-  isLive: boolean;
-  saveLivePending: boolean;
-  onSaveAndSetLive: (selectedGroundTheme: WorldGroundTheme) => void;
 };
 
 export default function WorldSceneControls(props: Props) {
@@ -175,7 +172,7 @@ export default function WorldSceneControls(props: Props) {
   const linkedOriginal = legacyPages.data?.find(page => page.id === selectedLegacyPage);
   const retiredKey = ["/api/worlds", props.worldId, "retired-locations"];
   const retired = useQuery<string[]>({
-    queryKey: retiredKey, enabled: props.isLive && !!linkedOriginal && linkedOriginal.worldId === props.worldId,
+    queryKey: retiredKey, enabled: !!linkedOriginal && linkedOriginal.worldId === props.worldId,
     queryFn: async () => (await apiRequest("GET", `/api/worlds/${props.worldId}/retired-locations`)).json(),
     staleTime: 0,
   });
@@ -259,7 +256,7 @@ export default function WorldSceneControls(props: Props) {
     const result = await mutate("DELETE", "/terrain");
     if (result) {
       toast({ title: "World terrain cleared",
-  description: props.isLive ? "Saved terrain changes are visible to players." : "The original world remains active until Save & Set Live." });
+  description: "Saved terrain changes update the player scene." });
       setExpanded(false);
     }
   };
@@ -269,7 +266,7 @@ export default function WorldSceneControls(props: Props) {
     try {
       await props.onSaveGroundTheme(themeDraft);
       toast({ title: "World ground updated",
-  description: props.isLive ? "Saved ground changes are visible to players." : "Use Save & Set Live whenever you want to switch." });
+  description: "Saved ground changes update the player scene." });
     } catch (error) {
       toast({ title: "World ground could not be saved", description: String(error), variant: "destructive" });
     } finally {
@@ -430,30 +427,9 @@ export default function WorldSceneControls(props: Props) {
             disabled={busy || themeDraft === props.groundTheme}
             onClick={() => void saveTheme()}>{busy ? "Saving…" : "Save Ground Theme"}</button>
         </div>
-        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523]/90 p-3"
-          data-testid="world-editor-publication-settings">
-          <strong className="text-xs text-[#f5d77b]">Player world</strong>
-          <p className="text-[11px] text-[#e8caa0]">
-            {props.isLive
-              ? "This new world is LIVE. Every saved scene change is available to players without another publish step."
-              : "Players still see the original world. Switch whenever you like, even with unfinished or unlinked buildings."}
-          </p>
-          {!props.isLive && <button type="button"
-            data-testid="button-save-and-set-world-live"
-            className={quickAccent}
-            disabled={busy || props.saveLivePending}
-            onClick={() => {
-              if (!window.confirm(
-                "Save this world and make it live for players? Unfinished buildings are allowed, but missing entrances will not be available until you add them. You can switch back to the original world from the map."
-              )) return;
-              props.onSaveAndSetLive(themeDraft);
-            }}>
-            {props.saveLivePending ? "Saving & going live…" : "Save & Set Live"}
-          </button>}
-          <p className="text-[10px] text-[#d1b77c]">
-            The saved scene is the live scene. Use this world's map Switch to restore the original world when needed.
-          </p>
-        </div>
+        <p className="text-[11px] text-[#e8caa0]">
+          Saved changes update the new world automatically. Manage player access in Admin Realm → Worlds.
+        </p>
         <details className={disclosure} data-testid="world-settings-clear-terrain">
           <summary>Clear painted terrain (advanced)</summary>
           <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted paths and garden plots from this world only. If live, players will see this change. Buildings and decorations remain.</p>
@@ -663,11 +639,10 @@ export default function WorldSceneControls(props: Props) {
           <div className="space-y-2 pt-2">
             <p className="text-[11px] text-amber-100/75">After verifying the new building, retire its original map hotspot. Its page, quests and saved gameplay remain connected. Switching to Old restores all hotspots.</p>
             <button type="button" className={control} data-testid="button-retire-original-hotspot"
-              disabled={!props.isLive || busy || retired.isLoading || retired.isError}
+              disabled={busy || retired.isLoading || retired.isError}
               onClick={() => void changeRetirement()}>
               {isRetired ? "Restore original hotspot" : "Retire original hotspot"}
             </button>
-            {!props.isLive && <p className="text-[10px] text-amber-100/70">Set this world live first.</p>}
           </div>
         </details>}
         {currentAsset && <details className={disclosure}

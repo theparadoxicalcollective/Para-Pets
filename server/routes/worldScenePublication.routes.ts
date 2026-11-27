@@ -5,14 +5,16 @@ import {
   worldScenePlacements, worldSceneInteriorItems, shopItems, worldLocations, gameSettings,
 } from "@shared/schema";
 import {
-  WORLD_DEFINITION_LIST, isKnownWorldId, isWorldOpenToPlayers,
+  WORLD_DEFINITION_LIST, isKnownWorldId,
 } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
+import { effectiveWorldLocked, worldLockKey } from "@shared/worlds/worldAccess";
+import { defaultWorldSceneDraft } from "@shared/worlds/worldSceneDraft";
 import { auditWorldActivation, resolveLegacyNpcLocation, retiredLocationKey, effectiveRetiredLocations } from "@shared/worlds/worldScenePublication";
 
 /**
- * Publication is an atomic pointer, not a migration: never modify or delete
- * old WorldPage backgrounds, locations, quests, shops or player progress.
+ * Every registered world reads its saved new scene. World locks are independent
+ * of scene data. Original gameplay locations and player progress stay intact.
  * The player scene is read-only; admin authoring routes stay private.
  */
 export function registerWorldScenePublicationRoutes(app: Express, {
@@ -20,12 +22,17 @@ export function registerWorldScenePublicationRoutes(app: Express, {
 }: { db: typeof database; isAuthenticated: RequestHandler; isAdmin: RequestHandler }): void {
   app.get("/api/world-scene-publications", isAuthenticated, async (_req, res) => {
     try {
-      const rows = await db.select().from(worldScenePublications);
+      const [rows, locks] = await Promise.all([
+        db.select().from(worldScenePublications),
+        db.select().from(gameSettings).where(inArray(gameSettings.key, WORLD_DEFINITION_LIST.map(world => worldLockKey(world.id)))),
+      ]);
       const byId = new Map(rows.map(row => [row.worldId, row]));
+      const byKey = new Map(locks.map(row => [row.key, row.value]));
+      res.set("Cache-Control", "private, no-store");
       return res.json(WORLD_DEFINITION_LIST.map(world => {
         const saved = byId.get(world.id);
-        return { worldId: world.id, active: saved?.active === true,
-          hasBeenLive: !!saved?.firstEnabledAt,
+        return { worldId: world.id, active: true, hasBeenLive: true,
+          locked: effectiveWorldLocked(world.id, byKey.get(worldLockKey(world.id))),
           firstEnabledAt: saved?.firstEnabledAt?.toISOString() ?? null,
           updatedAt: saved?.updatedAt?.toISOString() ?? null };
       }));
@@ -35,31 +42,30 @@ export function registerWorldScenePublicationRoutes(app: Express, {
     }
   });
 
-  app.put("/api/admin/world-editor/:worldId/publication", isAdmin, async (req, res) => {
+  // The old publication endpoint is kept for cached older admin clients,
+  // but it can no longer select the original map for players.
+  app.put("/api/admin/world-editor/:worldId/publication", isAdmin, (req, res) => {
     const worldId = req.params.worldId;
     if (typeof worldId !== "string" || !isKnownWorldId(worldId))
       return res.status(404).json({ message: "Unknown world" });
-    if (req.body?.active !== true && req.body?.active !== false)
-      return res.status(400).json({ message: "active must be a boolean" });
-    const active: boolean = req.body.active;
-    const saveAndSetLive = req.body?.saveAndSetLive === true;
-    if (saveAndSetLive && !active)
-      return res.status(400).json({ message: "Save & Set Live must activate this world." });
+    if (req.body?.active !== true) return res.status(409).json({
+      message: "New worlds are the default. Manage player access in Admin Realm → Worlds.",
+    });
+    return res.json({ worldId, active: true, hasBeenLive: true, firstEnabledAt: null, updatedAt: null });
+  });
+
+  app.put("/api/admin/worlds/:worldId/lock", isAdmin, async (req, res) => {
+    const worldId = req.params.worldId;
+    if (typeof worldId !== "string" || !isKnownWorldId(worldId))
+      return res.status(404).json({ message: "Unknown world" });
+    if (typeof req.body?.locked !== "boolean")
+      return res.status(400).json({ message: "locked must be a boolean" });
     try {
-      const [existing] = await db.select().from(worldScenePublications)
-        .where(eq(worldScenePublications.worldId, worldId)).limit(1);
-      // Keep the first switch explicit; saving scenery alone must never
-      // change whether players see the original or new world.
-      if (active && !saveAndSetLive && !existing?.firstEnabledAt)
-        return res.status(409).json({
-          message: "Open this world's editor and select Save & Set Live first.",
-        });
-      // Check saved scene integrity when enabling from Old, not migration
-      // completeness. Never impede rollback or require all old page links.
-      if (active && !existing?.active) {
-        const [ground, placements, assets, npcs, locations, interiorItems] = await Promise.all([
-          db.select({ worldId: worldSceneDrafts.worldId }).from(worldSceneDrafts)
-            .where(eq(worldSceneDrafts.worldId, worldId)).limit(1),
+      const locked: boolean = req.body.locked;
+      // Incomplete migration is fine. Still guard against actual broken scene
+      // references and limits when opening a locked world.
+      if (!locked) {
+        const [placements, assets, npcs, locations, interiorItems] = await Promise.all([
           db.select({ id: worldScenePlacements.id, kind: worldScenePlacements.kind,
             assetId: worldScenePlacements.assetId, npcId: worldScenePlacements.npcId,
             legacyLocationId: worldScenePlacements.legacyLocationId, isShop: worldScenePlacements.isShop })
@@ -77,44 +83,31 @@ export function registerWorldScenePublicationRoutes(app: Express, {
             .where(eq(worldSceneInteriorItems.worldId, worldId)).limit(4501),
         ]);
         const blockers = auditWorldActivation(worldId, {
-          hasGround: ground.length > 0, placements, assets, npcs, locations, interiorItems,
+          hasGround: true, placements, assets, npcs, locations, interiorItems,
         });
         if (blockers.length) return res.status(409).json({
-          message: "New world is not ready. " + blockers.join(" "), blockers,
+          message: "Resolve these scene errors before unlocking. " + blockers.join(" "), blockers,
         });
       }
-      const now = new Date();
-      const firstEnabledAt = existing?.firstEnabledAt ?? (saveAndSetLive ? now : null);
-      const [updated] = await db.insert(worldScenePublications)
-        .values({ worldId, active, firstEnabledAt, updatedAt: now })
-        .onConflictDoUpdate({
-          target: worldScenePublications.worldId,
-          set: { active, firstEnabledAt, updatedAt: now },
-        }).returning();
+      const key = worldLockKey(worldId);
+      await db.insert(gameSettings).values({ key, value: String(locked) })
+        .onConflictDoUpdate({ target: gameSettings.key, set: { value: String(locked) } });
       res.set("Cache-Control", "no-store");
-      return res.json({
-        worldId, active: updated.active,
-        hasBeenLive: !!updated.firstEnabledAt,
-        firstEnabledAt: updated.firstEnabledAt?.toISOString() ?? null,
-        updatedAt: updated.updatedAt.toISOString(),
-      });
+      return res.json({ worldId, locked });
     } catch (error) {
-      console.error("[world-publication] switch failed", error);
-      return res.status(500).json({ message: "Could not switch this world" });
+      console.error("[world-access] lock update failed", error);
+      return res.status(500).json({ message: "Could not update world access" });
     }
   });
 
   // Retire only the old map hotspot, never its ID, art, shop or quest data.
-  // The preference is tied to the exact live building; removing the link or
-  // switching back to Old automatically restores the original hotspot.
+  // The preference is tied to the exact live building; removing the link
+  // automatically restores the original hotspot in the retained admin map.
   app.get("/api/worlds/:worldId/retired-locations", isAuthenticated, async (req, res) => {
     const worldId = req.params.worldId;
     if (typeof worldId !== "string" || !isKnownWorldId(worldId))
       return res.status(404).json({ message: "Unknown world" });
     try {
-      const [publication] = await db.select().from(worldScenePublications)
-        .where(eq(worldScenePublications.worldId, worldId)).limit(1);
-      if (!publication?.active) return res.json([]);
       const links = await db.select({
         id: worldScenePlacements.id, kind: worldScenePlacements.kind,
         legacyLocationId: worldScenePlacements.legacyLocationId, legacyWorldId: worldLocations.worldId,
@@ -151,9 +144,6 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       });
       const key = retiredLocationKey(worldId, linked.locationId);
       if (req.body.retired) {
-        const [publication] = await db.select().from(worldScenePublications)
-          .where(eq(worldScenePublications.worldId, worldId)).limit(1);
-        if (!publication?.active) return res.status(409).json({ message: "Set this world live and verify the building first." });
         await db.insert(gameSettings).values({ key, value: placementId })
           .onConflictDoUpdate({ target: gameSettings.key, set: { value: placementId } });
       } else {
@@ -171,14 +161,12 @@ export function registerWorldScenePublicationRoutes(app: Express, {
     if (typeof worldId !== "string" || !isKnownWorldId(worldId))
       return res.status(404).json({ message: "Unknown world" });
     const viewer = req.user as { isAdmin?: boolean; isModerator?: boolean } | undefined;
-    // Match the actual world-map gate, including already-public Haunted Woods.
-    if (!viewer?.isAdmin && !viewer?.isModerator &&
-        worldId !== "haunted_woods" && !isWorldOpenToPlayers(worldId))
-      return res.status(403).json({ message: "This world is locked" });
     try {
-      const [publication] = await db.select().from(worldScenePublications)
-        .where(eq(worldScenePublications.worldId, worldId)).limit(1);
-      if (!publication?.active) return res.status(404).json({ message: "The old world is active" });
+      if (!viewer?.isAdmin && !viewer?.isModerator) {
+        const [lock] = await db.select().from(gameSettings).where(eq(gameSettings.key, worldLockKey(worldId))).limit(1);
+        if (effectiveWorldLocked(worldId, lock?.value))
+          return res.status(403).json({ message: "Coming Soon" });
+      }
       const [draft, assets, placements, interiorItems] = await Promise.all([
         db.select().from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId)).limit(1),
         db.select().from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId))
@@ -188,7 +176,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
         db.select().from(worldSceneInteriorItems).where(eq(worldSceneInteriorItems.worldId, worldId))
           .orderBy(asc(worldSceneInteriorItems.createdAt)).limit(4501),
       ]);
-      if (!draft.length || assets.length > 300 || placements.length > 4500 ||
+      if (assets.length > 300 || placements.length > 4500 ||
           interiorItems.length > 4500)
         return res.status(409).json({ message: "This world is not ready for players" });
       const linkedIds = [...new Set(placements.map(p => p.legacyLocationId).filter((id): id is string => !!id))];
@@ -218,8 +206,9 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       // Every saved scene edit is read directly from the live source tables
       // (there is no separate published snapshot to become stale).
       res.set("Cache-Control", "private, no-cache");
+      const ground = draft[0] ?? defaultWorldSceneDraft(worldId);
       return res.json({
-        worldId, groundLevel: draft[0].groundLevel, groundTheme: draft[0].groundTheme,
+        worldId, groundLevel: ground.groundLevel, groundTheme: ground.groundTheme,
         assets, placements, interiorItems, linkedPages, npcs: connectedNpcs,
       });
     } catch (error) {

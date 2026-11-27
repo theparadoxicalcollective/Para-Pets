@@ -35,7 +35,6 @@ import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
 import { PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
 import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
-import type { WorldScenePublication } from "@shared/worlds/worldScenePublication";
 import { worldGroundPalette, worldGroundRenderTheme } from "@/lib/worldGroundPalette";
 import type { ParkEffectType } from "@shared/petParkEffects";
 
@@ -51,8 +50,8 @@ import {
 /**
  * One independent admin World Editor across all registered realms.
  * Reuses camera and painterly ground math, not the Pet Park editor or APIs.
- * The editor remains admin-only. A per-world Save & Set Live action
- * makes subsequent persisted scene edits visible to players.
+ * The editor remains admin-only. Saved scene edits are visible to players
+ * automatically when the world is unlocked.
  */
 export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [, navigate] = useLocation();
@@ -159,19 +158,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     },
     refetchOnMount: true,
   });
-  const publication = useQuery<WorldScenePublication[]>({
-    queryKey: ["/api/world-scene-publications"],
-    enabled: known,
-    queryFn: async () => {
-      const response = await fetch("/api/world-scene-publications", {
-        credentials: "include", cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Could not load this world's live status");
-      return response.json();
-    },
-    staleTime: 0,
-  });
-  const isLive = publication.data?.some(entry => entry.worldId === worldId && entry.active) ?? false;
   const emptyScene: WorldSceneContent = useMemo(() => ({
     assets: [], placements: [], interiorItems: [],
   }), []);
@@ -388,33 +374,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       setEdited(null);
       void cache.invalidateQueries({ queryKey: sceneQueryKey });
       toast({ title: "World changes saved",
-        description: isLive ? "Your saved changes are now available to players." : "Select Save & Set Live whenever you want to switch." });
+        description: "Saved changes update the player scene automatically." });
     },
     onError: (error: Error) => toast({
       title: "Unable to save world", description: error.message, variant: "destructive",
-    }),
-  });
-  const saveAndSetLive = useMutation({
-    mutationFn: async (selectedGroundTheme: WorldGroundTheme) => {
-      // Persist the currently selected ground settings before opening the
-      // player route. All content/placement operations already save in-place.
-      const ground = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
-        { groundLevel, groundTheme: selectedGroundTheme });
-      const savedGround = await ground.json() as WorldSceneDraft;
-      const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/publication`,
-        { active: true, saveAndSetLive: true });
-      return { savedGround, publication: await response.json() as WorldScenePublication };
-    },
-    onSuccess: result => {
-      cache.setQueryData(queryKey, result.savedGround);
-      setEdited(null);
-      void cache.invalidateQueries({ queryKey: ["/api/world-scene-publications"] });
-      void cache.invalidateQueries({ queryKey: ["/api/worlds", worldId, "player-scene"] });
-      toast({ title: "World is live",
-        description: "Players now see this world's saved scenery. Future saved changes appear automatically." });
-    },
-    onError: (error: Error) => toast({
-      title: "Could not set world live", description: error.message, variant: "destructive",
     }),
   });
   const changeLevel = (next: number) => {
@@ -983,7 +946,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     {!paintMode && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
       style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
       <span className="rounded-lg bg-black/70 px-3 py-1.5 text-[11px] text-amber-200">
-        {isLive ? "New world LIVE · Saved edits update the player world" : "Original world is live · Save & Set Live to switch"}
+        Saved edits update the player world when unlocked
       </span>
     </div>}
 
@@ -1007,9 +970,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         zoom={zoom} minZoom={minZoom}
         onZoom={value => changeZoom(value)}
         onResetZoom={() => changeZoom(1)}
-        isLive={isLive}
-        saveLivePending={saveAndSetLive.isPending}
-        onSaveAndSetLive={theme => saveAndSetLive.mutate(theme)}
         onSaveGroundTheme={async theme => {
           const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
             { groundLevel, groundTheme: theme });

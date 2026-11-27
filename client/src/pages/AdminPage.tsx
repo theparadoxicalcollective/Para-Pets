@@ -22,6 +22,7 @@ import DailyRewardsAdminPanel from "@/components/DailyRewardsAdminPanel";
 import MaintenanceSection from "@/components/admin/MaintenanceSection";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import GardenAdminPanel from "@/components/GardenAdminPanel";
+import WorldAccessPanel from "@/components/admin/WorldAccessPanel";
 
 import adminIconMembers from "@assets/admin_icon_members.png";
 import adminIconRewards from "@assets/admin_icon_rewards_new.png";
@@ -95,7 +96,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "cards" | "emblems" | "maintenance" | "home_bundle" | "pet_park" | "garden" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "cards" | "emblems" | "maintenance" | "home_bundle" | "pet_park" | "garden" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | "worlds" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "mini_pet" | "enemy" | "npc" | "fish" | "avatar">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -221,6 +222,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "rewards"       as const, label: "Rewards",         icon: adminIconRewards,       desc: "Send bundles",                 color: "#c4b5fd", glow: "rgba(192,132,252,0.35)",  bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)"  },
     { key: "forums"        as const, label: "Forums",          icon: adminIconVeridianWatcher, desc: "Manage forum posts",         color: "#86efac", glow: "rgba(134,239,172,0.30)",  bg: "linear-gradient(145deg, rgba(4,40,16,0.92) 0%, rgba(8,64,24,0.88) 100%)",   border: "rgba(134,239,172,0.45)" },
     { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#a5f3fc", glow: "rgba(165,243,252,0.30)", bg: "linear-gradient(145deg, rgba(8,40,55,0.92) 0%, rgba(12,65,85,0.88) 100%)", border: "rgba(165,243,252,0.45)" },
+    { key: "worlds" as const, label: "Worlds", icon: adminIconHouseBundle, desc: "Lock & unlock player worlds", color: "#f5d77b", glow: "rgba(219,181,86,.30)", bg: "linear-gradient(145deg, rgba(17,52,28,.94), rgba(46,71,30,.88))", border: "rgba(219,181,86,.56)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -837,6 +839,8 @@ export default function AdminPage({ user }: AdminPageProps) {
               {activeSection === "pet_park" && <PetParkAdminPanel mode="settings" />}
 
               {activeSection === "garden" && <GardenAdminPanel />}
+
+              {activeSection === "worlds" && <WorldAccessPanel />}
 
               {activeSection === "purchases" && (
                 <CoinPurchasesSection />
