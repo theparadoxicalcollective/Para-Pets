@@ -40,9 +40,11 @@ try {
     page.on("pageerror",error=>errors.push(error.message));
     const owned={petInventoryId:"owner-pet",petTemplateId:null,hatchedImageUrl:petImage,petName:"Pet",petNickname:"My Pet",rarity:4,petLevel:32,ownerName:"Owner",ownerId:"owner",buildingId:"cottage",roomEffectId:null,interiorXPct:.37,interiorYPct:.60,parkXPct:null,parkYPct:null,pose:"idle"};
     const guest={...owned,petInventoryId:"guest-pet",ownerName:"Guest",ownerId:"guest",interiorXPct:.77,rarity:3};
-    let scene={enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,unlockedSlots:2,items:[],rates:{coinsPerHour:60,essencePerHour:24,petXpPerHour:300},serverNow:new Date().toISOString(),
+    // Keep the fixture on the exact reward boundary using one clock reading.
+    const fixtureNow = Date.now();
+    let scene={enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,unlockedSlots:2,items:[],rates:{coinsPerHour:60,essencePerHour:24,petXpPerHour:300},serverNow:new Date(fixtureNow).toISOString(),
       buildings:[{id:"cottage",name:"Fixture Cottage",imageUrl:house,interiorImageUrl:roomImage,xPct:.5,yPct:.5,size:420,flipped:false,layer:0,maxPets:20,interiorEffects:[{id:"sleep1",type:"sleep",x:.58,y:.6,size:18}]}],
-      sharedPets:[owned,guest],deposits:[{...owned,id:"owner-deposit",slotNumber:1,checkpointAt:new Date(Date.now()-300_000).toISOString(),pausedAt:null,pausedDurationMs:0,earnedDurationMs:120_000,claimedRewards:{coins:2,essence:0,petXp:10},petLevelPoints:0}]};
+      sharedPets:[owned,guest],deposits:[{...owned,id:"owner-deposit",slotNumber:1,checkpointAt:new Date(fixtureNow-300_000).toISOString(),pausedAt:null,pausedDurationMs:0,earnedDurationMs:120_000,claimedRewards:{coins:2,essence:0,petXp:10},petLevelPoints:0}]};
     await page.route("**/api/**",route=>{
       const path=new URL(route.request().url()).pathname;
       if(path==="/api/pet-park/scene")return route.fulfill({json:scene});

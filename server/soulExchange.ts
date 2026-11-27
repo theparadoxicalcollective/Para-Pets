@@ -34,7 +34,7 @@ function blockedReason(row: any): SoulExchangeBlock | null {
 }
 
 const petStateSelect = sql`SELECT ui.id "inventoryId", ui.user_id "userId", ui.is_hatched "isHatched",
-  ui.pet_nickname nickname, si.id "shopItemId", si.name, si.type,
+  ui.pet_nickname nickname, ui.pet_level "petLevel", si.id "shopItemId", si.name, si.type,
   COALESCE(si.star_rarity,si.rarity,1) rarity, COALESCE(${petHatchedImageSql(sql`ui.is_hatched`, sql`ui.is_evolved`, sql`si.evolution_image_url`, sql`si.hatched_image_url`)},si.image_url) "imageUrl",
   (u.active_pet_id=ui.id) active,
   EXISTS(SELECT 1 FROM pet_equipped_accessories x WHERE x.pet_inventory_id=ui.id) accessories,

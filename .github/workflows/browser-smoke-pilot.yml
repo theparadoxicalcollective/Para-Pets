@@ -124,6 +124,7 @@ jobs:
           node script/world-scene-player-smoke.mjs
           node script/world-scene-haunted-spin-smoke.mjs
           node script/world-scene-haunted-fishing-smoke.mjs
+          node script/world-scene-soul-exchange-smoke.mjs
           # Real SVG night-mask pixels, neutral pools, overlapping lamps and pan.
           node script/park-world-scene-lamp-pixels-smoke.mjs
           node script/pet-park-player-profile-smoke.mjs
