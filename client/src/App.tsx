@@ -1,5 +1,5 @@
 import EmailGateScreen from "@/components/EmailGateScreen";
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, Redirect, useLocation, useSearch } from "wouter";
 import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
 import { fetchStartupInventory } from "./lib/startupInventory";
 import { prepareActivePetVisualState } from "./lib/activePetVisuals";
@@ -34,6 +34,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import DesktopComingSoonScreen from "@/components/DesktopComingSoonScreen";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
 import { isPublishedWorld, type WorldScenePublication } from "@shared/worlds/worldScenePublication";
+import { isKnownWorldId } from "@shared/worlds/worldRegistry";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
@@ -95,7 +96,13 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const isThemed = THEMED_WORLDS.has(worldId);
   // A linked old-world location is a safe transitional bridge. It must keep
   // the legacy WorldPage even when its parent world is switched to New.
-  const legacyLocationId = new URLSearchParams(window.location.search).get("legacyLocationId");
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const params = new URLSearchParams(search);
+  const legacyLocationId = params.get("legacyLocationId");
+  const legacyView = !!legacyLocationId || params.get("legacyView") === "1" ||
+    ["fishHint", "shopHint", "moltenHint", "openFishMarket"].some(name => params.has(name));
+  const returnWorld = params.get("returnWorld") ?? worldId;
   const { data: publications, isLoading: publicationLoading } = useQuery<WorldScenePublication[]>({
     queryKey: ["/api/world-scene-publications"],
     queryFn: async () => {
@@ -103,20 +110,20 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
         credentials: "include", cache: "no-store",
       });
       if (!response.ok) throw new Error("Could not load active world choices");
-      return response.json();
+      const result = await response.json();
+      if (!Array.isArray(result)) throw new Error("Invalid world status");
+      return result;
     },
     staleTime: 0, retry: 1, refetchOnMount: "always",
     // Keep the Old/New selection current for players already in this world.
     // This endpoint is tiny; full scenery is fetched by the player scene.
     refetchInterval: 20_000, refetchIntervalInBackground: false,
   });
-  const newWorldActive = !legacyLocationId && isPublishedWorld(worldId, publications ?? []);
+  const newWorldActive = !legacyView && isPublishedWorld(worldId, publications ?? []);
   const [screenDone, setScreenDone] = useState(!isThemed);
   const [worldReady, setWorldReady] = useState(false);
-  useEffect(() => {
-    setWorldReady(false);
-    setScreenDone(!isThemed);
-  }, [isThemed, worldId, newWorldActive]);
+  // The world route is already keyed by pathname. A same-path handoff must
+  // not restart a themed loading screen after its child has signalled ready.
   const hauntedWelcomeKey = user?.id ? `para_pets_haunted_welcome_v1_${user.id}` : "";
   const [showHauntedWelcome, setShowHauntedWelcome] = useState(() => {
     if (worldId !== "haunted_woods" || !user?.id) return false;
@@ -172,14 +179,30 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           before the themed loading screen paints — same technique as the
           HomePage base layer above. */}
       <div style={{ visibility: !isThemed || screenDone ? "visible" : "hidden", width: "100%", height: "100%" }}>
-        {!publicationLoading && (newWorldActive
+        {(!publicationLoading || legacyView) && (newWorldActive
           ? <WorldScenePlayerPage worldId={worldId} onContentReady={() => setWorldReady(true)} />
-          : <WorldPage user={worldUser} onContentReady={() => setWorldReady(true)} />)}
+          : <WorldPage key={legacyLocationId ?? "original"} user={worldUser} onContentReady={() => setWorldReady(true)} />)}
       </div>
       {!screenDone && (
         <ViewportModalPortal>
           <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
         </ViewportModalPortal>
+      )}
+      {screenDone && legacyView && isKnownWorldId(returnWorld) && isPublishedWorld(returnWorld, publications ?? []) && (
+        <div className="absolute right-3 top-[max(60px,env(safe-area-inset-top))] z-[90] flex flex-col items-end gap-1">
+          <button type="button" data-testid="button-return-to-new-world"
+            className="rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-xs font-semibold text-amber-200"
+            onClick={() => navigate(`/world/${encodeURIComponent(returnWorld)}`)}>← New World</button>
+          {params.get("legacyView") === "1" && !legacyLocationId && <button type="button"
+            data-testid="button-show-retired-locations"
+            className="rounded-full border border-amber-500/70 bg-[#132e20]/95 px-3 py-2 text-[10px] text-amber-200"
+            onClick={() => {
+              const next = new URLSearchParams(search);
+              if (next.get("showRetired") === "1") next.delete("showRetired");
+              else next.set("showRetired", "1");
+              navigate(`/world/${encodeURIComponent(worldId)}?${next.toString()}`);
+            }}>{params.get("showRetired") === "1" ? "Hide retired hotspots" : "Show all original hotspots"}</button>}
+        </div>
       )}
       {screenDone && worldId === "haunted_woods" && showHauntedWelcome && (
         <ViewportModalPortal>

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { WORLD_DEFINITION_LIST } from "../shared/worlds/worldRegistry";
 import {
-  clampPlayerWorldZoom, isPublishedWorld, PLAYER_WORLD_ZOOM_MAX,
+  auditWorldActivation, resolveLegacyNpcLocation, retiredLocationKey, effectiveRetiredLocations, clampPlayerWorldZoom, isPublishedWorld, PLAYER_WORLD_ZOOM_MAX,
   PLAYER_WORLD_ZOOM_STEP, type WorldScenePublication,
 } from "../shared/worlds/worldScenePublication";
 
@@ -74,6 +74,83 @@ test("old worlds and game progress remain untouched; database change is additive
   assert.doesNotMatch(routes, /delete\(worldLocations\)|delete\(worldSceneDrafts\)/);
   const app = read("client/src/App.tsx");
   assert.match(app, /<WorldScenePlayerPage/);
-  assert.match(app, /<WorldPage user=\{worldUser\}/);
+  assert.match(app, /<WorldPage[^>]*user=\{worldUser\}/);
   assert.match(app, /legacyLocationId/);
+});
+
+
+const original = [
+  { id: "shop", worldId: "swamp", name: "Potion Shop", type: "shop", isShop: true },
+  { id: "fish", worldId: "swamp", name: "Fishing Hole", type: "fishing", isShop: false },
+  { id: "arena", worldId: "swamp", name: "Clearing", type: "explore", isShop: false },
+  { id: "janson", worldId: "swamp", name: "Janson", type: "npc", isShop: false },
+  { id: "other", worldId: "haunted_woods", name: "Casino", type: "scenic", isShop: false },
+];
+const assets = [{ id: "building", kind: "building", imageUrl: "art" }];
+const npcs = [{ id: "npc", name: "Janson", imageUrl: "art" }];
+const basePlacement = { kind: "building", assetId: "building", npcId: null, isShop: false };
+const ready: Parameters<typeof auditWorldActivation>[1]["placements"] = [
+  { ...basePlacement, id: "new-shop", legacyLocationId: "shop", isShop: true },
+  { ...basePlacement, id: "new-fish", legacyLocationId: "fish" },
+  { ...basePlacement, id: "new-arena", legacyLocationId: "arena" },
+  { ...basePlacement, id: "cross-world", legacyLocationId: "other" },
+  { ...basePlacement, id: "new-npc", kind: "npc", assetId: null, npcId: "npc", legacyLocationId: null },
+];
+function audit(placements: Parameters<typeof auditWorldActivation>[1]["placements"] = ready,
+  overrides: Partial<Parameters<typeof auditWorldActivation>[1]> = {}) {
+  return auditWorldActivation("swamp", { hasGround: true, placements, assets, npcs, locations: original, ...overrides });
+}
+test("activation requires original NPCs, fishing, shops and other locations while preserving cross-world links", () => {
+  assert.deepEqual(audit(), []);
+  assert.ok(audit([ready[0]]).some(blocker => blocker.includes("Fishing Hole")));
+  assert.ok(audit([ready[0]]).some(blocker => blocker.includes("Janson")));
+  assert.ok(audit([ready[0]]).some(blocker => blocker.includes("Clearing")));
+  assert.ok(audit(ready.filter(p => p.id !== "new-shop")).some(blocker => blocker.includes("Potion Shop")));
+  assert.ok(audit(ready, { hasGround: false }).some(blocker => blocker.includes("ground")));
+  assert.ok(audit(ready, { assets: [] }).some(blocker => blocker.includes("artwork")));
+  assert.ok(audit(ready, { npcs: [] }).some(blocker => blocker.includes("NPC")));
+  assert.ok(audit([...ready, { ...ready[1], id: "duplicate-fish" }]).some(blocker => blocker.includes("more than once")));
+  assert.ok(audit(ready, { interiorItems: [{ kind: "decor", assetId: "missing", buildingId: "new-shop" }] }).some(blocker => blocker.includes("room decoration")));
+});
+test("NPC lookup is scoped to the original world, tolerates names with titles, and rejects ambiguity", () => {
+  assert.equal(resolveLegacyNpcLocation("swamp", " Janson  ", original)?.id, "janson");
+  assert.equal(resolveLegacyNpcLocation("swamp", "Janson the Fisher", original)?.id, "janson");
+  assert.equal(resolveLegacyNpcLocation("haunted_woods", "Janson", original), undefined);
+  assert.equal(resolveLegacyNpcLocation("swamp", "Janson", [...original,
+    { ...original[3], id: "duplicate" }]), undefined);
+});
+test("activation checks both first release and re-enabling, but does not impede rollback or force another publish for edits", () => {
+  const routes = read("server/routes/worldScenePublication.routes.ts");
+  assert.match(routes, /if \(active && !existing\?\.active\)/);
+  assert.match(routes, /auditWorldActivation\(worldId/);
+  assert.match(routes, /resolveLegacyNpcLocation\(worldId, npc\.name, localNpcLocations\)/);
+  assert.match(routes, /npcLocationIds\.has\(loc.id\)/);
+});
+
+test("retirement only hides a linked building's original same-world hotspot while New is live", () => {
+  const links = [
+    { id: "building-a", kind: "building", legacyLocationId: "shop", legacyWorldId: "swamp" },
+    { id: "building-b", kind: "building", legacyLocationId: "other", legacyWorldId: "haunted_woods" },
+  ];
+  const settings = [
+    { key: retiredLocationKey("swamp", "shop"), value: "building-a" },
+    { key: retiredLocationKey("swamp", "other"), value: "building-b" },
+  ];
+  assert.deepEqual(effectiveRetiredLocations("swamp", true, links, settings), ["shop"]);
+  assert.deepEqual(effectiveRetiredLocations("swamp", false, links, settings), []);
+  assert.deepEqual(effectiveRetiredLocations("swamp", true, links.slice(1), settings), []);
+  assert.deepEqual(effectiveRetiredLocations("swamp", true, [{ ...links[0], id: "new-building" }], settings), []);
+});
+
+test("retirement hides presentation, not underlying location records or original handlers", () => {
+  const routes = read("server/routes/worldScenePublication.routes.ts");
+  const legacy = read("client/src/components/world/WorldLocations.tsx");
+  const app = read("client/src/App.tsx");
+  assert.match(routes, /placements\/:placementId\/retirement", isAdmin/);
+  assert.match(routes, /db\.insert\(gameSettings\)/);
+  assert.match(legacy, /locations\.filter\(loc => !hiddenLocationIds\.includes\(loc\.id\)\)/);
+  assert.match(legacy, /locations\.find\(row => row\.id === linkedLocationId/);
+  assert.match(app, /const search = useSearch\(\)/);
+  assert.match(app, /button-show-retired-locations/);
+  assert.match(read("server/routes.ts"), /This location supports a new-world building/);
 });

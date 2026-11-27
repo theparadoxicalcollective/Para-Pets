@@ -5,7 +5,7 @@ import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "@/lib/worldViewport";
 import { clientPointInRenderedElement, getStageRenderedCenter } from "@/lib/stage";
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -268,7 +268,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // PvP arena: an empty slot opens the inventory picker on tap; a filled
   // slot clears itself on tap. The drag-and-drop rig was removed.
   const [potionPickerOpen, setPotionPickerOpen] = useState(false);
-  const [showSellFish, setShowSellFish] = useState(false);
+  const [showSellFish, setShowSellFish] = useState(() =>
+    worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams(window.location.search).get("openFishMarket") === "1");
   const [worldLocationOverlayOpen, setWorldLocationOverlayOpen] = useState(false);
   useEffect(() => {
     if (worldId !== ELYSIAN_BAYOU_WORLD_ID) return;
@@ -435,9 +436,26 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     return () => { setNavHidden(false); };
   }, [showShop, showFishing, showSellFish, cauldronOpen, battleLocationId, showCaveEntry, showBattle]);
 
-  const { data: inventory = [] } = useQuery<InventoryItem[]>({
+  const search = useSearch();
+  const legacyParams = new URLSearchParams(search);
+  const linkedLocationId = legacyParams.get("legacyLocationId");
+  // Keep the complete location set for the deep-link handler, quest IDs and
+  // player transactions. Only presentation of the old map is hidden.
+  // Recovery and existing guide intents can always reveal all original spots.
+  const hideRetired = legacyParams.get("legacyView") === "1" &&
+    legacyParams.get("showRetired") !== "1" && !["fishHint", "shopHint", "moltenHint", "openFishMarket"].some(name => legacyParams.has(name));
+  const { data: retiredIds = [] } = useQuery<string[]>({
+    queryKey: ["/api/worlds", worldId, "retired-locations"], enabled: hideRetired,
+    queryFn: async () => (await apiRequest("GET", `/api/worlds/${worldId}/retired-locations`)).json(),
+    staleTime: 0, refetchInterval: 20_000,
+  });
+  const hiddenLocationIds = hideRetired && Array.isArray(retiredIds) ? retiredIds : [];
+  const linkedLocation = locations.find(item => item.id === linkedLocationId);
+  const linkedNeedsInventory = !!linkedLocation && !currentUser.isAdmin &&
+    worldLocationRequiresHatchedPet(linkedLocation) && !!currentUser.activePetId;
+  const { data: inventory = [], isLoading: linkedInventoryLoading, isError: linkedInventoryError } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
-    enabled: showShop || showBattlePrep || cauldronOpen,
+    enabled: showShop || showBattlePrep || cauldronOpen || linkedNeedsInventory,
     staleTime: 0,
     refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
@@ -971,8 +989,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
       toast({ title: "Deleted", description: "Place removed" });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete place", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Could not delete place", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1323,18 +1341,19 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     showNoPetWarning,
   ]);
 
-  // The new authored world may reuse a legacy location page while it is
-  // being connected. Enter that exact existing page with its original IDs,
-  // quest handlers, stock and gameplay instead of copying player data.
-  const linkedLocationOpened = useRef<string | null>(null);
-  useEffect(() => {
-    const linkedId = new URLSearchParams(window.location.search).get("legacyLocationId");
-    if (!linkedId || linkedLocationOpened.current === linkedId || locationsLoading) return;
-    const linked = locations.find(location => location.id === linkedId);
-    if (!linked) return;
-    linkedLocationOpened.current = linkedId;
-    handleLocationClick(linked);
-  }, [worldId, locations, locationsLoading, handleLocationClick]);
+  // Reuse the original location handler, including its pet requirement.
+  // The authored-scene link is an explicit request to enter, not an admin
+  // hotspot selection gesture. WorldLocations still owns special destinations
+  // such as the casino and invokes this callback for ordinary locations.
+  const openLinkedLocation = useCallback((loc: WorldLocationData) => {
+    if (!currentUser.isAdmin && worldLocationRequiresHatchedPet(loc) &&
+        (!currentUser.activePetId || !hasHatchedActivePet)) {
+      showNoPetWarning();
+      return;
+    }
+    playMapTap();
+    openLocation(loc);
+  }, [currentUser.isAdmin, currentUser.activePetId, hasHatchedActivePet, showNoPetWarning, openLocation]);
 
   // LOAD saved team when battle prep opens (or when the location changes).
   useEffect(() => {
@@ -1734,6 +1753,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
             <WorldLocations
               locations={locations}
+              hiddenLocationIds={hiddenLocationIds}
               worldId={worldId}
               accent={accent}
               isAdmin={currentUser.isAdmin}
@@ -1742,6 +1762,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               dragPosition={dragPos}
               onPointerDown={handlePointerDown}
               onLocationClick={handleLocationClick}
+              linkedLocationId={linkedNeedsInventory && (linkedInventoryLoading || linkedInventoryError) ? null : linkedLocationId}
+              onLinkedLocationClick={openLinkedLocation}
               onOverlayVisibilityChange={setWorldLocationOverlayOpen}
               onEditLocation={(loc) => {
                 setEditingLocation(loc);

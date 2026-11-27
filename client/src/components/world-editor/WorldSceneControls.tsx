@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
@@ -9,7 +9,7 @@ import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
 import { decorRole, decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
-import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
+import WorldLegacyPagePicker, { useWorldLegacyPages } from "./WorldLegacyPagePicker";
 import { useWorldNpcCatalog, type WorldNpcCatalogEntry } from "./WorldNpcCatalog";
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
@@ -176,6 +176,28 @@ export default function WorldSceneControls(props: Props) {
         props.selected?.legacyLocationId === legacyChoice.pageId)
       setLegacyChoice(null);
   }, [props.selected?.id, props.selected?.legacyLocationId, legacyChoice]);
+  const queryClient = useQueryClient();
+  const legacyPages = useWorldLegacyPages(props.worldId, props.selected?.kind === "building");
+  const linkedOriginal = legacyPages.data?.find(page => page.id === selectedLegacyPage);
+  const retiredKey = ["/api/worlds", props.worldId, "retired-locations"];
+  const retired = useQuery<string[]>({
+    queryKey: retiredKey, enabled: props.isLive && !!linkedOriginal && linkedOriginal.worldId === props.worldId,
+    queryFn: async () => (await apiRequest("GET", `/api/worlds/${props.worldId}/retired-locations`)).json(),
+    staleTime: 0,
+  });
+  const isRetired = !!linkedOriginal && Array.isArray(retired.data) && retired.data.includes(linkedOriginal.id);
+  const changeRetirement = async () => {
+    if (!props.selected || busy || retired.isLoading || retired.isError) return;
+    if (!isRetired && !window.confirm("Have you tested this building as a player? Hiding the original hotspot keeps its gameplay and data; rollback restores it automatically.")) return;
+    setBusy(true);
+    try {
+      await apiRequest("PUT", `${root}/placements/${props.selected.id}/retirement`, { retired: !isRetired });
+      await queryClient.invalidateQueries({ queryKey: retiredKey });
+      toast({ title: isRetired ? "Original hotspot restored" : "Original hotspot retired", description: "The original location and gameplay are preserved." });
+    } catch (error) {
+      toast({ title: "Could not update original hotspot", description: String(error), variant: "destructive" });
+    } finally { setBusy(false); }
+  };
   const patchLegacyPage = async (id: string | null) => {
     if (!props.selected || props.selected.kind !== "building") return;
     const buildingId = props.selected.id;
@@ -633,6 +655,15 @@ export default function WorldSceneControls(props: Props) {
             value={selectedLegacyPage}
             onChange={id => { void patchLegacyPage(id); }}
             disabled={busy} preview /></div>
+          {linkedOriginal?.worldId === props.worldId && linkedOriginal.type !== "npc" && <div className="space-y-2 pt-2">
+            <p className="text-[11px] text-amber-100/75">After verifying the new building, retire its original map hotspot. Its page, quests and saved gameplay remain connected. Switching to Old restores all hotspots.</p>
+            <button type="button" className={control} data-testid="button-retire-original-hotspot"
+              disabled={!props.isLive || busy || retired.isLoading || retired.isError}
+              onClick={() => void changeRetirement()}>
+              {isRetired ? "Restore original hotspot" : "Retire original hotspot"}
+            </button>
+            {!props.isLive && <p className="text-[10px] text-amber-100/70">Set this world live first.</p>}
+          </div>}
         </details>
         {currentAsset && <details className={disclosure}
           open={props.selected.decorEffects.length > 0} data-testid="world-edit-building-effects">

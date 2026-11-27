@@ -12,7 +12,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems, playerClothingDrafts } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems, playerClothingDrafts, worldScenePlacements } from "@shared/schema";
 import { isHomeXpAnchor } from "@shared/homeXpAnchor";
 import { playerTimeZoneSchema } from "@shared/accountValidation";
 import { executeRewardClaim } from "./rewardClaim";
@@ -2719,6 +2719,11 @@ export async function registerRoutes(
   app.delete("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
       const locationId = (req.params.locationId as string);
+      const [linked] = await db.select({ id: worldScenePlacements.id }).from(worldScenePlacements)
+        .where(eq(worldScenePlacements.legacyLocationId, locationId)).limit(1);
+      if (linked) return res.status(409).json({
+        message: "This location supports a new-world building. Retire its original hotspot in New World Edit instead of deleting gameplay data.",
+      });
       await storage.deleteWorldLocation(locationId);
       // Persist deletion so startup script doesn't recreate seed locations
       const raw = await storage.getGameSetting("deleted_seed_location_ids");

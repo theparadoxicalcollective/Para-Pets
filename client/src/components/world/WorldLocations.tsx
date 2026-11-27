@@ -1,5 +1,5 @@
 import hauntedCasinoBackground from "@assets/uploads/HauntedCasinoMainBG.png";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { getStagePortalTarget } from "@/lib/stage";
 import MiniGameFrame from "./MiniGameFrame";
@@ -34,6 +34,7 @@ export interface WorldLocationData {
 
 interface WorldLocationsProps {
   locations: WorldLocationData[];
+  hiddenLocationIds?: readonly string[];
   worldId: string;
   accent: string;
   isAdmin: boolean;
@@ -45,6 +46,8 @@ interface WorldLocationsProps {
     location: WorldLocationData,
   ) => void;
   onLocationClick: (location: WorldLocationData) => void;
+  linkedLocationId?: string | null;
+  onLinkedLocationClick?: (location: WorldLocationData) => void;
   onOverlayVisibilityChange?: (open: boolean) => void;
   onEditLocation: (location: WorldLocationData) => void;
   onFlipLocation: (locationId: string) => void;
@@ -68,7 +71,7 @@ function isScrollableHauntedCasino(
 }
 
 export default function WorldLocations({
-  locations,
+  locations, hiddenLocationIds = [],
   worldId,
   accent,
   isAdmin,
@@ -77,6 +80,7 @@ export default function WorldLocations({
   dragPosition,
   onPointerDown,
   onLocationClick,
+  linkedLocationId, onLinkedLocationClick,
   onOverlayVisibilityChange,
   onEditLocation,
   onFlipLocation,
@@ -116,19 +120,31 @@ export default function WorldLocations({
     });
   };
 
-  const activateLocation = (loc: WorldLocationData) => {
+  const activateLocation = useCallback((loc: WorldLocationData, fromLink = false) => {
     if (isScrollableHauntedCasino(loc, worldId)) {
       // Admins keep the existing first-tap-select behavior so a hotspot can be
       // moved/resized safely. Once selected, the next tap opens the casino.
-      if (isAdmin && selectedLocId !== loc.id) {
-        onLocationClick(loc);
-        return;
+      if (!fromLink) {
+        if (isAdmin && selectedLocId !== loc.id) {
+          onLocationClick(loc);
+          return;
+        }
       }
       setCasinoScene(loc);
       return;
     }
-    onLocationClick(loc);
-  };
+    if (fromLink && onLinkedLocationClick) onLinkedLocationClick(loc);
+    else onLocationClick(loc);
+  }, [worldId, isAdmin, selectedLocId, onLocationClick, onLinkedLocationClick]);
+
+  const openedLink = useRef<string | null>(null);
+  useEffect(() => {
+    if (!linkedLocationId || openedLink.current === linkedLocationId) return;
+    const loc = locations.find(row => row.id === linkedLocationId && row.type !== "npc");
+    if (!loc) return;
+    openedLink.current = linkedLocationId;
+    activateLocation(loc, true);
+  }, [linkedLocationId, locations, activateLocation]);
 
   return (
     <div className="absolute inset-0">
@@ -152,7 +168,7 @@ export default function WorldLocations({
         }
       `}</style>
 
-      {[...locations]
+      {locations.filter(loc => !hiddenLocationIds.includes(loc.id))
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
         .map((loc, i) => {
           const pos =
