@@ -95,7 +95,7 @@ test("admin can set coins, essence, pet EXP, items and eggs directly on wheel se
   assert.match(server, /type <> 'pet' OR COALESCE\(egg_image_url, ''\) <> ''/);
 });
 
-test("Beau only opens the wheel from the Haunted Forest NPC and startup installs the feature", () => {
+test("Legacy Beau NPC still opens the wheel for original-world recovery and startup installs the feature", () => {
   assert.match(bridge, /BEAU_PRIZE_WHEEL_WORLD_ID/);
   assert.match(bridge, /BEAU_PRIZE_WHEEL_NPC_NAME/);
   assert.match(bridge, /npcNamesMatch/);

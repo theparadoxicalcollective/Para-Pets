@@ -1,7 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getStagePortalTarget } from "@/lib/stage";
-import MiniGameFrame from "@/components/world/MiniGameFrame";
+import BeauPrizeWheelDialog, { readBeauPrizeWheelState } from "@/components/world/BeauPrizeWheelDialog";
 import { fetchAuthenticatedUserCached } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import {
@@ -10,7 +9,6 @@ import {
 } from "@shared/beauPrizeWheel";
 import type { WheelState } from "@/components/world/BeauPrizeWheelOverlay";
 
-const BeauPrizeWheelOverlay = lazy(() => import("@/components/world/BeauPrizeWheelOverlay"));
 
 interface WorldLocationRow {
   id: string;
@@ -96,11 +94,15 @@ export default function BeauPrizeWheelBridge() {
       return;
     }
     const refresh = () => {
-      setMount(document.querySelector<HTMLElement>(`[data-testid="location-${beau.id}"]`));
+      // When the new scene has its own direct entrance, don't install a
+      // second spin launcher on a reused NPC mount. The original world still
+      // uses the exact same legacy entrance for recovery.
+      const dedicatedEntry = document.querySelector('[data-testid="player-new-world"][data-has-haunted-spin="true"]');
+      setMount(dedicatedEntry ? null : document.querySelector<HTMLElement>(`[data-testid="location-${beau.id}"]`));
     };
     refresh();
     const observer = new MutationObserver(refresh);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-has-haunted-spin"] });
     const timer = window.setInterval(refresh, 700);
     return () => {
       observer.disconnect();
@@ -157,13 +159,7 @@ export default function BeauPrizeWheelBridge() {
   const openWheel = useCallback(async () => {
     if (wheelState) return;
     try {
-      const response = await fetch("/api/beau-prize-wheel", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body?.message || "Beau's wheel could not be opened.");
-      const next = body as WheelState;
+      const next = await readBeauPrizeWheelState();
       if (!next.ready && !next.isAdmin) {
         showNotice("Beau's prize wheel isn't ready yet. Check back after all prizes have been set.");
         return;
@@ -322,22 +318,11 @@ export default function BeauPrizeWheelBridge() {
         casinoMount,
       )}
 
-      {wheelState && createPortal(
-        <MiniGameFrame worldId="haunted_woods">
-          <Suspense fallback={
-            <div className="absolute inset-0 z-[2200] grid place-items-center bg-black/90 text-sm text-amber-100">
-              Preparing Beau's wheel…
-            </div>
-          }>
-            <BeauPrizeWheelOverlay
-              initialState={wheelState}
-              onClose={() => setWheelState(null)}
-              onStateChange={next => { setWheelState(next); setFreeBeauSpin(Boolean(next.ready && next.freeSpinAvailable)); }}
-            />
-          </Suspense>
-        </MiniGameFrame>,
-        getStagePortalTarget(),
-      )}
+      {wheelState && <BeauPrizeWheelDialog
+        state={wheelState}
+        onClose={() => setWheelState(null)}
+        onStateChange={next => { setWheelState(next); setFreeBeauSpin(Boolean(next.ready && next.freeSpinAvailable)); }}
+      />}
     </>
   );
 }
