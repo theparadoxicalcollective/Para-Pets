@@ -58,7 +58,7 @@ const base={worldId:"swamp",npcId:null,assetId:null,kind:"decor",effectType:null
   xPct:.5,yPct:.5,size:120,flipped:false,layer:0,decorEffects:[],isWaterSource:false,decorSurface:"barrier",isShop:false,legacyLocationId:null,shopItemIds:[],shopItemPlacements:[]};
 const quest={questKey:"catch_fish",title:"Gone Fishing",status:"available",description:"Catch fish.",progress:0,targetCount:3,coinReward:500,rewardItemName:null,rewardItemQuantity:0};
 await server.listen();
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:["--no-sandbox","--disable-dev-shm-usage"]}:{})});
 try{
   for(const [name,width,height] of [["phone",390,844],["tablet",834,1194]]){
     const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true,timezoneId:"UTC"});
@@ -183,6 +183,25 @@ try{
     assert.equal(await page.getByTestId("player-new-world-object-effect").count(),0,"outdoor sprites are not mounted over rooms");
     const child=await page.getByTestId("player-new-world-interior-item-room-decor").boundingBox(), bg=await interior.boundingBox();
     assert.ok(Math.abs(child.width/bg.width-130/850)<.02,"room decor uses the authored image scale");
+    assert.ok(bg.width >= width-1 && bg.height >= height-1, "room covers viewport, not letterboxed");
+    assert.ok(Math.abs(bg.width/bg.height-.8)<.01, "room artwork retains its aspect ratio");
+    const closeRoom=page.getByRole("button",{name:"Close building"});
+    const closeBounds=await closeRoom.boundingBox();
+    assert.ok(closeBounds.y>=8 && closeBounds.y+closeBounds.height<=height && closeBounds.width>=44 && closeBounds.height>=44,
+      "close button is reachable with a touch-sized target");
+    // Swipe a room; artwork and its saved decoration must move together.
+    const roomTouch=await context.newCDPSession(page);
+    await roomTouch.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:width/2,y:height*.34,id:1}]});
+    for (const dx of [12,24,36,48,60]) await roomTouch.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:width/2+dx,y:height*.34,id:1}]});
+    await roomTouch.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+    await roomTouch.detach();
+    await page.waitForFunction(before=>document.querySelector('[data-testid="player-new-world-interior"]').getBoundingClientRect().x>before+10,bg.x);
+    const movedBg=await interior.boundingBox(),movedChild=await page.getByTestId("player-new-world-interior-item-room-decor").boundingBox();
+    assert.ok(Math.abs((movedChild.x-child.x)-(movedBg.x-bg.x))<2,"room pan moves saved decoration with its artwork");
+    await closeRoom.tap();
+    await page.getByTestId("player-new-world-building").waitFor({state:"hidden"});
+    await shop.tap();
+    await interior.waitFor({state:"visible"});
     scene.interiorItems[0].xPct=.25;
     scene.interiorItems[1].effectColor="#44dd88";
     await page.evaluate(()=>window.refreshScene());

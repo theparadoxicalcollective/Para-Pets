@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ParkGroundTheme } from "@shared/petParkGround";
 import { PARK_GROUND_PALETTES, type ParkGroundPalette } from "@/lib/petParkGroundPalette";
 import {
@@ -144,6 +144,15 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       waterPatches?: readonly ParkDirtPatch[] };
     marginX: number; marginY: number;
   }>(null);
+  // The exposed path edges depend only on saved stamps and world geometry.
+  // Reuse them when the camera outruns its raster overscan; rebuilding the
+  // adjacency map for every repaint is particularly expensive in dense maps.
+  const dirtEdges = useMemo(() => exposedDirtEdges(view.dirtPatches ?? [], view.worldWidth, view.worldHeight),
+    [view.dirtPatches, view.worldWidth, view.worldHeight]);
+  const stoneEdges = useMemo(() => exposedDirtEdges(view.stonePatches ?? [], view.worldWidth, view.worldHeight),
+    [view.stonePatches, view.worldWidth, view.worldHeight]);
+  const waterEdges = useMemo(() => exposedDirtEdges(view.waterPatches ?? [], view.worldWidth, view.worldHeight),
+    [view.waterPatches, view.worldWidth, view.worldHeight]);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || view.viewportWidth < 2 || view.viewportHeight < 2) return;
@@ -176,9 +185,9 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       paintTerrain(ctx, expanded);
       const theme = view.groundTheme ?? "grass";
-      if (view.dirtPatches?.length) paintDirtPaths(ctx, expanded, view.dirtPatches, theme, view.groundPalette);
-      if (view.stonePatches?.length) paintConnectedPaths(ctx, expanded, view.stonePatches, "stone_path", theme, view.groundPalette);
-      if (view.waterPatches?.length) paintConnectedPaths(ctx, expanded, view.waterPatches, "water_path", theme, view.groundPalette);
+      if (view.dirtPatches?.length) paintConnectedPaths(ctx, expanded, view.dirtPatches, "dirt_path", theme, view.groundPalette, dirtEdges);
+      if (view.stonePatches?.length) paintConnectedPaths(ctx, expanded, view.stonePatches, "stone_path", theme, view.groundPalette, stoneEdges);
+      if (view.waterPatches?.length) paintConnectedPaths(ctx, expanded, view.waterPatches, "water_path", theme, view.groundPalette, waterEdges);
       painted.current = { view, marginX, marginY };
     };
     const previous = painted.current;
@@ -225,7 +234,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     };
   }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight,
       view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches,
-      view.waterPatches, view.groundTheme, view.groundPalette]);
+      view.waterPatches, view.groundTheme, view.groundPalette, dirtEdges, stoneEdges, waterEdges]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
     className="pointer-events-none absolute" style={{ backgroundColor: (view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"]).base }} />;
@@ -345,7 +354,8 @@ export type ParkConnectedPathKind = "dirt_path" | "stone_path" | "water_path";
  * All materials use the identical 2:1 snapped diamond union, never separate
  * translucent DOM tiles or an additional map interaction layer. */
 export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport,
-  stamps: readonly ParkDirtPatch[], kind: ParkConnectedPathKind, groundTheme: ParkGroundTheme = "grass", groundPalette?: ParkGroundPalette) {
+  stamps: readonly ParkDirtPatch[], kind: ParkConnectedPathKind, groundTheme: ParkGroundTheme = "grass", groundPalette?: ParkGroundPalette,
+  cachedEdges?: readonly DirtExposedEdge[]) {
   const visible = parkVisibleTerrainBounds(view);
   if (visible.left >= visible.right || visible.top >= visible.bottom) return;
 
@@ -453,7 +463,9 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
   // per-tile alpha (which would create seams at adjoining diamonds).
   // All randomness is world-anchored: dragging or zooming never reshuffles it.
   const ground = groundPalette ?? PARK_GROUND_PALETTES[groundTheme];
-  for (const edge of exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
+  for (const edge of cachedEdges ?? exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
+    if (Math.max(edge.ax, edge.bx) < visible.left - 16 || Math.min(edge.ax, edge.bx) > visible.right + 16 ||
+        Math.max(edge.ay, edge.by) < visible.top - 16 || Math.min(edge.ay, edge.by) > visible.bottom + 16) continue;
     const dx = edge.bx - edge.ax, dy = edge.by - edge.ay;
     const segmentCount = Math.max(2, Math.ceil(Math.hypot(dx, dy) / 24));
     const seedX = Math.round(edge.ax * 5), seedY = Math.round(edge.ay * 5);
