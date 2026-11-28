@@ -1,3 +1,4 @@
+import { loadSceneMiniPets } from "../sceneMiniPets";
 import type { Express, RequestHandler } from "express";
 import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { petParkBuildings, petParkDeposits, petParkPresence, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
@@ -123,6 +124,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
         serverNow: new Date().toISOString(),
         items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
+        miniPets: await loadSceneMiniPets(db, items.map(item => item.miniPetId)),
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
         canEditPark: !!player?.isAdmin,
       });

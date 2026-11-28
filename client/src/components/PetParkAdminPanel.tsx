@@ -1,3 +1,5 @@
+import { SceneMiniPetPicker } from "@/components/SceneCharacterControls";
+import { sceneIdleAnimation } from "@shared/miniPet";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image, Minus, Plus, X } from "lucide-react";
@@ -17,7 +19,7 @@ import { PET_PARK_BASE_REWARD_RATES } from "@shared/petParkAccrual";
 type ParkSettings = { enabledForPlayers: boolean; enabledForModerators: boolean; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
 type ParkDraft = {
   settings: ParkSettings & { backgroundUrl: string | null };
-  items: { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain" }[];
+  items: { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain" | "mini_pet" }[];
   buildings: { id: string }[];
 };
 type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -26,7 +28,7 @@ const GOLD_BORDER = "rgba(255,215,0,0.38)";
 const GOLD = "#f5cf64";
 
 export default function PetParkAdminPanel({ initialMode = "scene", mode, creationPosition, onCreated }: {
-  initialMode?: "scene" | "effects" | "decor";
+  initialMode?: "scene" | "effects" | "decor" | "miniPet";
   mode: "create" | "settings";
   creationPosition?: { xPct: number; yPct: number };
   onCreated?: (object: CreatedParkObject) => void;
@@ -169,7 +171,12 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       </div>
 
       </> : <>
-      {initialMode === "effects" ? <section aria-label="Park outdoor effects" className="space-y-3">
+      {initialMode === "miniPet" ? <SceneMiniPetPicker busy={mutation.isPending}
+        onPlace={pet => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
+          kind: "mini_pet", miniPetId: pet.shopItemId, idleAnimation: sceneIdleAnimation(pet.animationStyle),
+          xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
+          size: 88, flipped: false, layer: 0,
+        } })} /> : initialMode === "effects" ? <section aria-label="Park outdoor effects" className="space-y-3">
         <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Outdoor Effects</div>
         <label className="flex items-center justify-between rounded-xl border border-[#b99a4c]/55 bg-[#173b28] p-3 text-xs">
           Lamp Light color

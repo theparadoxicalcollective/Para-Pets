@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import type { MiniPetAnimation, MiniPetPartType } from "@shared/miniPet";
+import { sceneIdleAnimation, type SceneMiniPet, type MiniPetAnimation, type MiniPetPartType } from "@shared/miniPet";
 
 export interface EquippedMiniPet {
   inventoryId: string;
@@ -90,61 +90,7 @@ export default function MiniPetRenderer({ petInventoryId, access = "owner", anim
   const anchor = <span ref={anchorRef} aria-hidden style={{ display: "none" }} />;
   if (!pet) return anchor;
 
-  const parts = [...(pet.parts ?? [])].sort((a, b) => ORDER.indexOf(a.partType) - ORDER.indexOf(b.partType));
-  const hasBlinkPair = parts.some(part => part.partType === "eyes")
-    && parts.some(part => part.partType === "closed_eyes");
-  // Closed Eyes is optional. It only renders when an open Eyes layer exists too;
-  // otherwise the existing eyes-only blink remains the safe fallback.
-  const renderParts = parts.filter(part => part.partType !== "closed_eyes" || hasBlinkPair);
-  // Mini Pets are not required to use every supported layer. Some designs may
-  // only need a head/body/eyes while others use ears, tail and wings too. As
-  // soon as an admin authors at least one usable layered part, render the
-  // authored layer set. The complete preview image remains the fallback only
-  // when there are no usable authored parts.
-  const useLayeredParts = renderParts.length > 0;
-
-  const visual = (
-    <div
-      className={className}
-      data-testid="equipped-mini-pet"
-      data-mini-pet-render-mode={useLayeredParts ? "layers" : "preview"}
-      data-mini-pet-motion={animated ? "animated" : "static"}
-      aria-label={pet.name}
-      style={{ position: "relative", width: "100%", height: "100%", pointerEvents: "none", ...style }}
-    >
-      <style>{MINI_PET_MOTION}</style>
-      <div className={animated ? (pet.animationStyle === "float" ? "mini-pet-float" : "mini-pet-breath") : ""} style={{ position: "absolute", inset: 0, transformOrigin: "center bottom" }}>
-        {useLayeredParts ? renderParts.map(part => (
-          <img
-            key={part.id}
-            src={part.imageUrl}
-            alt=""
-            draggable={false}
-            data-mini-pet-part={part.partType}
-            className={motionClassForPart(part.partType, hasBlinkPair, animated)}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              transformOrigin: "center center",
-              filter: "drop-shadow(0 4px 7px rgba(0,0,0,.5))",
-              opacity: !animated && part.partType === "closed_eyes" ? 0 : undefined,
-            }}
-          />
-        )) : pet.imageUrl ? (
-          <img
-            src={pet.imageUrl}
-            alt=""
-            draggable={false}
-            data-mini-pet-preview
-            style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 4px 7px rgba(0,0,0,.5))" }}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
+  const visual = <MiniPetArtwork pet={pet} animated={animated} className={className} style={style} />;
 
   if (activePetStage) {
     return (
@@ -181,6 +127,79 @@ export default function MiniPetRenderer({ petInventoryId, access = "owner", anim
       {visual}
     </>
   );
+}
+
+/** Shared layer ordering and blink artwork for equipped and scenery Mini Pets. */
+export function MiniPetArtwork({ pet, animated = true, className = "", style, scene = false, idleAnimation, placementId = "" }: {
+  pet: SceneMiniPet; animated?: boolean; className?: string; style?: React.CSSProperties;
+  scene?: boolean; idleAnimation?: MiniPetAnimation | null; placementId?: string;
+}) {
+  // Stable phase variation without timers or per-frame React state.
+  const phase = `-${[...placementId].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 100, 0) / 10}s`;
+  const parts = [...(pet.parts ?? [])].sort((a, b) => ORDER.indexOf(a.partType) - ORDER.indexOf(b.partType));
+  const hasBlinkPair = parts.some(part => part.partType === "eyes")
+    && parts.some(part => part.partType === "closed_eyes");
+  // Closed Eyes is optional. It only renders when an open Eyes layer exists too;
+  // otherwise the existing eyes-only blink remains the safe fallback.
+  const renderParts = parts.filter(part => part.partType !== "closed_eyes" || hasBlinkPair);
+  // Mini Pets are not required to use every supported layer. Some designs may
+  // only need a head/body/eyes while others use ears, tail and wings too. As
+  // soon as an admin authors at least one usable layered part, render the
+  // authored layer set. The complete preview image remains the fallback only
+  // when there are no usable authored parts.
+  const useLayeredParts = renderParts.length > 0;
+
+  const ArtworkContainer = scene ? "span" : "div";
+  return (
+    <ArtworkContainer
+      className={className}
+      data-testid={scene ? "scene-mini-pet" : "equipped-mini-pet"}
+      data-mini-pet-render-mode={useLayeredParts ? "layers" : "preview"}
+      data-mini-pet-motion={animated ? "animated" : "static"}
+      aria-label={pet.name}
+      style={{ display: scene ? "block" : undefined, position: "relative", width: "100%", height: "100%", pointerEvents: "none", ...style }}
+    >
+      {!scene && <style>{MINI_PET_MOTION}</style>}
+      <ArtworkContainer className={animated ? (scene ? (sceneIdleAnimation(idleAnimation, pet.animationStyle) === "float" ? "scene-mini-pet-float" : "scene-mini-pet-bounce") : (pet.animationStyle === "float" ? "mini-pet-float" : "mini-pet-breath")) : ""} style={{ position: "absolute", inset: 0, transformOrigin: "center bottom", animationDelay: scene && animated ? phase : undefined }}>
+        {useLayeredParts ? renderParts.map(part => (
+          <img
+            key={part.id}
+            src={part.imageUrl}
+            alt=""
+            draggable={false}
+            data-mini-pet-part={part.partType}
+            className={motionClassForPart(part.partType, hasBlinkPair, animated && (!scene || part.partType === "eyes" || part.partType === "closed_eyes"))}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              transformOrigin: "center center",
+              filter: scene ? undefined : "drop-shadow(0 4px 7px rgba(0,0,0,.5))",
+              animationDelay: scene && animated ? phase : undefined,
+              opacity: !animated && part.partType === "closed_eyes" ? 0 : undefined,
+            }}
+          />
+        )) : pet.imageUrl ? (
+          <img
+            src={pet.imageUrl}
+            alt=""
+            draggable={false}
+            data-mini-pet-preview
+            style={{ width: "100%", height: "100%", objectFit: "contain", filter: scene ? undefined : "drop-shadow(0 4px 7px rgba(0,0,0,.5))" }}
+          />
+        ) : null}
+      </ArtworkContainer>
+    </ArtworkContainer>
+  );
+}
+
+export function SceneCharacterMotionStyles() {
+  return <style>{MINI_PET_MOTION + SCENE_CHARACTER_MOTION}</style>;
+}
+export function sceneNpcIdleClass(animation: unknown, animated = true): string {
+  return !animated ? "" : sceneIdleAnimation(animation) === "float" ? "scene-npc-float" : "scene-npc-breath";
 }
 
 const MINI_PET_MOTION = `
@@ -260,5 +279,41 @@ body:has([data-testid="button-close-equip-accessories"]) [data-testid="active-pe
 
 @media (prefers-reduced-motion: reduce){
   .mini-pet-breath,.mini-pet-float,.mini-pet-wing-left,.mini-pet-wing-right,.mini-pet-tail,.mini-pet-ear-left,.mini-pet-ear-right,.mini-pet-eyes,.mini-pet-head-accessory{animation:none!important}
+}
+`;
+
+const SCENE_CHARACTER_MOTION = `
+/* Move only the visual inside its unchanged placement/quest target. The
+   intentional short loop stays within ~12% of the artwork width, with pauses. */
+@keyframes sceneMiniPetBounce {
+  0%, 12%, 100% { transform: translate(0,0) scale(1); }
+  20% { transform: translate(4%,1%) scale(1.035,.96); }
+  29% { transform: translate(10%,-5%) scale(.99,1.025); }
+  40%, 53% { transform: translate(12%,0) scale(1); }
+  62% { transform: translate(6%,1%) scale(1.035,.96); }
+  72% { transform: translate(-5%,-4%) scale(.99,1.025); }
+  83%, 90% { transform: translate(-10%,0) scale(1); }
+}
+@keyframes sceneMiniPetFloat {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  23% { transform: translate(11%,-7%) scale(.99,1.02); }
+  47% { transform: translate(6%,-1%) scale(1.015,.99); }
+  73% { transform: translate(-11%,-6%) scale(.99,1.02); }
+}
+@keyframes sceneNpcBreath {
+  0%,100% { transform:scale(1); }
+  50% { transform:scale(1.009,1.018); }
+}
+@keyframes sceneNpcFloat {
+  0%,100% { transform:translateY(0); }
+  50% { transform:translateY(-5%); }
+}
+.scene-mini-pet-bounce { animation:sceneMiniPetBounce 13s ease-in-out infinite; }
+.scene-mini-pet-float { animation:sceneMiniPetFloat 14s ease-in-out infinite; }
+.scene-npc-breath { animation:sceneNpcBreath 4.8s ease-in-out infinite; transform-origin:center bottom; }
+.scene-npc-float { animation:sceneNpcFloat 5.8s ease-in-out infinite; transform-origin:center bottom; }
+
+@media (prefers-reduced-motion: reduce){
+  .scene-mini-pet-bounce,.scene-mini-pet-float,.scene-npc-breath,.scene-npc-float{animation:none!important}
 }
 `;

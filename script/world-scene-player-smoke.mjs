@@ -51,6 +51,8 @@ const art=image(200,200,"#a68356"), room=image(800,1000,"#31512e"), night=image(
 const visibleMedia="/api/media/12345678-1234-1234-1234-123456789abc";
 const distantMedia="/api/media/12345678-1234-1234-1234-123456789abd";
 const artBody=Buffer.from(art.split(",")[1],"base64");
+const miniPet={shopItemId:"wisp-catalog",name:"Willow Wisp",imageUrl:art,animationStyle:"breath",
+  parts:[{id:"body",partType:"body",imageUrl:art},{id:"open",partType:"eyes",imageUrl:art},{id:"closed",partType:"closed_eyes",imageUrl:art}]};
 const npc={id:"catalog-janson",name:"Janson",imageUrl:art,type:"npc",worldId:"__npc_catalog__",specialSkill:null,legacyLocationId:"old-janson"};
 const oldShop={id:"old-shop",worldId:"swamp",name:"Original Shop",type:"shop",isShop:true,bgUrl:room};
 const oldJanson={id:"old-janson",worldId:"swamp",name:"Janson",type:"npc",isShop:false,iconUrl:art,bgUrl:null};
@@ -71,13 +73,15 @@ try{
         {id:"distant-art",kind:"building",name:"Distant Building",worldId:"swamp",imageUrl:distantMedia}],
       placements:[{...base,id:"shop",kind:"building",assetId:"building-art",xPct:.54,yPct:.55,isShop:true,legacyLocationId:"old-shop"},
         {...base,id:"distant-building",kind:"building",assetId:"distant-art",xPct:.01,yPct:.01,legacyLocationId:"old-distant"},
-        {...base,id:"janson",kind:"npc",npcId:npc.id,xPct:.38,yPct:.43},
+        {...base,id:"janson",kind:"npc",npcId:npc.id,xPct:.38,yPct:.43,idleAnimation:"float"},
+        {...base,id:"mini-wisp",kind:"mini_pet",miniPetId:miniPet.shopItemId,xPct:.5,yPct:.46,size:88,idleAnimation:"breath"},
+        {...base,id:"distant-mini",kind:"mini_pet",miniPetId:miniPet.shopItemId,xPct:.01,yPct:.01,size:88},
         {...base,id:"garden",kind:"terrain",effectType:"garden_plot",xPct:.46,yPct:.60,size:150},
         {...base,id:"spring",kind:"terrain",effectType:"water_path",xPct:.35,yPct:.57,size:150},
         {...base,id:"effect",kind:"effect",effectType:"sparkles",xPct:.5,yPct:.15,size:300}],
       interiorItems:[{id:"room-decor",worldId:"swamp",buildingId:"shop",kind:"decor",assetId:"decor-art",effectType:null,xPct:.55,yPct:.6,size:130,flipped:false},
         {id:"room-lamp",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"lamp_light",effectColor:"#7b5cff",xPct:.3,yPct:.3,size:70,flipped:false}],
-      linkedPages:[oldShop,oldJanson,{id:"old-distant",worldId:"swamp",name:"Distant Building",type:"building",bgUrl:null}],npcs:[npc]};
+      linkedPages:[oldShop,oldJanson,{id:"old-distant",worldId:"swamp",name:"Distant Building",type:"building",bgUrl:null}],npcs:[npc],miniPets:[miniPet]};
     let state={quests:[quest,{...quest,questKey:"sell_fish",title:"Sell Fish",status:"locked"}],dailyQuest:{...quest,questKey:"daily_catch_fish",status:"locked"},marketUnlocked:false};
     let plot={plotItemId:"garden",xPct:.46,yPct:.60,size:150,phase:"empty",cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null};
     const gardenInventory=[{inventoryId:"hoe",shopItemId:"hoe-item",name:"Hoe",type:"garden_tool",specialType:"hoe",quantity:1},
@@ -127,6 +131,21 @@ try{
     assert.ok(mediaReads.some(path=>path.startsWith(distantMedia+"/world-v1/")),"newly visible art loads after a live edit");
     assert.equal(await page.getByTestId("location-old-shop").count(),1);
     assert.equal(await page.getByTestId("world-npc-art-old-janson").count(),0,"do not duplicate legacy NPC artwork");
+    const janson=page.getByTestId("player-new-world-object-janson");
+    await janson.locator(".scene-npc-float").waitFor({state:"visible"});
+    const mini=page.getByTestId("player-new-world-object-mini-wisp");
+    await mini.locator(".scene-mini-pet-bounce").waitFor({state:"visible"});
+    assert.ok(await mini.isDisabled(),"scenery Mini Pets are not player actions");
+    assert.equal(await page.getByTestId("player-new-world-object-distant-mini").count(),0,"offscreen layered Mini Pets stay unmounted");
+    assert.equal(await mini.locator(".mini-pet-eyes-closed").evaluate(el=>getComputedStyle(el).animationName),"miniPetBlinkClosed");
+    const anchorBefore=await mini.boundingBox();
+    // Advance the visual animation directly rather than waiting for its long cycle.
+    await mini.locator(".scene-mini-pet-bounce").evaluate(el=>{for(const animation of el.getAnimations()) animation.currentTime=4000;});
+    const anchorAfter=await mini.boundingBox();
+    assert.deepEqual(anchorBefore,anchorAfter,"visual movement never changes placement hit/quest bounds");
+    await page.emulateMedia({reducedMotion:"reduce"});
+    assert.equal(await mini.locator(".scene-mini-pet-bounce").evaluate(el=>getComputedStyle(el).animationName),"none");
+    await page.emulateMedia({reducedMotion:"no-preference"});
     assert.equal(await page.getByTestId("player-world-zoom-in").count(),0,"zoom buttons are hidden");
     assert.equal(await page.getByTestId("player-world-zoom-out").count(),0);
     // A real multi-step finger swipe beginning on an interactive building

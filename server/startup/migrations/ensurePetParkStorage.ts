@@ -30,7 +30,7 @@ export async function ensurePetParkStorage(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS pet_park_scene_items (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
-      kind text NOT NULL CHECK (kind IN ('decor', 'sleep_spot', 'effect', 'terrain')),
+      kind text NOT NULL CHECK (kind IN ('decor', 'sleep_spot', 'effect', 'terrain', 'mini_pet')),
       image_url text,
       tap_image_url text,
       effect_type text,
@@ -44,6 +44,9 @@ export async function ensurePetParkStorage(): Promise<void> {
 
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS effect_type text;
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS effect_color text;
+    ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS mini_pet_id varchar REFERENCES shop_items(id) ON DELETE CASCADE;
+    ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS idle_animation text CHECK (idle_animation IS NULL OR (kind = 'mini_pet' AND idle_animation IN ('breath', 'float')));
+    CREATE INDEX IF NOT EXISTS pet_park_scene_items_mini_pet_idx ON pet_park_scene_items (mini_pet_id) WHERE mini_pet_id IS NOT NULL;
     -- Additive and nullable: existing decorations retain their normal image.
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS tap_image_url text;
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS appearance_group_id varchar;
@@ -70,7 +73,13 @@ export async function ensurePetParkStorage(): Promise<void> {
       WHERE kind = 'decor';
     ALTER TABLE pet_park_scene_items DROP CONSTRAINT IF EXISTS pet_park_scene_items_kind_check;
     ALTER TABLE pet_park_scene_items ADD CONSTRAINT pet_park_scene_items_kind_check
-      CHECK (kind IN ('decor', 'sleep_spot', 'effect', 'terrain'));
+      CHECK (kind IN ('decor', 'sleep_spot', 'effect', 'terrain', 'mini_pet'));
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pet_park_scene_items_mini_pet_check') THEN
+        ALTER TABLE pet_park_scene_items ADD CONSTRAINT pet_park_scene_items_mini_pet_check
+          CHECK ((kind = 'mini_pet') = (mini_pet_id IS NOT NULL));
+      END IF;
+    END $$;
 
     CREATE TABLE IF NOT EXISTS pet_park_buildings (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),

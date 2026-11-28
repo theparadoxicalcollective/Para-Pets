@@ -1524,7 +1524,9 @@ export const petParkSettings = pgTable("pet_park_settings", {
 
 export const petParkSceneItems = pgTable("pet_park_scene_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  kind: text("kind").notNull(), // decor | sleep_spot | effect
+  kind: text("kind").notNull(), // decor | sleep_spot | effect | terrain | mini_pet
+  miniPetId: varchar("mini_pet_id").references(() => shopItems.id, { onDelete: "cascade" }),
+  idleAnimation: text("idle_animation").$type<import("./miniPet").MiniPetAnimation>(),
   effectType: text("effect_type"), // waterfall_mist | water_ripple | water_shimmer
   effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
   // Tagged decor is a refill station; visual depth and placement are unchanged.
@@ -1706,6 +1708,8 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   kind: text("kind").notNull(),
   assetId: varchar("asset_id"),
   npcId: varchar("npc_id").references(() => shopItems.id, { onDelete: "cascade" }),
+  miniPetId: varchar("mini_pet_id").references(() => shopItems.id, { onDelete: "cascade" }),
+  idleAnimation: text("idle_animation").$type<import("./miniPet").MiniPetAnimation>(),
   effectType: text("effect_type"),
   effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
   interiorDarkness: integer("interior_darkness").notNull().default(35),

@@ -1,3 +1,4 @@
+import { MiniPetArtwork, SceneCharacterMotionStyles, sceneNpcIdleClass } from "@/components/MiniPetRenderer";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -156,6 +157,7 @@ export default function WorldScenePlayerPage({
   })), [worldId, placements, assetsById]);
   const hasHauntedSpin = [...sceneActions.values()].includes("beau-prize-wheel");
   const beauWheel = useWorldSceneBeauWheel(hasHauntedSpin);
+  const miniPetsById = useMemo(() => new Map((sceneContent?.miniPets ?? []).map(pet => [pet.shopItemId, pet])), [sceneContent?.miniPets]);
   const npcsById = useMemo(() => new Map((sceneContent?.npcs ?? []).map(n => [n.id, n])),
     [sceneContent?.npcs]);
   const linkedById = useMemo(() => new Map((sceneContent?.linkedPages ?? []).map(p => [p.id, p])),
@@ -416,6 +418,7 @@ export default function WorldScenePlayerPage({
       if (!nearby && !effectsNearby && p.kind !== "npc" && !p.legacyLocationId) return null;
       const asset = p.assetId ? assetsById.get(p.assetId) : null;
       const npc = p.npcId ? npcsById.get(p.npcId) : null;
+      const miniPet = p.kind === "mini_pet" && p.miniPetId ? miniPetsById.get(p.miniPetId) : undefined;
       const art = asset?.imageUrl ?? npc?.imageUrl ?? null;
       const action = sceneActions.get(p.id);
       const isGardenPlot = p.kind === "terrain" && p.effectType === "garden_plot";
@@ -444,16 +447,17 @@ export default function WorldScenePlayerPage({
           data-testid={`player-new-world-object-${p.id}`}
           disabled={!isInteractive}
           onClick={event => { event.stopPropagation(); activateLatest.current(p); }}
-          aria-label={isGardenPlot ? "Open Garden Plot" : isWaterSource ? "Water Source" : action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? p.kind}
+          aria-label={isGardenPlot ? "Open Garden Plot" : isWaterSource ? "Water Source" : action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? miniPet?.name ?? p.kind}
           className="absolute inset-0 h-full w-full border-0 bg-transparent p-0"
           style={{ pointerEvents: isInteractive ? "auto" : "none", touchAction: "none",
             clipPath: isGardenPlot ? "polygon(50% 0%,100% 50%,50% 100%,0% 50%)" : undefined }}>
         <span className="pointer-events-none absolute inset-0" style={{
           transform: p.flipped ? "scaleX(-1)" : undefined,
         }}>
+          {nearby && miniPet && <MiniPetArtwork pet={miniPet} scene placementId={p.id} idleAnimation={p.idleAnimation} animated={visible} />}
           {nearby && art && <WorldSceneArtwork imageUrl={art} cssSize={size} alt=""
             loading="eager" fetchPriority={visible ? "auto" : "low"}
-            className="absolute inset-0 w-full h-full object-contain" draggable={false} />}
+            className={`absolute inset-0 w-full h-full object-contain ${npc ? sceneNpcIdleClass(p.idleAnimation, visible) : ""}`} draggable={false} />}
           {effectsNearby && (p.kind === "decor" || p.kind === "building") && <WorldDecorEffects effects={p.decorEffects}
             sunlightStrength={lighting.daylightStrength}
             nightStrength={lighting.nightStrength} fireflyStrength={lighting.fireflyStrength}
@@ -471,7 +475,7 @@ export default function WorldScenePlayerPage({
         aria-label="Beau has a free spin available"><span aria-hidden="true">!</span></span>}
       </div>;
     });
-  }, [renderPlacements, assetsById, npcsById, sceneActions, legacyMounts, savedPlots,
+  }, [renderPlacements, assetsById, npcsById, miniPetsById, sceneActions, legacyMounts, savedPlots,
     cullX, cullY, viewport.width, viewport.height, camera.sceneWidth, camera.sceneHeight,
     camera.worldHeight, camera.scale, lighting.daylightStrength, lighting.nightStrength,
     lighting.fireflyStrength, lighting.lampStrength, beauWheel.freeSpinAvailable]);
@@ -483,6 +487,7 @@ export default function WorldScenePlayerPage({
   </div>;
 
   return <div data-testid="player-new-world" data-has-haunted-spin={hasHauntedSpin ? "true" : undefined} className="relative w-full h-full overflow-hidden bg-[#08140d]">
+    <SceneCharacterMotionStyles />
     <div ref={viewportRef} data-testid="player-new-world-viewport" data-quest-guide-pan-surface
       className="absolute inset-0 z-0 isolate overflow-hidden touch-none"
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onEnd}

@@ -1,6 +1,6 @@
 /** Rest interactions use saved park-world coordinates, not the device viewport. */
 export interface ParkSleepArea {
-  kind: "decor" | "sleep_spot" | "effect" | "terrain";
+  kind: "decor" | "sleep_spot" | "effect" | "terrain" | "mini_pet";
   effectType?: string | null;
   xPct: number;
   yPct: number;

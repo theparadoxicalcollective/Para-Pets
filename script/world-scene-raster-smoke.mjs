@@ -12,8 +12,12 @@ import {createRoot} from "react-dom/client";
 import PetParkTerrain from "@/components/PetParkTerrain";
 import {HomeOutdoorAtmosphereLayer} from "@/components/HomeOutdoorAtmosphere";
 import {parkSceneDarkness} from "@/lib/parkSceneLighting";
+import {MiniPetArtwork,SceneCharacterMotionStyles,sceneNpcIdleClass} from "@/components/MiniPetRenderer";
 import "@/index.css";
 const width=innerWidth,height=innerHeight, worldWidth=5400, worldHeight=8100;
+const art="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="35" fill="#cfb75a"/></svg>');
+const miniPet={shopItemId:"test",name:"Wisp",imageUrl:art,animationStyle:"breath",parts:[
+  {id:"body",partType:"body",imageUrl:art},{id:"eyes",partType:"eyes",imageUrl:art},{id:"closed",partType:"closed_eyes",imageUrl:art}]};
 const paths=[[],[],[]];
 for(let row=0;row<32;row++) for(let col=0;col<20;col++){
   paths[Math.floor(col/7)].push({xPct:(col*100+900+(row%2)*50)/worldWidth,yPct:(row*25+1200)/worldHeight,size:100});
@@ -27,7 +31,14 @@ function Fixture(){
  const cell=96, x=-Math.floor(panX/cell)*cell-cell,y=-Math.floor(panY/cell)*cell-cell;
  return <div data-testid="raster-fixture" data-mode={mode} data-pan={panX} data-revision={revision}
  style={{position:"absolute",inset:0,overflow:"hidden",background:"#91be9d"}}>
- {mode.startsWith("mask") ? <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(1)}
+ {mode==="characters"?<><SceneCharacterMotionStyles/>
+   <div data-testid="npc-placement" style={{position:"absolute",left:20,top:100,width:100,height:100}}>
+     <img className={sceneNpcIdleClass("float")} src={art} style={{width:"100%",height:"100%"}}/>
+   </div>
+   <div data-testid="mini-pet-placement" style={{position:"absolute",left:150,top:100,width:100,height:100}}>
+     <MiniPetArtwork pet={miniPet} scene placementId="webkit" idleAnimation="breath"/>
+   </div>
+ </>:mode.startsWith("mask") ? <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(1)}
    nightStrength={1} lampStrength={1} effects={lamps} panX={panX} panY={panY} imgWidth={3240} sceneHeight={4860}
    sceneWindow={mode==="mask-window"?{x,y,width:width+2*cell,height:height+2*cell}:undefined}
    transitionMs={0} zIndex={2}/> :
@@ -130,6 +141,41 @@ try{
   await set({mode:"mask-full"});
   const panMaskDiff=await diff(pannedMask,await snapshot());
   assert.ok(panMaskDiff.mean<1&&panMaskDiff.large<.005,JSON.stringify(panMaskDiff));
+  // Check the real shared motion in WebKit as well as Chromium, without
+  // changing the existing terrain and lighting pixel comparisons.
+  await set({mode:"characters"});
+  const mini=page.getByTestId("mini-pet-placement");
+  const tapTarget=await mini.boundingBox();
+  const body=mini.locator(".scene-mini-pet-bounce");
+  const animateAt=async(locator,fraction)=>{
+   await locator.evaluate((el,fraction)=>{
+    const animation=el.getAnimations()[0];
+    if(!animation)throw new Error("Missing character CSS animation");
+    const timing=animation.effect.getTiming();
+    animation.pause();
+    animation.currentTime=timing.delay+Number(timing.duration)*(2+fraction);
+   },fraction);
+  };
+  await animateAt(body,0);
+  const originalBody=await body.boundingBox();
+  await animateAt(body,.45);
+  const movedBody=await body.boundingBox();
+  assert.ok(movedBody.x-originalBody.x>8&&movedBody.x-originalBody.x<15,"bounded lateral movement");
+  assert.deepEqual(await mini.boundingBox(),tapTarget,"idle doesn't move the stored placement");
+  const open=mini.locator(".mini-pet-eyes-open"),closed=mini.locator(".mini-pet-eyes-closed");
+  await animateAt(open,.46); await animateAt(closed,.46);
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector(".mini-pet-eyes-open")).opacity==="0"&&getComputedStyle(document.querySelector(".mini-pet-eyes-closed")).opacity==="1");
+  await animateAt(open,.6); await animateAt(closed,.6);
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector(".mini-pet-eyes-open")).opacity==="1"&&getComputedStyle(document.querySelector(".mini-pet-eyes-closed")).opacity==="0");
+  const npc=page.getByTestId("npc-placement");
+  const npcAnchor=await npc.boundingBox();
+  const npcVisual=npc.locator(".scene-npc-float");
+  await animateAt(npcVisual,.5);
+  assert.ok((await npcVisual.boundingBox()).y<npcAnchor.y-3,"NPC floats inside stable interaction target");
+  assert.deepEqual(await npc.boundingBox(),npcAnchor);
+  await page.emulateMedia({reducedMotion:"reduce"});
+  assert.equal(await body.evaluate(el=>getComputedStyle(el).animationName),"none");
+  assert.equal(await npcVisual.evaluate(el=>getComputedStyle(el).animationName),"none");
   assert.deepEqual(errors,[]);
   console.log("PASS",width,height,{initial,moved,returned,terrainDiff,movedDiff,waterDiff,maskDiff,panMaskDiff});
   await context.close();

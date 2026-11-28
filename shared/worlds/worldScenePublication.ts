@@ -1,3 +1,4 @@
+import type { SceneMiniPet } from "../miniPet";
 import { isKnownWorldId, type WorldId } from "./worldRegistry";
 import { WORLD_SCENE_MAX_ASSETS } from "./worldSceneContent";
 
@@ -30,7 +31,7 @@ export type PublicationLocation = {
 export type PublicationNpc = { id: string; name: string; imageUrl: string | null };
 type PublicationPlacement = {
   id: string; kind: string; assetId: string | null; npcId: string | null;
-  legacyLocationId: string | null; isShop: boolean;
+  legacyLocationId: string | null; isShop: boolean; miniPetId?: string | null;
 };
 type PublicationAsset = { id: string; kind: string; worldId: string; name: string; imageUrl: string | null };
 
@@ -59,7 +60,7 @@ export function resolveLegacyNpcLocation(
 export function auditWorldActivation(worldId: string, input: {
   hasGround: boolean; placements: readonly PublicationPlacement[];
   assets: readonly PublicationAsset[]; npcs: readonly PublicationNpc[];
-  locations: readonly PublicationLocation[];
+  locations: readonly PublicationLocation[]; miniPets?: readonly SceneMiniPet[];
   interiorItems?: readonly { kind: string; assetId: string | null; buildingId: string }[];
 }): string[] {
   const blockers = new Set<string>();
@@ -68,6 +69,7 @@ export function auditWorldActivation(worldId: string, input: {
     blockers.add("This world exceeds the supported player scene limits.");
   const art = new Map(input.assets.filter(a => !!a.imageUrl).map(a => [a.id, a]));
   const npcs = new Map(input.npcs.filter(n => !!n.imageUrl).map(n => [n.id, n]));
+  const miniPets = new Set((input.miniPets ?? []).filter(p => p.imageUrl || p.parts.some(part => part.partType !== "closed_eyes")).map(p => p.shopItemId));
   const locations = new Map(input.locations.map(loc => [loc.id, loc]));
   const covered = new Set<string>();
   const buildings = new Set(input.placements.filter(p => p.kind === "building").map(p => p.id));
@@ -83,6 +85,8 @@ export function auditWorldActivation(worldId: string, input: {
         covered.add(old.id);
       }
     }
+    if (p.kind === "mini_pet" && !miniPets.has(p.miniPetId ?? ""))
+      blockers.add("A placed Mini Pet is missing its catalog artwork.");
     if (p.kind === "npc") {
       const npc = npcs.get(p.npcId ?? "");
       if (!npc) { blockers.add("A placed NPC is missing its catalog artwork."); continue; }

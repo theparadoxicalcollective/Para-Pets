@@ -1,3 +1,7 @@
+import { playerWorldArtworkVisibility } from "@/lib/playerWorldScene";
+import { MiniPetArtwork, SceneCharacterMotionStyles } from "@/components/MiniPetRenderer";
+import { SceneIdleAnimationSelector } from "@/components/SceneCharacterControls";
+import { sceneIdleAnimation, type SceneMiniPet, type MiniPetAnimation } from "@shared/miniPet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -60,12 +64,12 @@ import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; decorSurface?: DecorSurface; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain" | "mini_pet"; miniPetId?: string | null; idleAnimation?: MiniPetAnimation | null; isWaterSource?: boolean; decorSurface?: DecorSurface; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; nightInteriorImageUrl?: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorNightDarkness?: number | null; interiorEffects: ParkInteriorEffect[]; exteriorEffects?: ParkDecorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; claimedRewards?: PetParkRewardAmounts; petLevelPoints?: number | null; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; canEnterPark?: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; groundTheme?: ParkGroundTheme; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number }; serverNow?: string };
+type ParkScene = { miniPets?: SceneMiniPet[]; sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; canEnterPark?: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; groundTheme?: ParkGroundTheme; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number }; serverNow?: string };
 type InventoryPet = { inventoryId: string; shopItemId: string; imageUrl?: string | null; isRefillable?: boolean; specialType?: string | null; gardenWaterLeft?: number | null; quantity?: number; petTemplateId?: string | null; hatchedImageUrl?: string | null; name: string; petNickname?: string | null; petLevel?: number; starRarity?: number; rarity?: number; isHatched: boolean; isListed?: boolean; type?: string };
 
 export default function PetParkPage() {
@@ -161,7 +165,7 @@ export default function PetParkPage() {
   const [moveArmed, setMoveArmed] = useState<{ kind: "building" | "item"; id: string } | null>(null);
   const lastObjectTap = useRef<{ kind: "building" | "item"; id: string; at: number; x: number; y: number } | null>(null);
   const placementPointer = useRef<{ id: number; kind: "building" | "item"; objectId: string; startX: number; startY: number; placement: ParkPlacement } | null>(null);
-  const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
+  const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor" | "miniPet">("scene");
   const [slotDragGhost, setSlotDragGhost] = useState<{ petId: string; x: number; y: number } | null>(null);
   const suppressSlotClickUntil = useRef(0);
   const slotDrag = useRef<{ id: number; petId: string; x: number; y: number } | null>(null);
@@ -333,6 +337,7 @@ export default function PetParkPage() {
     setZoom(nextZoom);
   };
 
+  const miniPetsById = useMemo(() => new Map((scene?.miniPets ?? []).map(pet => [pet.shopItemId, pet])), [scene?.miniPets]);
   const selectedObject = selectedPlacement?.kind === "building"
     ? scene?.buildings?.find(building => building.id === selectedPlacement.id)
     : scene?.items.find(item => item.id === selectedPlacement?.id);
@@ -349,6 +354,16 @@ export default function PetParkPage() {
       setSelectedPlacement(null); setPlacementDraft(null); setMoveArmed(null);
       toast({ title: "Could not save placement", description: error.message, variant: "destructive" });
     },
+  });
+  const idleAnimationSave = useMutation({
+    mutationFn: async ({ id, idleAnimation }: { id: string; idleAnimation: MiniPetAnimation }) =>
+      (await apiRequest("PATCH", `/api/admin/pet-park/items/${id}/idle-animation`, { idleAnimation })).json() as Promise<ParkItem>,
+    onSuccess: (item) => {
+      qc.setQueryData<ParkScene>(["/api/pet-park/scene"], current => current
+        ? { ...current, items: current.items.map(p => p.id === item.id ? { ...p, idleAnimation: item.idleAnimation } : p) } : current);
+      return invalidate();
+    },
+    onError: (error: Error) => toast({ title: "Could not save animation", description: error.message, variant: "destructive" }),
   });
   const tapImageSave = useMutation({
     mutationFn: async ({ id, imageData }: { id: string; imageData: string | null }) =>
@@ -524,7 +539,7 @@ export default function PetParkPage() {
     setSelectedPlacement(null);
     setPlacementDraft(null);
   };
-  const beginCreate = (mode: "scene" | "effects" | "decor") => {
+  const beginCreate = (mode: "scene" | "effects" | "decor" | "miniPet") => {
     setPaintMode(false);
     setEditorMode(mode);
     setCreationPosition({
@@ -856,6 +871,7 @@ export default function PetParkPage() {
   const visiblePetChoices = matchingPets.slice(0, 24);
 
   return <div className="absolute inset-0 overflow-hidden bg-[#13291e] text-amber-100" data-testid="pet-park-page">
+    <SceneCharacterMotionStyles />
     <style>{`
       @keyframes petParkWander {
         0%, 18%, 100% { transform: translate(0, 0); }
@@ -1019,9 +1035,17 @@ export default function PetParkPage() {
           const position = shownPosition("item", item);
           const visibleDecorImage = !scene.canEditPark && item.kind === "decor" &&
             item.tapImageUrl && tappedDecorIds.has(item.id) ? item.tapImageUrl : item.imageUrl;
+          const miniPet = item.kind === "mini_pet" && item.miniPetId ? miniPetsById.get(item.miniPetId) : undefined;
           const isGardenPlot = item.kind === "terrain" && item.effectType === "garden_plot";
           const isWaterTile = item.kind === "terrain" && item.effectType === "water_path";
           const savedGardenPlot = isGardenPlot ? garden?.plots?.find(plot => plot.plotItemId === item.id) : undefined;
+          // Use the square artwork bounds (not a terrain diamond), plus enough
+          // space for its small idle drift. Only nearby pets mount layers.
+          const miniPetVisibility = miniPet ? playerWorldArtworkVisibility(
+            position.xPct * sceneWidth + camera.x, position.yPct * sceneHeight + camera.y,
+            position.size * scale * 1.3, position.size * scale * 1.3, viewportSize,
+          ) : null;
+          if (item.kind === "mini_pet" && !miniPetVisibility?.nearby) return null;
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
             { ...position, effectType: item.effectType }, { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera,
@@ -1035,7 +1059,8 @@ export default function PetParkPage() {
               style={{ opacity: parkOutdoorEffectOpacity(item.effectType, parkLighting.nightStrength, parkLighting.fireflyStrength, parkLighting.lampStrength),
                 transition: "opacity 1200ms linear" }}>
               <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} fireflyStrength={parkLighting.fireflyStrength} sceneFireflies />
-            </div> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
+            </div> : miniPet ? <MiniPetArtwork pet={miniPet} scene placementId={item.id}
+              idleAnimation={item.idleAnimation} animated={!reduceMotion && !!miniPetVisibility?.visible && selectedPlacement?.id !== item.id} /> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
               {item.kind === "decor" && <PetParkDecorEffects effects={item.decorEffects ?? []}
                 sunlightStrength={parkLighting.daylightStrength} nightStrength={parkLighting.nightStrength}
             fireflyStrength={parkLighting.fireflyStrength} lampStrength={parkLighting.lampStrength}
@@ -1381,10 +1406,10 @@ export default function PetParkPage() {
       </div>
     </div>
     {scene?.canEditPark && !showCreator && !selectedPlacement && !paintMode && !activeBuilding && <div
-      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto grid max-w-lg grid-cols-3 gap-1.5 sm:grid-cols-5 ${scene.enabledForPlayers && deposits.length > 0 ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(64px,env(safe-area-inset-bottom))]"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto grid max-w-lg grid-cols-3 gap-1.5 sm:grid-cols-6 ${scene.enabledForPlayers && deposits.length > 0 ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(64px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
       {([
-        ["scene", "+ Building"], ["decor", "+ Decor"], ["effects", "+ Effects"],
+        ["scene", "+ Building"], ["decor", "+ Decor"], ["effects", "+ Effects"], ["miniPet", "+ Mini Pet"],
       ] as const).map(([mode, label]) => <button key={mode} type="button" onClick={() => beginCreate(mode)}
         className="min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg">
         {label}
@@ -1402,7 +1427,7 @@ export default function PetParkPage() {
       className={`pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl max-h-[32dvh] overflow-y-auto ${scene.enabledForPlayers && deposits.length > 0 ? "bottom-[44%]" : "bottom-[max(12px,env(safe-area-inset-bottom))]"}`}
       aria-label="Edit selected park object">
       <div className="flex items-center justify-between gap-2">
-        <strong className="truncate text-sm capitalize">{selectedPlacement.kind === "building" ? (selectedObject as ParkBuilding).name : ((selectedObject as ParkItem).effectType ?? (selectedObject as ParkItem).kind).replace(/_/g, " ")}</strong>
+        <strong className="truncate text-sm capitalize">{selectedPlacement.kind === "building" ? (selectedObject as ParkBuilding).name : (miniPetsById.get((selectedObject as ParkItem).miniPetId ?? "")?.name ?? ((selectedObject as ParkItem).effectType ?? (selectedObject as ParkItem).kind).replace(/_/g, " "))}</strong>
         <span className="text-[11px] text-amber-100/80">{placementSave.isPending ? "Saving…" : moveArmed?.kind === selectedPlacement.kind && moveArmed.id === selectedPlacement.id ? "Move armed · drag artwork" : "Double-tap artwork to move"}</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1415,6 +1440,11 @@ export default function PetParkPage() {
           <button type="button" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ flipped: !placementDraft.flipped })}>Flip</button>
         </>}
       </div>
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "mini_pet" &&
+        <SceneIdleAnimationSelector
+          value={sceneIdleAnimation((selectedObject as ParkItem).idleAnimation, miniPetsById.get((selectedObject as ParkItem).miniPetId ?? "")?.animationStyle)}
+          disabled={idleAnimationSave.isPending || placementSave.isPending || placementDelete.isPending}
+          onChange={idleAnimation => idleAnimationSave.mutate({ id: selectedPlacement.id, idleAnimation })} />}
       {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "effect" &&
         ((selectedObject as ParkItem).effectType === "lamp_light" || (selectedObject as ParkItem).effectType === "colored_light") && <label
         className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 bg-[#173b28] p-2 text-xs">
@@ -1515,7 +1545,7 @@ export default function PetParkPage() {
         className="relative z-10 flex font-fantasy max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#10291d] shadow-2xl">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
           <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
-            {editorMode === "effects" ? "Outdoor Effects" : editorMode === "scene" ? "Add Building" : "Decor / Objects"}
+            {editorMode === "effects" ? "Outdoor Effects" : editorMode === "scene" ? "Add Building" : editorMode === "miniPet" ? "Add Mini Pet" : "Decor / Objects"}
           </h2>
           <button type="button" aria-label="Close editor" onClick={() => setShowCreator(false)}
             className="rounded-full border border-amber-500/35 bg-amber-500/15 p-2 text-[#f5cf64]"><X size={17} /></button>

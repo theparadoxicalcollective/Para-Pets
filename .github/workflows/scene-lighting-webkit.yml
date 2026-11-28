@@ -8,6 +8,7 @@ on:
       - 'shared/petParkAtmosphere.ts'
       - 'script/park-world-scene-lamp-pixels-smoke.mjs'
       - 'script/world-scene-raster-smoke.mjs'
+      - 'client/src/components/MiniPetRenderer.tsx'
       - 'client/src/components/PetParkTerrain.tsx'
       - 'client/src/lib/petParkTerrain.ts'
       - '.github/workflows/scene-lighting-webkit.yml'
