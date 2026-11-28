@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
 import { WORLD_ARTWORK_SIZES, worldArtworkSize, worldArtworkUrl } from "../shared/worlds/worldArtworkSize";
-import { playerWorldArtworkVisibility, playerWorldSceneQuery } from "../client/src/lib/playerWorldScene";
+import { PLAYER_WORLD_CULL_CELL, playerWorldCullOrigin, playerWorldRoomCamera, playerWorldArtworkVisibility, playerWorldSceneQuery } from "../client/src/lib/playerWorldScene";
 import { createWorldArtworkService, encodeWorldArtwork, WorldArtworkBusyError } from "../server/routes/worldArtworkMedia.routes";
 
 const id = "12345678-1234-1234-1234-123456789abc";
@@ -133,4 +133,38 @@ test("player plots reuse Pet Park actions with world-scoped state and protected 
   }
   assert.match(access, /effectiveWorldLocked\(worldId, saved\?\.value\)/);
   assert.match(access, /mode === "preview"/);
+});
+
+
+test("overscanned camera cells never omit an actually visible object during panning", () => {
+  const viewport = { width: 390, height: 844 };
+  const expanded = { width: viewport.width + 2 * PLAYER_WORLD_CULL_CELL, height: viewport.height + 2 * PLAYER_WORLD_CULL_CELL };
+  for (const x of [-490, -193, -96, -1, 0, 1, 95, 96]) {
+    for (const y of [-197, -1, 0, 96]) {
+      for (const objectX of [0, 300, 390, 500, 750, 1000]) {
+        for (const objectY of [0, 200, 900, 1100]) {
+          if (!playerWorldArtworkVisibility(objectX + x, objectY + y, 100, 100, viewport).nearby) continue;
+          assert.ok(playerWorldArtworkVisibility(objectX + playerWorldCullOrigin(x) + PLAYER_WORLD_CULL_CELL,
+            objectY + playerWorldCullOrigin(y) + PLAYER_WORLD_CULL_CELL, 100, 100, expanded).nearby);
+        }
+      }
+    }
+  }
+});
+
+test("rooms fill phone and tablet viewports at their natural aspect and clamp both camera axes", () => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 834, height: 1194 }, { width: 1194, height: 834 }]) {
+    for (const aspect of [700 / 1100, 2, 800 / 1000]) {
+      const room = playerWorldRoomCamera(viewport, aspect);
+      assert.ok(room.width >= viewport.width - 1e-8 && room.height >= viewport.height - 1e-8);
+      assert.ok(Math.abs(room.width / room.height - aspect) < 1e-8);
+      assert.ok(Math.abs(room.pan.x + room.width / 2 - viewport.width / 2) < 1e-8);
+      assert.ok(Math.abs(room.pan.y + room.height / 2 - viewport.height / 2) < 1e-8);
+      const start = playerWorldRoomCamera(viewport, aspect, { x: -10, y: -10 });
+      const end = playerWorldRoomCamera(viewport, aspect, { x: 10, y: 10 });
+      assert.deepEqual(start.pan, { x: 0, y: 0 });
+      assert.ok(Math.abs(end.pan.x - (viewport.width - room.width)) < 1e-8);
+      assert.ok(Math.abs(end.pan.y - (viewport.height - room.height)) < 1e-8);
+    }
+  }
 });

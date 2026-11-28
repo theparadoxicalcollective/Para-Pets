@@ -28,7 +28,7 @@ import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/wor
 import type { WorldSceneAsset, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
 import { resolveWorldSceneAction, resolveWorldSceneInteriorAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
 import WorldSceneArtwork from "@/components/world/WorldSceneArtwork";
-import { playerWorldSceneQuery, playerWorldArtworkVisibility, type PlayerScene } from "@/lib/playerWorldScene";
+import { playerWorldSceneQuery, playerWorldArtworkVisibility, playerWorldCullOrigin, PLAYER_WORLD_CULL_CELL, playerWorldRoomCamera, type PlayerScene } from "@/lib/playerWorldScene";
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
 import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
 
@@ -142,7 +142,7 @@ export default function WorldScenePlayerPage({
   latestCamera.current = pendingCamera.current ?? { pan: actualPan, zoom: safeZoom };
   const lighting = useHomeOutdoorLighting("auto");
   const sceneContent = scene.data;
-  const placements = sceneContent?.placements ?? [];
+  const placements = useMemo(() => sceneContent?.placements ?? [], [sceneContent?.placements]);
   const renderPlacements = useMemo(() => placements.filter(p =>
     p.kind !== "terrain" || !isParkConnectedPath(p.effectType)), [placements]);
   const assetsById = useMemo(() => new Map((sceneContent?.assets ?? []).map(a => [a.id, a])),
@@ -172,7 +172,7 @@ export default function WorldScenePlayerPage({
   const activeBuilding = placements.find(item => item.id === inside && item.kind === "building") ?? null;
   const activeAsset = activeBuilding?.assetId ? assetsById.get(activeBuilding.assetId) : null;
   const linkedPage = activeBuilding?.legacyLocationId ? linkedById.get(activeBuilding.legacyLocationId) : null;
-  // Prefer the newly authored room; a legacy background is a fallback only.
+  // Preserve authored room art and its day/night pair; linked art is a fallback.
   const interiorUrl = activeAsset?.interiorImageUrl ?? linkedPage?.bgUrl ?? null;
 
   const terrain = useMemo(() => ({
@@ -215,16 +215,20 @@ export default function WorldScenePlayerPage({
     void queryClient.invalidateQueries({ queryKey: gardenKey });
     void queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
   };
+  const atmospherePlacements = useMemo(() => renderPlacements.filter(p =>
+    p.kind === "effect" || p.decorEffects.length > 0), [renderPlacements]);
   const atmosphere = useMemo(() => {
     const shape = { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale };
     return {
-      lights: parkOutdoorLightEffects(renderPlacements, shape, actualPan, viewport),
-      fireflies: parkOutdoorFireflyFields(renderPlacements, shape, actualPan, viewport),
+      lights: parkOutdoorLightEffects(atmospherePlacements, shape, actualPan, viewport),
+      fireflies: parkOutdoorFireflyFields(atmospherePlacements, shape, actualPan, viewport),
     };
-  }, [renderPlacements, camera.sceneWidth, camera.sceneHeight, camera.scale,
+  }, [atmospherePlacements, camera.sceneWidth, camera.sceneHeight, camera.scale,
     actualPan.x, actualPan.y, viewport.width, viewport.height]);
 
   function queueCamera(nextPan: Point, nextZoom: number) {
+    const previous = latestCamera.current;
+    if (previous.zoom === nextZoom && previous.pan.x === nextPan.x && previous.pan.y === nextPan.y) return;
     const next = { pan: nextPan, zoom: nextZoom };
     latestCamera.current = next;
     pendingCamera.current = next;
@@ -301,9 +305,13 @@ export default function WorldScenePlayerPage({
       captureGesture(event.currentTarget);
       const current = latestCamera.current;
       const geometry = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, current.zoom);
-      queueCamera(worldEditorClampCamera({
+      const next = worldEditorClampCamera({
         x: drag.current.pan.x + dx, y: drag.current.pan.y + dy,
-      }, geometry, viewport), current.zoom);
+      }, geometry, viewport);
+      // Rebase on the clamped position: reversing direction at a world edge
+      // must move immediately instead of retracing discarded overscroll.
+      drag.current = { id: event.pointerId, x: active[0].x, y: active[0].y, pan: next };
+      queueCamera(next, current.zoom);
       event.preventDefault();
     }
   }
@@ -375,6 +383,90 @@ export default function WorldScenePlayerPage({
   const [selectedNpc, setSelectedNpc] = useState<{ name: string; message: string } | null>(null);
   useEffect(() => setSelectedNpc(null), [worldId]);
 
+  // The actual camera moves the single artwork layer every frame. Rebuild
+  // its immutable children only when the overscanned camera cell, zoom,
+  // authored data, or live interaction/effect state changes.
+  const activateLatest = useRef(activate);
+  activateLatest.current = activate;
+  const cullX = playerWorldCullOrigin(actualPan.x);
+  const cullY = playerWorldCullOrigin(actualPan.y);
+  const placementArtwork = useMemo(() => {
+    const cullViewport = { width: viewport.width + 2 * PLAYER_WORLD_CULL_CELL,
+      height: viewport.height + 2 * PLAYER_WORLD_CULL_CELL };
+    return renderPlacements.map(p => {
+      const x = cullX + p.xPct * camera.sceneWidth + PLAYER_WORLD_CULL_CELL;
+      const y = cullY + p.yPct * camera.sceneHeight + PLAYER_WORLD_CULL_CELL;
+      const size = p.size * camera.scale;
+      const height = p.kind === "terrain" ? size * parkTerrainHeightRatio(p.effectType) : size;
+      const { visible, nearby } = playerWorldArtworkVisibility(x, y, size, height, cullViewport);
+      // Attached glows and effects can extend beyond the artwork square.
+      // Keep the original wider effect boundary so they don't pop out at
+      // the edges of the viewport, while deferring distant raster art.
+      const effectsNearby = (p.kind === "effect" || p.decorEffects.length > 0) &&
+        x >= -size && x <= cullViewport.width + size && y >= -size && y <= cullViewport.height + size;
+      if (!nearby && !effectsNearby && p.kind !== "npc" && !p.legacyLocationId) return null;
+      const asset = p.assetId ? assetsById.get(p.assetId) : null;
+      const npc = p.npcId ? npcsById.get(p.npcId) : null;
+      const art = asset?.imageUrl ?? npc?.imageUrl ?? null;
+      const action = sceneActions.get(p.id);
+      const isGardenPlot = p.kind === "terrain" && p.effectType === "garden_plot";
+      const savedPlot = isGardenPlot ? savedPlots.get(p.id) : undefined;
+      const isWaterSource = p.kind === "decor" && p.isWaterSource;
+      const isInteractive = p.kind === "building" || p.kind === "npc" || !!action || isGardenPlot || isWaterSource;
+      const legacyId = p.kind === "npc" ? npc?.legacyLocationId : p.legacyLocationId;
+      // Portal mounts are the stable original location IDs used by Ginny,
+      // Lonelle, Janson and their guide arrows. Keep only one mount per ID.
+      const localLegacyId = legacyId && legacyMounts.get(legacyId) === p.id ? legacyId : null;
+      return <div key={p.id}
+        data-testid={localLegacyId ? `location-${localLegacyId}` : undefined}
+        data-new-world-npc={localLegacyId && p.kind === "npc" ? "true" : undefined}
+        data-world-scene-action={action}
+        className="absolute pointer-events-none"
+        style={{
+          left: p.xPct * camera.sceneWidth, top: p.yPct * camera.sceneHeight, width: size, height,
+          transform: "translate(-50%,-50%)",
+          zIndex: p.kind === "effect" ? 12_000_000 : p.kind === "terrain" ? 1 : decorDrawDepth(p, parkDepthIndex({
+            kind: p.kind === "building" ? "building" : "item", yPct: p.yPct,
+            worldHeight: camera.worldHeight, size: p.size, contact: .9,
+          }), 2),
+          pointerEvents: isInteractive ? "auto" : "none",
+        }}>
+        <button type="button"
+          data-testid={`player-new-world-object-${p.id}`}
+          disabled={!isInteractive}
+          onClick={event => { event.stopPropagation(); activateLatest.current(p); }}
+          aria-label={isGardenPlot ? "Open Garden Plot" : isWaterSource ? "Water Source" : action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? p.kind}
+          className="absolute inset-0 h-full w-full border-0 bg-transparent p-0"
+          style={{ pointerEvents: isInteractive ? "auto" : "none", touchAction: "none",
+            clipPath: isGardenPlot ? "polygon(50% 0%,100% 50%,50% 100%,0% 50%)" : undefined }}>
+        <span className="pointer-events-none absolute inset-0" style={{
+          transform: p.flipped ? "scaleX(-1)" : undefined,
+        }}>
+          {nearby && art && <WorldSceneArtwork imageUrl={art} cssSize={size} alt=""
+            loading="eager" fetchPriority={visible ? "auto" : "low"}
+            className="absolute inset-0 w-full h-full object-contain" draggable={false} />}
+          {effectsNearby && (p.kind === "decor" || p.kind === "building") && <WorldDecorEffects effects={p.decorEffects}
+            sunlightStrength={lighting.daylightStrength}
+            nightStrength={lighting.nightStrength} fireflyStrength={lighting.fireflyStrength}
+            lampStrength={lighting.lampStrength} reducedMotion={false} />}
+          {effectsNearby && p.kind === "effect" && p.effectType && <span className="absolute inset-0" style={{
+            opacity: parkOutdoorEffectOpacity(p.effectType, lighting.nightStrength, lighting.fireflyStrength, lighting.lampStrength),
+          }}><ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
+            reducedMotion={false} fireflyStrength={lighting.fireflyStrength} sceneFireflies /></span>}
+          {nearby && p.kind === "terrain" && isParkTerrainDetail(p.effectType) &&
+            <PetParkTerrainDetail type={p.effectType} tilled={isGardenPlot && !!savedPlot && savedPlot.phase !== "empty" && savedPlot.phase !== "picked"} />}
+        </span>
+      </button>
+      {nearby && action === "beau-prize-wheel" && beauWheel.freeSpinAvailable && <span
+        className="beau-free-spin-indicator" data-testid="haunted-spin-free-indicator"
+        aria-label="Beau has a free spin available"><span aria-hidden="true">!</span></span>}
+      </div>;
+    });
+  }, [renderPlacements, assetsById, npcsById, sceneActions, legacyMounts, savedPlots,
+    cullX, cullY, viewport.width, viewport.height, camera.sceneWidth, camera.sceneHeight,
+    camera.worldHeight, camera.scale, lighting.daylightStrength, lighting.nightStrength,
+    lighting.fireflyStrength, lighting.lampStrength, beauWheel.freeSpinAvailable]);
+
   if (scene.isError && !scene.data) return <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#101b17] text-[#f5d78f] px-6 text-center"
     data-testid="player-new-world-error" role="alert">
     <p>{scene.error instanceof Error ? scene.error.message : "Could not load this world."}</p>
@@ -403,75 +495,7 @@ export default function WorldScenePlayerPage({
           dirtPatches={terrain.dirt} stonePatches={terrain.stone} waterPatches={terrain.water} />
         <div data-testid="player-new-world-art" className="pointer-events-none absolute left-0 top-0 z-0"
           style={{ width: camera.sceneWidth, height: camera.sceneHeight, transform: `translate3d(${actualPan.x}px,${actualPan.y}px,0)` }}>
-        {renderPlacements.map(p => {
-          const x = actualPan.x + p.xPct * camera.sceneWidth;
-          const y = actualPan.y + p.yPct * camera.sceneHeight;
-          const size = p.size * camera.scale;
-          const height = p.kind === "terrain" ? size * parkTerrainHeightRatio(p.effectType) : size;
-          const { visible, nearby } = playerWorldArtworkVisibility(x, y, size, height, viewport);
-          // Attached glows and effects can extend beyond the artwork square.
-          // Keep the original wider effect boundary so they don't pop out at
-          // the edges of the viewport, while deferring distant raster art.
-          const effectsNearby = (p.kind === "effect" || p.decorEffects.length > 0) &&
-            x >= -size && x <= viewport.width + size && y >= -size && y <= viewport.height + size;
-          if (!nearby && !effectsNearby && p.kind !== "npc" && !p.legacyLocationId) return null;
-          const asset = p.assetId ? assetsById.get(p.assetId) : null;
-          const npc = p.npcId ? npcsById.get(p.npcId) : null;
-          const art = asset?.imageUrl ?? npc?.imageUrl ?? null;
-          const action = sceneActions.get(p.id);
-          const isGardenPlot = p.kind === "terrain" && p.effectType === "garden_plot";
-          const savedPlot = isGardenPlot ? savedPlots.get(p.id) : undefined;
-          const isWaterSource = p.kind === "decor" && p.isWaterSource;
-          const isInteractive = p.kind === "building" || p.kind === "npc" || !!action || isGardenPlot || isWaterSource;
-          const legacyId = p.kind === "npc" ? npc?.legacyLocationId : p.legacyLocationId;
-          // Portal mounts are the stable original location IDs used by Ginny,
-          // Lonelle, Janson and their guide arrows. Keep only one mount per ID.
-          const localLegacyId = legacyId && legacyMounts.get(legacyId) === p.id ? legacyId : null;
-          return <div key={p.id}
-            data-testid={localLegacyId ? `location-${localLegacyId}` : undefined}
-            data-new-world-npc={localLegacyId && p.kind === "npc" ? "true" : undefined}
-            data-world-scene-action={action}
-            className="absolute pointer-events-none"
-            style={{
-              left: p.xPct * camera.sceneWidth, top: p.yPct * camera.sceneHeight, width: size, height,
-              transform: "translate(-50%,-50%)",
-              zIndex: p.kind === "effect" ? 12_000_000 : p.kind === "terrain" ? 1 : decorDrawDepth(p, parkDepthIndex({
-                kind: p.kind === "building" ? "building" : "item", yPct: p.yPct,
-                worldHeight: camera.worldHeight, size: p.size, contact: .9,
-              }), 2),
-              pointerEvents: isInteractive ? "auto" : "none",
-            }}>
-            <button type="button"
-              data-testid={`player-new-world-object-${p.id}`}
-              disabled={!isInteractive}
-              onClick={event => { event.stopPropagation(); activate(p); }}
-              aria-label={isGardenPlot ? "Open Garden Plot" : isWaterSource ? "Water Source" : action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? p.kind}
-              className="absolute inset-0 h-full w-full border-0 bg-transparent p-0"
-              style={{ pointerEvents: isInteractive ? "auto" : "none", touchAction: "none",
-                clipPath: isGardenPlot ? "polygon(50% 0%,100% 50%,50% 100%,0% 50%)" : undefined }}>
-            <span className="pointer-events-none absolute inset-0" style={{
-              transform: p.flipped ? "scaleX(-1)" : undefined,
-            }}>
-              {nearby && art && <WorldSceneArtwork imageUrl={art} cssSize={size} alt=""
-                loading={visible ? "eager" : "lazy"} fetchPriority={visible ? "auto" : "low"}
-                className="absolute inset-0 w-full h-full object-contain" draggable={false} />}
-              {effectsNearby && (p.kind === "decor" || p.kind === "building") && <WorldDecorEffects effects={p.decorEffects}
-                sunlightStrength={lighting.daylightStrength}
-                nightStrength={lighting.nightStrength} fireflyStrength={lighting.fireflyStrength}
-                lampStrength={lighting.lampStrength} reducedMotion={false} />}
-              {effectsNearby && p.kind === "effect" && p.effectType && <span className="absolute inset-0" style={{
-                opacity: parkOutdoorEffectOpacity(p.effectType, lighting.nightStrength, lighting.fireflyStrength, lighting.lampStrength),
-              }}><ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
-                reducedMotion={false} fireflyStrength={lighting.fireflyStrength} sceneFireflies /></span>}
-              {nearby && p.kind === "terrain" && isParkTerrainDetail(p.effectType) &&
-                <PetParkTerrainDetail type={p.effectType} tilled={isGardenPlot && !!savedPlot && savedPlot.phase !== "empty" && savedPlot.phase !== "picked"} />}
-            </span>
-          </button>
-          {nearby && action === "beau-prize-wheel" && beauWheel.freeSpinAvailable && <span
-            className="beau-free-spin-indicator" data-testid="haunted-spin-free-indicator"
-            aria-label="Beau has a free spin available"><span aria-hidden="true">!</span></span>}
-          </div>;
-        })}
+        {placementArtwork}
         {(garden.data?.plots ?? []).map(plot => {
           if (!["planted", "seedling", "partial", "grown", "picked"].includes(plot.phase)) return null;
           const crop = gardenCrops.get(plot.cropId ?? "");
@@ -500,20 +524,35 @@ export default function WorldScenePlayerPage({
         </div>
       </>}
     </div>
-    <div className="absolute left-3 top-4 z-30 flex gap-2 items-center">
+    <div className="absolute z-30 flex gap-2 items-center" style={{ left: "max(12px, env(safe-area-inset-left))", top: "max(16px, calc(env(safe-area-inset-top) + 8px))" }}>
       <button data-testid="player-new-world-back" type="button"
         onClick={() => navigate("/map")}
-        className="px-3 py-2 rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] text-sm">← Map</button>
+        className="touch-manipulation min-h-11 px-3 py-2 rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] text-sm">← Map</button>
     </div>
     {activeBuilding && <div className="absolute inset-0 z-40 flex flex-col bg-[#0b1714] text-[#f1d899]"
       data-testid="player-new-world-building">
-      <div className="flex justify-between items-center px-4 py-3 bg-[#122a20]">
+      <div className="absolute inset-x-0 top-0 z-40 flex justify-between items-center gap-3 bg-[#122a20]/95 px-4 pb-2"
+        style={{ paddingTop: "max(12px, calc(env(safe-area-inset-top) + 8px))",
+          paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
         <span>{activeAsset?.name ?? linkedPage?.name ?? "Building"}</span>
-        <button type="button" onClick={() => setInside(null)} aria-label="Close building"
-          className="border border-[#b99952] rounded-full px-3 py-1">×</button>
+        <button type="button" aria-label="Close building"
+          onPointerDown={event => event.stopPropagation()}
+          onPointerUp={event => {
+            if (!event.isPrimary || event.button !== 0) return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            if (event.clientX < bounds.left || event.clientX > bounds.right ||
+                event.clientY < bounds.top || event.clientY > bounds.bottom) return;
+            // Match the Power Up close control: touch release is reliable
+            // even when the browser suppresses a synthetic click after a swipe.
+            event.preventDefault();
+            event.stopPropagation();
+            setInside(null);
+          }}
+          onClick={event => { if (event.detail === 0) setInside(null); }}
+          className="touch-manipulation flex h-11 w-11 shrink-0 items-center justify-center border border-[#b99952] rounded-full text-2xl">×</button>
       </div>
-      <div className="relative flex-1 min-h-0">
-        {interiorUrl ? <PlayerRoom key={activeBuilding.id}
+      <div className="absolute inset-0">
+        {interiorUrl ? <PlayerRoom key={activeBuilding.id + ":" + interiorUrl}
           imageUrl={interiorUrl}
           nightImageUrl={activeAsset?.interiorImageUrl ? activeAsset.nightInteriorImageUrl : null}
           worldId={worldId} building={activeBuilding}
@@ -522,7 +561,7 @@ export default function WorldScenePlayerPage({
           : <div className="flex items-center justify-center h-full">This room has no interior artwork yet.</div>}
       </div>
       {linkedPage && <button data-testid="player-new-world-enter-linked-page"
-        type="button" className="mx-4 my-4 py-3 rounded-full bg-[#204d34] border border-[#b99952]"
+        type="button" className="touch-manipulation absolute inset-x-4 z-40 py-3 rounded-full bg-[#204d34] border border-[#b99952]" style={{ bottom: "max(16px, calc(env(safe-area-inset-bottom) + 8px))" }}
         onClick={() => navigate(`/world/${encodeURIComponent(linkedPage.worldId)}?legacyLocationId=${encodeURIComponent(linkedPage.id)}&returnWorld=${encodeURIComponent(worldId)}`)}>
         Enter {linkedPage.name}
       </button>}
@@ -578,7 +617,11 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [ratio, setRatio] = useState(4 / 3);
+  const [ratio, setRatio] = useState<number | null>(null);
+  const [center, setCenter] = useState({ x: .5, y: .5 });
+  const [artError, setArtError] = useState(false);
+  const roomDrag = useRef<{ id: number; x: number; y: number; pan: Point } | null>(null);
+  const roomMoved = useRef(false);
   const [soulStoneId, setSoulStoneId] = useState<string | null>(null);
   const soulStoneRef = useRef<HTMLButtonElement>(null);
   const soulStone = items.find(item => item.id === soulStoneId &&
@@ -595,27 +638,59 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  const width = Math.min(viewport.width, viewport.height * ratio);
-  const height = width / ratio;
+  const { width, height, pan } = playerWorldRoomCamera(viewport, ratio ?? 4 / 3, center);
+  const ready = ratio !== null && viewport.width > 0 && viewport.height > 0;
+  useEffect(() => { roomDrag.current = null; }, [viewport.width, viewport.height, ratio]);
+  const endRoomDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.type === "lostpointercapture" && event.target !== event.currentTarget) return;
+    if (roomDrag.current?.id === event.pointerId) roomDrag.current = null;
+  };
   const lights: HouseInteriorEffect[] = items.filter(item =>
     isHouseInteriorEffectType(item.effectType) || item.effectType === "colored_light").map(item => ({
       id: item.id, type: (item.effectType === "colored_light" ? "lamp_light" : item.effectType) as HouseInteriorEffect["type"],
-      x: item.xPct, y: item.yPct, size: item.size * ratio / 8.5,
+      x: item.xPct, y: item.yPct, size: item.size * width / Math.max(1, height) / 8.5,
     }));
-  return <div ref={ref} className="absolute inset-0 flex items-center justify-center">
-    <div data-testid="player-new-world-interior" className="relative overflow-hidden isolate" style={{ width, height }}>
+  return <div ref={ref} className="absolute inset-0 overflow-hidden touch-none"
+    onPointerDown={event => {
+      if (!ready || soulStone || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+      roomMoved.current = false;
+      roomDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, pan };
+    }}
+    onPointerMove={event => {
+      const drag = roomDrag.current;
+      if (drag?.id !== event.pointerId) return;
+      const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+      if (!roomMoved.current && Math.hypot(dx, dy) < 6) return;
+      roomMoved.current = true;
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+      const next = playerWorldRoomCamera(viewport, ratio ?? 4 / 3, {
+        x: (viewport.width / 2 - drag.pan.x - dx) / width,
+        y: (viewport.height / 2 - drag.pan.y - dy) / height,
+      });
+      roomDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, pan: next.pan };
+      setCenter({ x: (viewport.width / 2 - next.pan.x) / width,
+        y: (viewport.height / 2 - next.pan.y) / height });
+    }}
+    onPointerUp={endRoomDrag} onPointerCancel={endRoomDrag} onLostPointerCapture={endRoomDrag}
+    onClickCapture={event => {
+      if (roomMoved.current) { roomMoved.current = false; event.stopPropagation(); }
+    }}>
+    <div data-testid="player-new-world-interior" className="absolute left-0 top-0 overflow-hidden isolate"
+      style={{ width, height, transform: `translate3d(${pan.x}px,${pan.y}px,0)`, visibility: ready ? "visible" : "hidden" }}>
       {viewport.width > 0 && viewport.height > 0 && <WorldSceneArtwork imageUrl={imageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="Building interior" draggable={false}
         className="absolute inset-0 w-full h-full object-fill"
+        onArtworkError={() => setArtError(true)}
         onLoad={event => {
+          setArtError(false);
           const image = event.currentTarget;
           if (image.naturalWidth && image.naturalHeight) setRatio(image.naturalWidth / image.naturalHeight);
         }} />}
-      {viewport.width > 0 && viewport.height > 0 && nightImageUrl && lighting.nightInteriorArtworkActive && <WorldSceneArtwork imageUrl={nightImageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="" aria-hidden="true"
+      {ready && nightImageUrl && lighting.nightInteriorArtworkActive && <WorldSceneArtwork imageUrl={nightImageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="" aria-hidden="true"
         data-testid="player-new-world-interior-night" className="absolute inset-0 h-full w-full object-fill" />}
-      {width > 0 && height > 0 && <HomeInteriorDarknessLayer darkness={building.interiorDarkness ?? 35}
+      {ready && <HomeInteriorDarknessLayer darkness={building.interiorDarkness ?? 35}
         effects={lights} panX={0} imgWidth={width} sceneHeight={height}
         sunlightStrength={lighting.daylightStrength} keepMaskMounted transitionMs={0} zIndex={2} />}
-      {items.map(item => {
+      {ready && items.map(item => {
         const asset = item.assetId ? assets.get(item.assetId) : null;
         const size = item.size * width / 850;
         const isSoulStone = resolveWorldSceneInteriorAction(worldId, item.kind, asset) === "soul-exchange";
@@ -639,9 +714,12 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
         </div>;
       })}
     </div>
-    {soulStone && <Suspense fallback={<div role="status" className="pointer-events-none absolute inset-x-3 bottom-3 rounded-lg bg-[#21102e]/95 p-3 text-center text-amber-100">Opening Soul Exchange…</div>}>
+    {!ready && <div role={artError ? "alert" : "status"} className="absolute inset-0 grid place-items-center p-6 text-center text-[#f1d899]">
+      {artError ? "Room artwork could not be loaded. Close and reopen the room." : "Loading room artwork…"}
+    </div>}
+    {soulStone && <Suspense fallback={<div role="status" className="pointer-events-none absolute inset-x-3 bottom-3 rounded-lg border border-[#b99952] bg-[#122a20]/95 p-3 text-center text-amber-100">Opening Soul Exchange…</div>}>
       <WorldSceneSoulExchange key={soulStone.id} stoneRef={soulStoneRef}
-        geometryKey={`${width}:${height}:${soulStone.xPct}:${soulStone.yPct}:${soulStone.size}`}
+        geometryKey={`${width}:${height}:${pan.x}:${pan.y}:${soulStone.xPct}:${soulStone.yPct}:${soulStone.size}`}
         onClose={() => setSoulStoneId(null)} />
     </Suspense>}
   </div>;

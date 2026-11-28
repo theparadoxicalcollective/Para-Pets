@@ -5,12 +5,13 @@ import { worldArtworkUrl } from "@shared/worlds/worldArtworkSize";
  * retain the untouched original artwork URLs. Fall back to the original if a
  * variant is temporarily unavailable (including during a rolling deployment). */
 export default function WorldSceneArtwork({
-  imageUrl, cssSize, ...props
-}: Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "onError"> & { imageUrl: string; cssSize: number }) {
+  imageUrl, cssSize, onArtworkError, ...props
+}: Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "onError"> & { imageUrl: string; cssSize: number; onArtworkError?: () => void }) {
   const src = worldArtworkUrl(imageUrl, cssSize, typeof window === "undefined" ? 1 : window.devicePixelRatio);
   return <img {...props} src={src} decoding="async"
     onError={event => {
       const image = event.currentTarget;
       if (image.getAttribute("src") !== imageUrl) image.src = imageUrl;
+      else onArtworkError?.();
     }} />;
 }
