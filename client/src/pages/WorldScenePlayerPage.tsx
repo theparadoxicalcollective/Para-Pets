@@ -19,22 +19,17 @@ import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from
 import {
   worldEditorCameraGeometry, worldEditorClampCamera, worldEditorMinZoom, worldEditorZoomAnchorPan,
 } from "@/lib/worldEditorCamera";
-import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_MAX, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/worldScenePublication";
-import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
-import type { WorldSceneAsset, WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
+import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/worldScenePublication";
+import type { WorldSceneAsset, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
 import { resolveWorldSceneAction, resolveWorldSceneInteriorAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
+import WorldSceneArtwork from "@/components/world/WorldSceneArtwork";
+import { playerWorldSceneQuery, playerWorldArtworkVisibility, type PlayerScene } from "@/lib/playerWorldScene";
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
 import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
 
 const WorldSceneSoulExchange = lazy(() => import("@/components/world/WorldSceneSoulExchange"));
 const WorldSceneFishingDialog = lazy(() => import("@/components/world/WorldSceneFishingDialog"));
 
-interface PlayerScene extends WorldSceneContent {
-  groundLevel: number;
-  groundTheme: WorldGroundTheme;
-  linkedPages: Array<{ id: string; worldId: string; name: string; type: string; bgUrl: string | null }>;
-  npcs: Array<{ id: string; name: string; imageUrl: string | null; specialSkill: string | null; legacyLocationId: string | null }>;
-}
 type Point = { x: number; y: number };
 
 /** An intentionally read-only player runtime, separate from admin editing.
@@ -60,18 +55,9 @@ export default function WorldScenePlayerPage({
   const [fishingAction, setFishingAction] = useState<WorldSceneFishingAction | null>(null);
 
   const scene = useQuery<PlayerScene>({
-    queryKey: ["/api/worlds", worldId, "player-scene"],
-    queryFn: async () => {
-      const response = await fetch("/api/worlds/" + encodeURIComponent(worldId) + "/player-scene", {
-        credentials: "include", cache: "no-cache",
-      });
-      if (!response.ok) throw new Error("This world is unavailable; the admin can switch it back to the old version.");
-      return response.json();
-    },
-    // This is the same persisted scene the admin edits. Refresh periodically
-    // while the player is on this page so later saved changes appear without
-    // requiring a new publish or a full navigation. No admin data is exposed.
-    retry: 1, staleTime: 0, refetchOnMount: true,
+    ...playerWorldSceneQuery(worldId),
+    // Refresh saved admin changes while the player stays in the scene.
+    refetchOnMount: true,
     refetchOnWindowFocus: true, refetchInterval: 20_000,
     refetchIntervalInBackground: false,
   });
@@ -80,11 +66,6 @@ export default function WorldScenePlayerPage({
     setZoom(1); setPan(null); setInside(null);
     points.current.clear(); drag.current = null; pinch.current = null; notified.current = false;
   }, [worldId]);
-  useEffect(() => {
-    if ((!scene.data && !scene.isError) || notified.current) return;
-    notified.current = true;
-    onContentReady?.();
-  }, [scene.data, scene.isError, onContentReady]);
   useEffect(() => {
     const target = viewportRef.current;
     if (!target) return;
@@ -117,6 +98,21 @@ export default function WorldScenePlayerPage({
   }, [worldId, navigate]);
 
   const viewportReady = viewport.width > 1 && viewport.height > 1;
+  const readyCallback = useRef(onContentReady);
+  readyCallback.current = onContentReady;
+  useEffect(() => {
+    if (notified.current || (!scene.isError && (!scene.data || !viewportReady))) return;
+    // Let the measured terrain and the initial visible artwork mount before
+    // removing the overlay. Don't wait for distant images or a fixed timer.
+    let nextFrame = 0;
+    const frame = requestAnimationFrame(() => {
+      nextFrame = requestAnimationFrame(() => {
+        notified.current = true;
+        readyCallback.current?.();
+      });
+    });
+    return () => { cancelAnimationFrame(frame); cancelAnimationFrame(nextFrame); };
+  }, [worldId, scene.data, scene.isError, viewportReady]);
   const groundLevel = scene.data?.groundLevel ?? 1;
   const groundTheme = scene.data?.groundTheme ?? "grass";
   const minimum = worldEditorMinZoom(viewport.width, viewport.height, groundLevel);
@@ -127,6 +123,8 @@ export default function WorldScenePlayerPage({
   const lighting = useHomeOutdoorLighting("auto");
   const sceneContent = scene.data;
   const placements = sceneContent?.placements ?? [];
+  const renderPlacements = useMemo(() => placements.filter(p =>
+    p.kind !== "terrain" || !isParkConnectedPath(p.effectType)), [placements]);
   const assetsById = useMemo(() => new Map((sceneContent?.assets ?? []).map(a => [a.id, a])),
     [sceneContent?.assets]);
   const sceneActions = useMemo(() => new Map(placements.flatMap(p => {
@@ -165,10 +163,10 @@ export default function WorldScenePlayerPage({
   const atmosphere = useMemo(() => {
     const shape = { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale };
     return {
-      lights: parkOutdoorLightEffects(placements, shape, actualPan, viewport),
-      fireflies: parkOutdoorFireflyFields(placements, shape, actualPan, viewport),
+      lights: parkOutdoorLightEffects(renderPlacements, shape, actualPan, viewport),
+      fireflies: parkOutdoorFireflyFields(renderPlacements, shape, actualPan, viewport),
     };
-  }, [placements, camera.sceneWidth, camera.sceneHeight, camera.scale,
+  }, [renderPlacements, camera.sceneWidth, camera.sceneHeight, camera.scale,
     actualPan.x, actualPan.y, viewport.width, viewport.height]);
 
   function changeZoom(next: number, anchor: Point) {
@@ -281,19 +279,23 @@ export default function WorldScenePlayerPage({
           scale={camera.scale} panX={actualPan.x} panY={actualPan.y}
           dirtPatches={terrain.dirt} stonePatches={terrain.stone} waterPatches={terrain.water} />
         <div data-testid="player-new-world-art" className="pointer-events-none absolute inset-0 z-0">
-        {placements.map(p => {
+        {renderPlacements.map(p => {
           const x = actualPan.x + p.xPct * camera.sceneWidth;
           const y = actualPan.y + p.yPct * camera.sceneHeight;
           const size = p.size * camera.scale;
-          if (p.kind !== "npc" && !p.legacyLocationId &&
-              (x < -size || x > viewport.width + size || y < -size || y > viewport.height + size)) return null;
-          if (p.kind === "terrain" && isParkConnectedPath(p.effectType)) return null;
+          const height = p.kind === "terrain" ? size * parkTerrainHeightRatio(p.effectType) : size;
+          const { visible, nearby } = playerWorldArtworkVisibility(x, y, size, height, viewport);
+          // Attached glows and effects can extend beyond the artwork square.
+          // Keep the original wider effect boundary so they don't pop out at
+          // the edges of the viewport, while deferring distant raster art.
+          const effectsNearby = (p.kind === "effect" || p.decorEffects.length > 0) &&
+            x >= -size && x <= viewport.width + size && y >= -size && y <= viewport.height + size;
+          if (!nearby && !effectsNearby && p.kind !== "npc" && !p.legacyLocationId) return null;
           const asset = p.assetId ? assetsById.get(p.assetId) : null;
           const npc = p.npcId ? npcsById.get(p.npcId) : null;
           const art = asset?.imageUrl ?? npc?.imageUrl ?? null;
           const action = sceneActions.get(p.id);
           const isInteractive = p.kind === "building" || p.kind === "npc" || !!action;
-          const height = p.kind === "terrain" ? size * parkTerrainHeightRatio(p.effectType) : size;
           const legacyId = p.kind === "npc" ? npc?.legacyLocationId : p.legacyLocationId;
           // Portal mounts are the stable original location IDs used by Ginny,
           // Lonelle, Janson and their guide arrows. Keep only one mount per ID.
@@ -322,20 +324,22 @@ export default function WorldScenePlayerPage({
             <span className="pointer-events-none absolute inset-0" style={{
               transform: p.flipped ? "scaleX(-1)" : undefined,
             }}>
-              {art && <img src={art} alt="" className="absolute inset-0 w-full h-full object-contain" draggable={false} />}
-              {(p.kind === "decor" || p.kind === "building") && <WorldDecorEffects effects={p.decorEffects}
+              {nearby && art && <WorldSceneArtwork imageUrl={art} cssSize={size} alt=""
+                loading={visible ? "eager" : "lazy"} fetchPriority={visible ? "auto" : "low"}
+                className="absolute inset-0 w-full h-full object-contain" draggable={false} />}
+              {effectsNearby && (p.kind === "decor" || p.kind === "building") && <WorldDecorEffects effects={p.decorEffects}
                 sunlightStrength={lighting.daylightStrength}
                 nightStrength={lighting.nightStrength} fireflyStrength={lighting.fireflyStrength}
                 lampStrength={lighting.lampStrength} reducedMotion={false} />}
-              {p.kind === "effect" && p.effectType && <span className="absolute inset-0" style={{
+              {effectsNearby && p.kind === "effect" && p.effectType && <span className="absolute inset-0" style={{
                 opacity: parkOutdoorEffectOpacity(p.effectType, lighting.nightStrength, lighting.fireflyStrength, lighting.lampStrength),
               }}><ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
                 reducedMotion={false} fireflyStrength={lighting.fireflyStrength} sceneFireflies /></span>}
-              {p.kind === "terrain" && isParkTerrainDetail(p.effectType) &&
+              {nearby && p.kind === "terrain" && isParkTerrainDetail(p.effectType) &&
                 <PetParkTerrainDetail type={p.effectType} />}
             </span>
           </button>
-          {action === "beau-prize-wheel" && beauWheel.freeSpinAvailable && <span
+          {nearby && action === "beau-prize-wheel" && beauWheel.freeSpinAvailable && <span
             className="beau-free-spin-indicator" data-testid="haunted-spin-free-indicator"
             aria-label="Beau has a free spin available"><span aria-hidden="true">!</span></span>}
           </div>;
@@ -356,16 +360,6 @@ export default function WorldScenePlayerPage({
       <button data-testid="player-new-world-back" type="button"
         onClick={() => navigate("/map")}
         className="px-3 py-2 rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] text-sm">← Map</button>
-    </div>
-    <div className="absolute right-3 top-4 z-30 flex items-center gap-1">
-      <button type="button" aria-label="Zoom out" data-testid="player-world-zoom-out"
-        className="rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] w-9 h-9"
-        disabled={!viewportReady || safeZoom <= minimum + .001}
-        onClick={() => changeZoom(safeZoom - PLAYER_WORLD_ZOOM_STEP, { x: viewport.width / 2, y: viewport.height / 2 })}>−</button>
-      <button type="button" aria-label="Zoom in" data-testid="player-world-zoom-in"
-        className="rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] w-9 h-9"
-        disabled={!viewportReady || safeZoom >= PLAYER_WORLD_ZOOM_MAX - .001}
-        onClick={() => changeZoom(safeZoom + PLAYER_WORLD_ZOOM_STEP, { x: viewport.width / 2, y: viewport.height / 2 })}>+</button>
     </div>
     {activeBuilding && <div className="absolute inset-0 z-40 flex flex-col bg-[#0b1714] text-[#f1d899]"
       data-testid="player-new-world-building">
@@ -447,13 +441,13 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
     }));
   return <div ref={ref} className="absolute inset-0 flex items-center justify-center">
     <div data-testid="player-new-world-interior" className="relative overflow-hidden isolate" style={{ width, height }}>
-      <img src={imageUrl} alt="Building interior" draggable={false}
+      {viewport.width > 0 && viewport.height > 0 && <WorldSceneArtwork imageUrl={imageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="Building interior" draggable={false}
         className="absolute inset-0 w-full h-full object-fill"
         onLoad={event => {
           const image = event.currentTarget;
           if (image.naturalWidth && image.naturalHeight) setRatio(image.naturalWidth / image.naturalHeight);
-        }} />
-      {nightImageUrl && lighting.nightInteriorArtworkActive && <img src={nightImageUrl} alt="" aria-hidden="true"
+        }} />}
+      {viewport.width > 0 && viewport.height > 0 && nightImageUrl && lighting.nightInteriorArtworkActive && <WorldSceneArtwork imageUrl={nightImageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="" aria-hidden="true"
         data-testid="player-new-world-interior-night" className="absolute inset-0 h-full w-full object-fill" />}
       {width > 0 && height > 0 && <HomeInteriorDarknessLayer darkness={building.interiorDarkness ?? 35}
         effects={lights} panX={0} imgWidth={width} sceneHeight={height}
@@ -468,13 +462,13 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
             transform: `translate(-50%,-50%)${item.flipped ? " scaleX(-1)" : ""}`,
             zIndex: Math.round(item.yPct * 10000),
           }}>
-          {asset && (isSoulStone ? <button type="button"
+          {size > 0 && asset && (isSoulStone ? <button type="button"
             ref={soulStoneId === item.id ? soulStoneRef : undefined}
             data-testid="world-soul-exchange-stone" aria-label="The Soul Exchange Stone"
             className="pointer-events-auto absolute inset-0 h-full w-full touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
             onClick={() => { if (!soulStone) setSoulStoneId(item.id); }}>
-            <img src={asset.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" />
-          </button> : <img src={asset.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" />)}
+            <WorldSceneArtwork imageUrl={asset.imageUrl} cssSize={size} alt="" draggable={false} className="h-full w-full object-contain" />
+          </button> : <WorldSceneArtwork imageUrl={asset.imageUrl} cssSize={size} alt="" draggable={false} className="h-full w-full object-contain" />)}
           {item.kind === "effect" && item.effectType && <span className="absolute inset-0"
             style={{ opacity: item.effectType === "warm_glow" ? lighting.daylightStrength : 1 }}>
             <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} />

@@ -1,3 +1,4 @@
+import { registerWorldArtworkMediaRoutes } from "./routes/worldArtworkMedia.routes";
 import { registerPetPresentationRoutes } from "./routes/petPresentation.routes";
 import { resolvePetArtwork } from "./petArtwork";
 import { processEvolutionImageUpdate } from "./evolutionImageUpload";
@@ -960,6 +961,12 @@ export async function registerRoutes(
       console.error("Media blob serve error:", err);
       return res.status(500).end();
     }
+  });
+
+  registerWorldArtworkMediaRoutes(app, async id => {
+    const result = await db.execute(sql`SELECT mime_type, data FROM media_blobs WHERE id = ${id}`);
+    const row = result.rows[0] as { mime_type: string; data: string } | undefined;
+    return row ? { mime: row.mime_type, bytes: Buffer.from(row.data, "base64") } : null;
   });
 
   registerRaidRoutes(app, { db, storage, isAuthenticated, isAdmin });

@@ -48,6 +48,9 @@ const server = await createServer({
 });
 const image=(w,h,color)=>"data:image/svg+xml;base64,"+Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${color}"/></svg>`).toString("base64");
 const art=image(200,200,"#a68356"), room=image(800,1000,"#31512e"), night=image(800,1000,"#142b17");
+const visibleMedia="/api/media/12345678-1234-1234-1234-123456789abc";
+const distantMedia="/api/media/12345678-1234-1234-1234-123456789abd";
+const artBody=Buffer.from(art.split(",")[1],"base64");
 const npc={id:"catalog-janson",name:"Janson",imageUrl:art,type:"npc",worldId:"__npc_catalog__",specialSkill:null,legacyLocationId:"old-janson"};
 const oldShop={id:"old-shop",worldId:"swamp",name:"Original Shop",type:"shop",isShop:true,bgUrl:room};
 const oldJanson={id:"old-janson",worldId:"swamp",name:"Janson",type:"npc",isShop:false,iconUrl:art,bgUrl:null};
@@ -61,20 +64,26 @@ try{
     const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true,timezoneId:"UTC"});
     const page=await context.newPage();page.setDefaultTimeout(15000);
     await page.clock.setFixedTime(new Date("2026-11-26T23:00:00Z"));
-    const errors=[],writes=[];page.on("pageerror",e=>errors.push(e.message));
+    const errors=[],writes=[],mediaReads=[];page.on("pageerror",e=>errors.push(e.message));
     const scene={groundLevel:1,groundTheme:"swamp",
-      assets:[{id:"building-art",kind:"building",name:"New Shop",worldId:"swamp",imageUrl:art,interiorImageUrl:room,nightInteriorImageUrl:night},
-        {id:"decor-art",kind:"decor",name:"Room Decor",worldId:"swamp",imageUrl:art}],
+      assets:[{id:"building-art",kind:"building",name:"New Shop",worldId:"swamp",imageUrl:visibleMedia,interiorImageUrl:room,nightInteriorImageUrl:night},
+        {id:"decor-art",kind:"decor",name:"Room Decor",worldId:"swamp",imageUrl:art},
+        {id:"distant-art",kind:"building",name:"Distant Building",worldId:"swamp",imageUrl:distantMedia}],
       placements:[{...base,id:"shop",kind:"building",assetId:"building-art",xPct:.54,yPct:.55,isShop:true,legacyLocationId:"old-shop"},
+        {...base,id:"distant-building",kind:"building",assetId:"distant-art",xPct:.01,yPct:.01,legacyLocationId:"old-distant"},
         {...base,id:"janson",kind:"npc",npcId:npc.id,xPct:.38,yPct:.43},
         {...base,id:"effect",kind:"effect",effectType:"sparkles",xPct:.5,yPct:.15,size:300}],
       interiorItems:[{id:"room-decor",worldId:"swamp",buildingId:"shop",kind:"decor",assetId:"decor-art",effectType:null,xPct:.55,yPct:.6,size:130,flipped:false},
         {id:"room-lamp",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"lamp_light",effectColor:"#7b5cff",xPct:.3,yPct:.3,size:70,flipped:false}],
-      linkedPages:[oldShop,oldJanson],npcs:[npc]};
+      linkedPages:[oldShop,oldJanson,{id:"old-distant",worldId:"swamp",name:"Distant Building",type:"building",bgUrl:null}],npcs:[npc]};
     let state={quests:[quest,{...quest,questKey:"sell_fish",title:"Sell Fish",status:"locked"}],dailyQuest:{...quest,questKey:"daily_catch_fish",status:"locked"},marketUnlocked:false};
     await page.route("**/api/**",route=>{
       const req=route.request(),path=new URL(req.url()).pathname;
       if(req.method()!=="GET")writes.push(path);
+      if(path.startsWith(visibleMedia)||path.startsWith(distantMedia)){
+        mediaReads.push(path);
+        return route.fulfill({body:artBody,contentType:"image/svg+xml"});
+      }
       if(path==="/api/worlds/swamp/player-scene")return route.fulfill({json:scene});
       if(path==="/api/auth/me")return route.fulfill({json:{id:"qa",username:"QA",isAdmin:false}});
       if(path==="/api/world/swamp/locations")return route.fulfill({json:[oldShop,oldJanson]});
@@ -89,9 +98,28 @@ try{
     await page.goto("http://127.0.0.1:4198/world/swamp");
     const shop=page.getByTestId("player-new-world-object-shop");
     await shop.waitFor({state:"visible"});
+    await page.waitForFunction(()=>document.querySelector('[data-testid="player-new-world-object-shop"] img')?.naturalWidth > 0);
+    assert.ok(mediaReads.some(path=>path.startsWith(visibleMedia+"/world-v1/")),"visible art requests a size-matched copy");
+    assert.equal(await page.getByTestId("location-old-distant").count(),1,"distant quest/location mount stays stable");
+    assert.equal(await page.getByTestId("player-new-world-object-distant-building").locator("img").count(),0);
+    assert.ok(!mediaReads.some(path=>path.startsWith(distantMedia)),"distant linked art is not requested");
+    scene.placements.find(item=>item.id==="distant-building").xPct=.62;
+    scene.placements.find(item=>item.id==="distant-building").yPct=.45;
+    await page.evaluate(()=>window.refreshScene());
+    await page.waitForFunction(()=>document.querySelector('[data-testid="player-new-world-object-distant-building"] img')?.naturalWidth > 0);
+    assert.ok(mediaReads.some(path=>path.startsWith(distantMedia+"/world-v1/")),"newly visible art loads after a live edit");
     assert.equal(await page.getByTestId("location-old-shop").count(),1);
     assert.equal(await page.getByTestId("world-npc-art-old-janson").count(),0,"do not duplicate legacy NPC artwork");
-    await page.getByTestId("player-world-zoom-in").tap();
+    assert.equal(await page.getByTestId("player-world-zoom-in").count(),0,"zoom buttons are hidden");
+    assert.equal(await page.getByTestId("player-world-zoom-out").count(),0);
+    const beforePinch=(await shop.boundingBox()).width;
+    const cdp=await context.newCDPSession(page);
+    const touchPoints=spread=>[{x:Math.round(width/2-spread),y:Math.round(height/2),id:1},{x:Math.round(width/2+spread),y:Math.round(height/2),id:2}];
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:touchPoints(50)});
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:touchPoints(60)});
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+    await cdp.detach();
+    await page.waitForFunction(before=>document.querySelector('[data-testid="player-new-world-object-shop"]').getBoundingClientRect().width>before*1.05,beforePinch);
     await shop.tap();
     const interior=page.getByTestId("player-new-world-interior");
     await interior.waitFor({state:"visible"});
