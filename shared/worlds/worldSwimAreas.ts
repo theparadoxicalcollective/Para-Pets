@@ -8,6 +8,7 @@ export type WorldSwimArea = SwimBounds & {
 };
 export type WorldFishCatalogEntry = {
   id: string; name: string; imageUrl: string | null; facingDirection: string | null;
+  starRarity: number | null; fishSwimZone: string | null;
 };
 export type WorldSwimScene = { swimAreas: WorldSwimArea[]; swimFish: WorldFishCatalogEntry[] };
 export const SWIM_AREA_LIMIT = 40;

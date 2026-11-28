@@ -704,10 +704,10 @@ function FishingItemForm({ item, onClose, onSuccess, restrict }: { item: Fishing
                     </button>
                   ))}
                 </div>
-                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Which way the fish sprite is naturally facing. Fish swim left-to-right in the aquarium — choose the opposite to flip it.</p>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Select the direction the original artwork faces. The worlds and aquariums will automatically mirror it when the fish turns.</p>
               </div>
               <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Aquarium Swim Zone</label>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Swim Zone (Worlds & Aquariums)</label>
                 <div className="flex gap-2">
                   {(["full", "bottom"] as const).map(zone => (
                     <button
@@ -727,7 +727,7 @@ function FishingItemForm({ item, onClose, onSuccess, restrict }: { item: Fishing
                     </button>
                   ))}
                 </div>
-                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Full: fish roams entire aquarium. Bottom: fish stays near the floor with a little swim room.</p>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Full: fish swims freely. Bottom: fish creeps slowly near its placement in the lowest 10% of its swim area.</p>
               </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Sea Animal</label>

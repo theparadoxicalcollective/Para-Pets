@@ -170,6 +170,7 @@ export default function WorldFishEditor(p: Props) {
               onClick={e => {if (e.detail === 0) setSelectedFish(f);}}>
               {f.imageUrl && <img src={f.imageUrl} alt="" draggable={false} className="h-9 w-full select-none object-contain" />}
               <span className="block w-full truncate">{f.name}</span>
+              <span className="block text-[#e6cd86]">{f.starRarity ?? 1}★ · {f.facingDirection === "left" ? "Left" : "Right"}{f.fishSwimZone === "bottom" ? " · Bottom" : ""}</span>
             </button>)}
             {catalog.data?.fish.length === 0 && <p className="col-span-3 text-xs">No fish in the catalogue.</p>}
           </div>}
