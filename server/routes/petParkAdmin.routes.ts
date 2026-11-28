@@ -1,3 +1,6 @@
+import { loadSceneMiniPets } from "../sceneMiniPets";
+import { isMiniPetAnimation, sceneIdleAnimation } from "@shared/miniPet";
+import { validSceneId } from "@shared/worlds/worldSceneContent";
 import type { Express, RequestHandler, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, ilike, inArray, isNotNull, isNull, sql } from "drizzle-orm";
@@ -15,9 +18,9 @@ import { isDecorSurface } from "@shared/decorSurface";
 import { validParkShopPlacements } from "@shared/petParkShopPlacements";
 import { PET_PARK_BASE_REWARD_RATES } from "@shared/petParkAccrual";
 
-type ParkKind = "decor" | "sleep_spot" | "effect" | "terrain";
+type ParkKind = "decor" | "sleep_spot" | "effect" | "terrain" | "mini_pet";
 function isKind(value: unknown): value is ParkKind {
-  return value === "decor" || value === "sleep_spot" || value === "effect" || value === "terrain";
+  return value === "decor" || value === "sleep_spot" || value === "effect" || value === "terrain" || value === "mini_pet";
 }
 function validPosition(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -513,7 +516,7 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
-    const { kind, effectType, effectColor = null, imageData, tapImageData = null, decorEffects = [], xPct, yPct, size, flipped, layer, isWaterSource = false, decorSurface = "barrier" } = req.body ?? {};
+    const { kind, effectType, effectColor = null, imageData, tapImageData = null, decorEffects = [], xPct, yPct, size, flipped, layer, isWaterSource = false, decorSurface = "barrier", miniPetId = null, idleAnimation = null } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||
         !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
         (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000)) ||
@@ -525,6 +528,9 @@ export function registerPetParkAdminRoutes(
     if (!isDecorSurface(decorSurface) || (kind !== "decor" && decorSurface !== "barrier") ||
         (isWaterSource && decorSurface !== "barrier"))
       return res.status(400).json({ message: "Choose one valid decoration behavior" });
+    if (kind === "mini_pet" ? !validSceneId(miniPetId) || imageData != null || effectType != null ||
+        (idleAnimation != null && !isMiniPetAnimation(idleAnimation)) : miniPetId != null || idleAnimation != null)
+      return res.status(400).json({ message: "Invalid Mini Pet placement settings" });
     if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
     if (!isValidParkDecorEffects(decorEffects) || (kind !== "decor" && decorEffects.length))
       return res.status(400).json({ message: "Choose valid decorative effects" });
@@ -539,12 +545,17 @@ export function registerPetParkAdminRoutes(
     if (kind === "terrain" && !isPaintableParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
     if (kind === "terrain" && imageData != null) return res.status(400).json({ message: "Terrain details do not use uploaded images" });
     try {
+      const miniPet = kind === "mini_pet" ? (await loadSceneMiniPets(db, [miniPetId]))[0] : undefined;
+      if (kind === "mini_pet" && !miniPet)
+        return res.status(400).json({ message: "Choose an existing Mini Pet from the catalog" });
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const tapImageUrl = tapImageData ? await processWorldImage(tapImageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
         .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null,
           effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
           imageUrl, tapImageUrl,
+          miniPetId: kind === "mini_pet" ? miniPetId : null,
+          idleAnimation: kind === "mini_pet" ? sceneIdleAnimation(idleAnimation, miniPet?.animationStyle) : null,
           appearanceGroupId: kind === "decor" ? randomUUID() : null,
           decorEffects: kind === "decor" ? decorEffects : [],
           xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer),
@@ -707,6 +718,20 @@ export function registerPetParkAdminRoutes(
     } catch (error) {
       console.error("[pet-park] effect color update failed", error);
       return res.status(500).json({ message: "Unable to update colored light" });
+    }
+  });
+
+  app.patch("/api/admin/pet-park/items/:id/idle-animation", isAdmin, async (req, res) => {
+    const idleAnimation = req.body?.idleAnimation;
+    if (!isMiniPetAnimation(idleAnimation))
+      return res.status(400).json({ message: "Choose Breathing or Float" });
+    try {
+      const [item] = await db.update(petParkSceneItems).set({ idleAnimation })
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "mini_pet"))).returning();
+      return item ? res.json(item) : res.status(404).json({ message: "Mini Pet placement not found" });
+    } catch (error) {
+      console.error("[pet-park] idle animation update failed", error);
+      return res.status(500).json({ message: "Unable to update Mini Pet animation" });
     }
   });
 

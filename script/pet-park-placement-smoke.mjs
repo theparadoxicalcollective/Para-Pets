@@ -32,10 +32,27 @@ try{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const art='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="40" y="20" width="120" height="120" fill="#c2ad74"/></svg>').toString('base64');
   let scene={enabledForPlayers:false,canEditPark:true,preview:true,backgroundUrl:null,groundLevel:1,groundTheme:"grass",items:[{id:'decor',kind:'decor',effectType:null,imageUrl:art,xPct:0.72,yPct:0.58,size:100,flipped:false,layer:0}],deposits:[],sharedPets:[],unlockedSlots:1,buildings:[{id:'cottage',name:'Fixture Cottage',imageUrl:art,interiorImageUrl:null,xPct:0.5,yPct:0.5,size:400,flipped:false,layer:0,maxPets:10,interiorEffects:[]}]};
+  const miniPet={shopItemId:'wisp-catalog',name:'Willow Wisp',imageUrl:art,animationStyle:'float',
+    parts:[{id:'body',partType:'body',imageUrl:art},{id:'open',partType:'eyes',imageUrl:art},{id:'closed',partType:'closed_eyes',imageUrl:art}]};
+  const miniWrites=[];
   const strokes=[],patches=[],decorPatches=[],groundUpdates=[],shopSaves=[];
   await page.route('**/api/**',route=>{
    const path=new URL(route.request().url()).pathname;
    if(path==='/api/pet-park/scene')return route.fulfill({json:scene});
+   if(path==='/api/admin/mini-pets')return route.fulfill({json:[miniPet]});
+   if(path==='/api/admin/pet-park/items' && route.request().method()==='POST'){
+    const body=route.request().postDataJSON();
+    miniWrites.push(body);
+    const item={id:'wisp-placement',imageUrl:null,...body};
+    scene={...scene,miniPets:[miniPet],items:[...scene.items,item]};
+    return route.fulfill({status:201,json:item});
+   }
+   if(path==='/api/admin/pet-park/items/wisp-placement/idle-animation'){
+    const body=route.request().postDataJSON();
+    miniWrites.push(body);
+    scene={...scene,items:scene.items.map(item=>item.id==='wisp-placement'?{...item,...body}:item)};
+    return route.fulfill({json:scene.items.find(item=>item.id==='wisp-placement')});
+   }
    if(path==='/api/admin/pet-park/items/overlap-flower'){
     const body=route.request().postDataJSON();
     decorPatches.push(body);
@@ -262,6 +279,24 @@ try{
   assert.ok(controls.y>=60&&controls.y+controls.height<height*.6,
     name+': compact painter tools stay near the top without hiding the world');
   assert.ok(controls.height<90,name+': collapsed brush controls are not a bulky popup');
+  await page.getByTestId('pet-park-terrain-brush-toolbar').getByRole('button',{name:'Done',exact:true}).click();
+  await page.getByRole('button',{name:'+ Mini Pet',exact:true}).click();
+  const createdMini=page.waitForResponse(r=>r.url().endsWith('/api/admin/pet-park/items')&&r.request().method()==='POST');
+  await page.getByTestId('button-place-mini-pet-'+miniPet.shopItemId).click();
+  await createdMini;
+  assert.equal(miniWrites[0].miniPetId,miniPet.shopItemId);
+  assert.equal(miniWrites[0].idleAnimation,'float');
+  const miniSprite=page.locator('[data-park-object-id="wisp-placement"]');
+  await miniSprite.getByTestId('scene-mini-pet').waitFor({state:'visible'});
+  const animationSave=page.waitForResponse(r=>r.url().endsWith('/wisp-placement/idle-animation'));
+  await page.getByTestId('scene-idle-animation').selectOption('breath');
+  await animationSave;
+  assert.deepEqual(miniWrites[1],{idleAnimation:'breath'});
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await miniSprite.locator('.scene-mini-pet-bounce').waitFor({state:'visible'});
+  assert.equal(await miniSprite.locator('.scene-mini-pet-bounce').evaluate(el=>getComputedStyle(el).animationName),'sceneMiniPetBounce');
+  assert.equal(await miniSprite.locator('.mini-pet-eyes-open').evaluate(el=>getComputedStyle(el).animationName),'miniPetBlinkOpen');
+  assert.equal(scene.deposits.length,0,'decorative Mini Pets do not occupy park slots');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:'/tmp/park-'+name.replaceAll(' ','-')+'.png'});
   console.log('PASS '+name+': original admin gestures, three snapped dirt/stone/water paths and five persistent ground options with zero placement changes');

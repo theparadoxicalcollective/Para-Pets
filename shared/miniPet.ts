@@ -6,6 +6,21 @@ export type MiniPetPartType = typeof MINI_PET_PART_TYPES[number];
 export const MINI_PET_ANIMATIONS = ["breath", "float"] as const;
 export type MiniPetAnimation = typeof MINI_PET_ANIMATIONS[number];
 
+/** A scenery-only reference to existing catalog artwork, never player inventory. */
+export type SceneMiniPet = {
+  shopItemId: string;
+  name: string;
+  imageUrl: string | null;
+  animationStyle: MiniPetAnimation;
+  parts: Array<{ id: string; partType: MiniPetPartType; imageUrl: string }>;
+};
+export function isMiniPetAnimation(value: unknown): value is MiniPetAnimation {
+  return value === "breath" || value === "float";
+}
+export function sceneIdleAnimation(value: unknown, fallback: MiniPetAnimation = "breath"): MiniPetAnimation {
+  return isMiniPetAnimation(value) ? value : fallback;
+}
+
 export const miniPetCreateSchema = z.object({
   name: z.string().trim().min(1).max(80),
   imageData: z.string().min(1),

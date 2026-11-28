@@ -50,6 +50,11 @@ const savedNpcs = [{
   type: "npc", worldId: "__npc_catalog__", name: "Wisp Keeper",
   imageUrl: art, specialSkill: '{"animation":"float","messages":["Hello"]}',
 }];
+const savedMiniPet = {
+  shopItemId: "91000000-0000-4000-8000-000000000001", name: "Willow Wisp",
+  imageUrl: art, animationStyle: "breath",
+  parts: [{id:"body",partType:"body",imageUrl:art},{id:"eyes",partType:"eyes",imageUrl:art},{id:"closed",partType:"closed_eyes",imageUrl:art}],
+};
 const shopMerchandise = {
   id: "70000000-0000-4000-8000-000000000042", name: "Blue Lantern", type: "item",
   price: 150, imageUrl: art, eggImageUrl: null, hatchedImageUrl: null,
@@ -163,6 +168,7 @@ try {
         petParkRequests.push(path);
       if (path.startsWith("/api/world/")) publicWorldRequests.push(path);
       if (path === "/api/inventory") return route.fulfill({ json: inventory });
+      if (path === "/api/admin/mini-pets") return route.fulfill({ json: [savedMiniPet] });
       if (path === "/api/shop/__npc_catalog__") return route.fulfill({ json: savedNpcs });
       const match = path.match(/^\/api\/admin\/world-editor\/(haunted_woods|swamp)\/(.*)$/);
       if (!match) return route.fulfill({ json: {} });
@@ -241,6 +247,7 @@ try {
           created.decorSurface = linkedType.decorSurface ?? "barrier";
         }
         record.scene.placements.push(created);
+        if (created.kind === "mini_pet") record.scene.miniPets = [savedMiniPet];
         return route.fulfill({ status: 201, json: created });
       }
       if (req.method() === "PUT" && tail === "draft") {
@@ -1119,7 +1126,36 @@ try {
       name + ": NPC image is reused from the saved catalog");
     assert.ok((await page.getByTestId("world-scene-selected-controls").innerText()).includes(savedNpcs[0].name),
       name + ": NPC has selection, resize, flip, and edit controls");
+    // Change the placed NPC's idle animation without changing its quest anchor.
+    assert.equal(npcWrite.body.idleAnimation, "breath");
+    const npcIdleSave = page.waitForResponse(r => r.url().endsWith("/placements/"+npcPlaced.id) && r.request().method()==="PATCH");
+    await page.getByTestId("scene-idle-animation").selectOption("float");
+    await npcIdleSave;
+    assert.equal(worlds.haunted_woods.scene.placements.find(p=>p.id===npcPlaced.id).idleAnimation, "float");
     await page.getByRole("button", { name: "Deselect world object" }).click();
+    await npcSprite.locator("img.scene-npc-float").waitFor({state:"visible"});
+
+    // Add a Mini Pet using the real catalog picker and change this placement's
+    // motion without rewriting its authored artwork or original catalog entry.
+    await page.getByRole("button", {name:"+ Mini Pet"}).click();
+    await page.getByRole("heading", {name:"Add Mini Pet"}).waitFor({state:"visible"});
+    const createdMini = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method()==="POST");
+    await page.getByTestId("button-place-mini-pet-"+savedMiniPet.shopItemId).click();
+    const mini = await (await createdMini).json();
+    assert.equal(mini.miniPetId,savedMiniPet.shopItemId);
+    assert.equal(mini.idleAnimation,"breath");
+    const miniSprite = page.getByTestId("world-scene-placement-"+mini.id);
+    await miniSprite.getByTestId("scene-mini-pet").waitFor({state:"visible"});
+    assert.equal(await miniSprite.locator('[data-mini-pet-part="closed_eyes"]').count(),1);
+    const miniIdleSave = page.waitForResponse(r => r.url().endsWith("/placements/"+mini.id) && r.request().method()==="PATCH");
+    await page.getByTestId("scene-idle-animation").selectOption("float");
+    await miniIdleSave;
+    await page.getByRole("button", {name:"Deselect world object"}).click();
+    await miniSprite.locator(".scene-mini-pet-float").waitFor({state:"visible"});
+    assert.equal(await miniSprite.locator(".scene-mini-pet-float").evaluate(el=>getComputedStyle(el).animationName),"sceneMiniPetFloat");
+    assert.equal(await miniSprite.locator(".mini-pet-eyes-closed").evaluate(el=>getComputedStyle(el).animationName),"miniPetBlinkClosed");
+    assert.equal(worlds.haunted_woods.scene.miniPets[0].animationStyle,"breath");
+    assert.deepEqual(apiWrites.find(w=>w.tail==="placements/"+mini.id && w.body.idleAnimation==="float").body,{idleAnimation:"float"});
 
     // The new scene is always selected. Ground edits save without publishing,
     // even when buildings haven't been linked or opened yet.
@@ -1146,6 +1182,18 @@ try {
     assert.equal(await page.getByText("Artwork Library").count(), 0,
       name + ": the same direct creation form works in every world");
     await page.getByRole("button", { name: "Close editor" }).click();
+    await page.getByRole("button", { name: "+ NPC" }).click();
+    const isolatedNpcSave=page.waitForResponse(r=>r.url().endsWith("/placements")&&r.request().method()==="POST");
+    await page.getByTestId("button-place-world-npc-"+savedNpcs[0].id).click();
+    const isolatedNpc=await (await isolatedNpcSave).json();
+    const isolatedSprite=page.getByTestId("world-scene-placement-"+isolatedNpc.id);
+    await isolatedSprite.waitFor({state:"visible"});
+    await page.getByRole("button",{name:"Deselect world object"}).click();
+    await isolatedSprite.locator("img.scene-npc-breath").waitFor({state:"visible"});
+    const isolatedBounds=await isolatedSprite.boundingBox();
+    await page.touchscreen.tap(isolatedBounds.x+isolatedBounds.width/2,isolatedBounds.y+isolatedBounds.height/2);
+    await page.getByTestId("scene-idle-animation").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("scene-idle-animation").inputValue(),"breath");
     assert.deepEqual(petParkRequests, [], name + ": no Pet Park editing or gameplay APIs");
     assert.deepEqual(publicWorldRequests, [], name + ": no original world API writes");
     assert.deepEqual(errors, [], name + ": no browser runtime exceptions");

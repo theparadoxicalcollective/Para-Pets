@@ -1,3 +1,4 @@
+import { MiniPetArtwork, SceneCharacterMotionStyles, sceneNpcIdleClass } from "@/components/MiniPetRenderer";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -220,6 +221,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       exteriorFireflies: parkOutdoorFireflyFields(items, shape, actualPan, size) };
   }, [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
+  const miniPetsById = useMemo(() => new Map((content.miniPets ?? []).map(pet => [pet.shopItemId, pet])), [content.miniPets]);
   const npcById = useMemo(() => new Map((npcCatalog.data ?? []).map(npc => [npc.id, npc])), [npcCatalog.data]);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
   const interiorDarkness = activeBuilding && interiorDarknessDraft &&
@@ -641,6 +643,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     onPointerDownCapture={event => {
       if (event.target instanceof Node && !viewportRef.current?.contains(event.target)) resetPageGesture();
     }}>
+    <SceneCharacterMotionStyles />
     {/* Use clipping, not a scroll container: browser focus must not scroll
         the artwork independently of the authored camera. */}
     <div ref={viewportRef} data-testid="world-scene-draft-viewport"
@@ -752,6 +755,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 top < -margin || top > size.height + margin) return null;
             const asset = assetFor(p.assetId);
             const npc = p.kind === "npc" && p.npcId ? npcById.get(p.npcId) : undefined;
+            const miniPet = p.kind === "mini_pet" && p.miniPetId ? miniPetsById.get(p.miniPetId) : undefined;
+            if (p.kind === "mini_pet" && !miniPet) return null;
             const artworkUrl = asset?.imageUrl ?? npc?.imageUrl;
             const connected = p.kind === "terrain" && isParkConnectedPath(p.effectType);
             // Connected paths are painted on the camera canvas. Do not create
@@ -778,7 +783,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 transform: `translate(-50%, -50%)${worldSceneRotationCss(p.rotation)}`,
 
               }}
-              aria-label={asset?.name ?? npc?.name ?? p.effectType ?? p.kind}
+              aria-label={asset?.name ?? npc?.name ?? miniPet?.name ?? p.effectType ?? p.kind}
               onClick={event => {
                 // Pointer selection is handled at pointer-up on opaque art.
                 // Ignore rectangular button clicks in transparent PNG padding.
@@ -786,8 +791,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 event.stopPropagation();
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
+                {miniPet && <MiniPetArtwork pet={miniPet} scene placementId={p.id} idleAnimation={p.idleAnimation}
+                  animated={selectedId !== p.id} style={selectedId === p.id ? { filter: "drop-shadow(0 0 4px #e7ba70)" } : undefined} />}
                 {artworkUrl && <img src={artworkUrl} alt="" draggable={false}
-                  className="absolute inset-0 h-full w-full object-contain"
+                  className={`absolute inset-0 h-full w-full object-contain ${npc ? sceneNpcIdleClass(p.idleAnimation, selectedId !== p.id) : ""}`}
                   style={selectedId === p.id && (p.kind === "building" || p.kind === "decor" || p.kind === "npc")
                     ? { filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)" }
                     : undefined} />}

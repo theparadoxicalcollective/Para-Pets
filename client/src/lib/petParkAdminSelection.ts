@@ -41,9 +41,15 @@ export function pickParkAdminArtwork(
     const object = lookup(kind, id);
     if (!object) continue;
     const rect = node.getBoundingClientRect();
-    if (clientX < rect.left || clientX > rect.right || clientY < rect.top ||
-        clientY > rect.bottom || rect.width <= 0 || rect.height <= 0) continue;
+    if (object.kind !== "mini_pet" && (clientX < rect.left || clientX > rect.right || clientY < rect.top ||
+        clientY > rect.bottom || rect.width <= 0 || rect.height <= 0)) continue;
 
+    if (object.kind === "mini_pet") {
+      const image = Array.from(node.querySelectorAll<HTMLImageElement>("img")).reverse().find(part =>
+        getComputedStyle(part).opacity !== "0" && parkImageHitAt(part, clientX, clientY, object.flipped));
+      if (image) return { kind, id, image };
+      continue;
+    }
     const image = node.querySelector<HTMLImageElement>("img");
     if (kind === "building" || object.kind === "decor" || object.kind === "npc") {
       // No image means no visible object pixel: never allow an invisible

@@ -1,3 +1,4 @@
+import { loadSceneMiniPets } from "../sceneMiniPets";
 import type { Express, RequestHandler } from "express";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
@@ -69,7 +70,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       if (!locked) {
         const [placements, assets, npcs, locations, interiorItems] = await Promise.all([
           db.select({ id: worldScenePlacements.id, kind: worldScenePlacements.kind,
-            assetId: worldScenePlacements.assetId, npcId: worldScenePlacements.npcId,
+            assetId: worldScenePlacements.assetId, npcId: worldScenePlacements.npcId, miniPetId: worldScenePlacements.miniPetId,
             legacyLocationId: worldScenePlacements.legacyLocationId, isShop: worldScenePlacements.isShop })
             .from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId)).limit(4501),
           db.select({ id: worldSceneAssets.id, kind: worldSceneAssets.kind, worldId: worldSceneAssets.worldId, name: worldSceneAssets.name,
@@ -86,6 +87,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
         ]);
         const blockers = auditWorldActivation(worldId, {
           hasGround: true, placements, assets, npcs, locations, interiorItems,
+          miniPets: await loadSceneMiniPets(db, placements.map(p => p.miniPetId)),
         });
         if (blockers.length) return res.status(409).json({
           message: "Resolve these scene errors before unlocking. " + blockers.join(" "), blockers,
@@ -212,6 +214,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       return res.json({
         worldId, groundLevel: ground.groundLevel, groundTheme: ground.groundTheme,
         assets, placements, interiorItems, linkedPages, npcs: connectedNpcs,
+        miniPets: await loadSceneMiniPets(db, placements.map(p => p.miniPetId)),
       });
     } catch (error) {
       console.error("[world-publication] player scene read failed", error);

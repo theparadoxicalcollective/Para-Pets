@@ -46,6 +46,9 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       )
     );
     ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS effect_color text;
+    ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS mini_pet_id varchar REFERENCES shop_items(id) ON DELETE CASCADE;
+    ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS idle_animation text CHECK (idle_animation IS NULL OR (kind IN ('npc', 'mini_pet') AND idle_animation IN ('breath', 'float')));
+    CREATE INDEX IF NOT EXISTS world_scene_placements_mini_pet_idx ON world_scene_placements (mini_pet_id) WHERE mini_pet_id IS NOT NULL;
     -- Existing placements keep their original orientation; only admin artwork can rotate.
     ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS rotation integer NOT NULL DEFAULT 0
       CHECK (rotation BETWEEN 0 AND 359);
@@ -86,24 +89,26 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       -- Upgrade only old checks, preserving all existing placements.
       IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'world_scene_placements_kind_check'
-          AND position('npc' in pg_get_constraintdef(oid)) > 0
+          AND position('mini_pet' in pg_get_constraintdef(oid)) > 0
       ) THEN
         ALTER TABLE world_scene_placements DROP CONSTRAINT IF EXISTS world_scene_placements_kind_check;
         ALTER TABLE world_scene_placements ADD CONSTRAINT world_scene_placements_kind_check
-          CHECK (kind IN ('decor', 'building', 'effect', 'terrain', 'npc'));
+          CHECK (kind IN ('decor', 'building', 'effect', 'terrain', 'npc', 'mini_pet'));
       END IF;
       IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'world_scene_placements_kind_asset_check'
-          AND position('npc' in pg_get_constraintdef(oid)) > 0
+          AND position('mini_pet' in pg_get_constraintdef(oid)) > 0
       ) THEN
         ALTER TABLE world_scene_placements DROP CONSTRAINT IF EXISTS world_scene_placements_kind_asset_check;
         ALTER TABLE world_scene_placements ADD CONSTRAINT world_scene_placements_kind_asset_check CHECK (
           (kind IN ('decor','building') AND asset_id IS NOT NULL
-            AND effect_type IS NULL AND terrain_key IS NULL AND npc_id IS NULL)
+            AND effect_type IS NULL AND terrain_key IS NULL AND npc_id IS NULL AND mini_pet_id IS NULL)
           OR (kind IN ('effect','terrain') AND asset_id IS NULL
-            AND effect_type IS NOT NULL AND npc_id IS NULL)
+            AND effect_type IS NOT NULL AND npc_id IS NULL AND mini_pet_id IS NULL)
           OR (kind = 'npc' AND asset_id IS NULL
-            AND effect_type IS NULL AND terrain_key IS NULL AND npc_id IS NOT NULL)
+            AND effect_type IS NULL AND terrain_key IS NULL AND npc_id IS NOT NULL AND mini_pet_id IS NULL)
+          OR (kind = 'mini_pet' AND asset_id IS NULL
+            AND effect_type IS NULL AND terrain_key IS NULL AND npc_id IS NULL AND mini_pet_id IS NOT NULL)
         );
       END IF;
     END $$;

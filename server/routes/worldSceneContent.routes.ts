@@ -1,3 +1,5 @@
+import { loadSceneMiniPets } from "../sceneMiniPets";
+import { isMiniPetAnimation, sceneIdleAnimation } from "@shared/miniPet";
 import type { Express, Request, RequestHandler } from "express";
 import { and, asc, count, eq, ilike, inArray, isNotNull, ne } from "drizzle-orm";
 import {
@@ -108,7 +110,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if (assets.length > MAX_ASSETS || placements.length > MAX_OBJECTS || interiorItems.length > MAX_OBJECTS) {
         return res.status(409).json({ message: "World draft exceeds supported scene limits" });
       }
-      return res.json({ assets, placements, interiorItems });
+      return res.json({ assets, placements, interiorItems, miniPets: await loadSceneMiniPets(db, placements.map(p => p.miniPetId)) });
     } catch (error) {
       console.error("[world-editor] scene read failed", error);
       return res.status(500).json({ message: "Could not read private world scene" });
@@ -291,8 +293,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     const body = req.body ?? {};
     const { kind, assetId, effectType = null, effectColor = null, decorEffects = [],
-      isWaterSource = false, decorSurface = "barrier", isShop = false, legacyLocationId = null, shopItemIds = [], npcId = null } = body;
-    if (!["decor", "building", "effect", "npc"].includes(kind) ||
+      isWaterSource = false, decorSurface = "barrier", isShop = false, legacyLocationId = null, shopItemIds = [], npcId = null, miniPetId = null, idleAnimation = null } = body;
+    if (!["decor", "building", "effect", "npc", "mini_pet"].includes(kind) ||
       !validPlacementTransform(body) || !validDecorEffects(decorEffects) ||
       (!canRotateWorldSceneKind(kind) && (body.rotation ?? 0) !== 0) ||
       typeof isWaterSource !== "boolean" || !isDecorSurface(decorSurface) || typeof isShop !== "boolean" ||
@@ -309,6 +311,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
       (isWaterSource && decorSurface !== "barrier") ||
       (kind !== "decor" && kind !== "building" && decorEffects.length)) ||
       (kind !== "building" && (isShop || shopItemIds.length)) ||
+      (idleAnimation != null && ((kind !== "npc" && kind !== "mini_pet") || !isMiniPetAnimation(idleAnimation))) ||
+      (kind === "mini_pet" ? !validSceneId(miniPetId) || assetId != null || effectType != null : miniPetId != null) ||
       (kind === "npc"
         ? assetId != null || effectType != null || !validSceneId(npcId)
         : npcId != null || (kind === "effect"
@@ -326,6 +330,9 @@ export function registerWorldSceneContentRoutes(app: Express, {
       }
       if (kind === "npc" && !(await validCatalogNpc(db, npcId)))
         return res.status(400).json({ message: "Choose an existing NPC from Admin NPCs" });
+      const miniPet = kind === "mini_pet" ? (await loadSceneMiniPets(db, [miniPetId]))[0] : undefined;
+      if (kind === "mini_pet" && !miniPet)
+        return res.status(400).json({ message: "Choose an existing Mini Pet from the catalog" });
       if (legacyLocationId !== null &&
           (kind !== "building" || !(await validLegacyLocationPage(db, legacyLocationId))))
         return res.status(400).json({ message: "Select an existing old-world page with a background" });
@@ -346,8 +353,10 @@ export function registerWorldSceneContentRoutes(app: Express, {
         eq(worldScenePlacements.assetId, assetId),
       )).orderBy(asc(worldScenePlacements.createdAt)).limit(1) : [];
       const [placed] = await db.insert(worldScenePlacements).values({
-        worldId, kind, assetId: kind === "effect" || kind === "npc" ? null : assetId,
+        worldId, kind, assetId: kind === "effect" || kind === "npc" || kind === "mini_pet" ? null : assetId,
         npcId: kind === "npc" ? npcId : null, effectType,
+        miniPetId: kind === "mini_pet" ? miniPetId : null,
+        idleAnimation: kind === "npc" || kind === "mini_pet" ? sceneIdleAnimation(idleAnimation, miniPet?.animationStyle) : null,
         effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, rotation: body.rotation ?? 0, layer: body.layer,
@@ -381,6 +390,11 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if ("flipped" in body) {
         if (typeof body.flipped !== "boolean") return res.status(400).json({ message: "Invalid flip setting" });
         changes.flipped = body.flipped;
+      }
+      if ("idleAnimation" in body) {
+        if ((saved.kind !== "npc" && saved.kind !== "mini_pet") || !isMiniPetAnimation(body.idleAnimation))
+          return res.status(400).json({ message: "Choose Breathing or Float for this character" });
+        changes.idleAnimation = body.idleAnimation;
       }
       if ("rotation" in body) {
         if (!canRotateWorldSceneKind(saved.kind) || !validWorldSceneRotation(body.rotation))

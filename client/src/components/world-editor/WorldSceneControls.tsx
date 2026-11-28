@@ -1,3 +1,5 @@
+import { SceneMiniPetPicker, SceneIdleAnimationSelector } from "@/components/SceneCharacterControls";
+import { sceneIdleAnimation, type SceneMiniPet, type MiniPetAnimation } from "@shared/miniPet";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -19,7 +21,7 @@ import type {
 import type { ParkEffectType } from "@shared/petParkEffects";
 import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 
-type Panel = "library" | "effects" | "selected" | "shop" | "interior" | "npc" | "settings";
+type Panel = "library" | "effects" | "selected" | "shop" | "interior" | "npc" | "miniPet" | "settings";
 const EFFECT_CHOICES: Array<{
   type: ParkEffectType; label: string; description: string; size: number; group: "outdoor" | "water";
 }> = [
@@ -131,10 +133,18 @@ export default function WorldSceneControls(props: Props) {
   };
   const addNpc = async (npc: WorldNpcCatalogEntry) => {
     const result = await mutate("POST", "/placements", {
-      kind: "npc", npcId: npc.id, assetId: null, effectType: null,
+      kind: "npc", npcId: npc.id, assetId: null, effectType: null, idleAnimation: "breath",
       xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct,
       size: 130, flipped: false, layer: 0, decorEffects: [],
       isWaterSource: false, decorSurface: "barrier", isShop: false, shopItemIds: [],
+    }) as WorldScenePlacement | null;
+    if (result) { props.onSelect(result.id); setPanel("selected"); setExpanded(false); }
+  };
+  const addMiniPet = async (pet: SceneMiniPet) => {
+    const result = await mutate("POST", "/placements", {
+      kind: "mini_pet", miniPetId: pet.shopItemId, idleAnimation: sceneIdleAnimation(pet.animationStyle),
+      xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct,
+      size: 88, flipped: false, layer: 0,
     }) as WorldScenePlacement | null;
     if (result) { props.onSelect(result.id); setPanel("selected"); setExpanded(false); }
   };
@@ -289,11 +299,21 @@ export default function WorldSceneControls(props: Props) {
     }
   };
   const selectedNpc = props.selected?.npcId ? npcCatalog.data?.find(n => n.id === props.selected?.npcId) : null;
+  const selectedMiniPet = props.scene.miniPets?.find(p => p.shopItemId === props.selected?.miniPetId);
+  const characterSelected = !props.activeBuilding && (props.selected?.kind === "npc" || props.selected?.kind === "mini_pet");
+  const changeIdleAnimation = async (idleAnimation: MiniPetAnimation) => {
+    const updated = await patchSelected({ idleAnimation });
+    if (updated) queryClient.setQueryData<WorldSceneContent>(["/api/admin/world-editor", props.worldId, "scene"], current =>
+      current ? { ...current, placements: current.placements.map(item => item.id === updated.id ? { ...item, idleAnimation: updated.idleAnimation } : item) } : current);
+  };
+  const idleSelector = characterSelected && <SceneIdleAnimationSelector
+    value={sceneIdleAnimation(props.selected?.idleAnimation, selectedMiniPet?.animationStyle)}
+    disabled={busy} onChange={value => void changeIdleAnimation(value)} />;
   const selectedName = props.activeBuilding
     ? props.scene.assets.find(asset => asset.id === props.selectedInterior?.assetId)?.name ??
       props.selectedInterior?.effectType?.replaceAll("_", " ") ?? "Interior object"
     : props.scene.assets.find(asset => asset.id === props.selected?.assetId)?.name ??
-      selectedNpc?.name ?? props.selected?.effectType?.replaceAll("_", " ") ?? "World object";
+      selectedNpc?.name ?? selectedMiniPet?.name ?? props.selected?.effectType?.replaceAll("_", " ") ?? "World object";
   const quickButton = "min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg disabled:opacity-40";
   const quickAccent = "min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#20442e]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg disabled:opacity-40";
   const quickDanger = "min-h-12 rounded-xl border border-[#be8d62]/65 bg-[#463028]/95 px-2 py-2 text-xs font-semibold text-[#f9d6a6] shadow-lg disabled:opacity-40";
@@ -301,7 +321,7 @@ export default function WorldSceneControls(props: Props) {
   return <>
     {!expanded && !props.roomToolsHidden && !selectedItem && !props.shopItemEditing && <div
       data-testid="world-scene-controls" aria-label="World editing toolbar"
-      className={`pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg gap-1.5 ${props.activeBuilding && !props.activeBuilding.isShop ? "grid-cols-2" : "grid-cols-3"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg gap-1.5 ${props.activeBuilding ? (props.activeBuilding.isShop ? "grid-cols-3" : "grid-cols-2") : "grid-cols-3 min-[360px]:grid-cols-4"}`}
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
       {props.activeBuilding ? <>
@@ -338,6 +358,7 @@ export default function WorldSceneControls(props: Props) {
       </> : <>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "building")}>+ Building</button>
         <button type="button" className={quickButton} onClick={() => openCreator("npc")}>+ NPC</button>
+        <button type="button" className={quickButton} onClick={() => openCreator("miniPet")}>+ Mini Pet</button>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
         <button type="button" className={quickAccent} aria-label="Paint terrain"
@@ -375,6 +396,7 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={quickAccent}
           aria-label="Edit selected object details" onClick={() => openCreator("selected")}>Edit</button>
       </div>
+      {idleSelector}
       {canRotate && <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1.5" aria-label="Artwork rotation">
         <button type="button" aria-label="Rotate selected artwork left 5 degrees" className={control + " min-h-11 flex items-center justify-center gap-1"}
           disabled={busy} onClick={() => void rotateSelected(stepWorldSceneRotation(selectedItem.rotation, -1))}>
@@ -480,6 +502,7 @@ export default function WorldSceneControls(props: Props) {
             {panel === "library" ? (props.activeBuilding || assetKindFilter === "decor" ? "Decor / Objects" : "Add Building")
               : panel === "effects" ? (props.activeBuilding ? "Interior Effects" : "World Effects")
               : panel === "npc" ? "Add NPC"
+              : panel === "miniPet" ? "Add Mini Pet"
               : panel === "selected" ? "Edit " + selectedName
               : panel === "shop" ? "Building Shop Setup"
               : panel === "interior" ? "Building Interior" : "World Tools"}
@@ -502,6 +525,7 @@ export default function WorldSceneControls(props: Props) {
             setExpanded(false);
           }}/>}
         
+        {panel === "miniPet" && !props.activeBuilding && <SceneMiniPetPicker busy={busy} onPlace={pet => void addMiniPet(pet)} />}
         {panel === "npc" && !props.activeBuilding && <section
           data-testid="world-editor-npc-picker" className="space-y-3">
           <p className="text-xs text-amber-100/75">
@@ -574,6 +598,7 @@ export default function WorldSceneControls(props: Props) {
         </section>}
 
         {panel === "selected" && <div className="space-y-3" data-testid="world-scene-details-panel">
+          {idleSelector}
           {props.selected?.kind === "npc" && <p className="rounded-lg border border-[#b99a4c]/50 p-3 text-xs">
             NPC: {selectedNpc?.name ?? "Loading NPC"} · Artwork and dialogue are shared with
             Admin → NPCs. This placement has its own position, size and flip.
