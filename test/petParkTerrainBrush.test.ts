@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { RequestHandler } from "express";
-import { petParkSceneItems } from "../shared/schema";
+import { petParkSceneItems, petParkSettings } from "../shared/schema";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { parkGroundSize, parkExpandPoint } from "../shared/petParkGround";
 import { registerPetParkAdminRoutes } from "../server/routes/petParkAdmin.routes";
 import { parkBrushWorldPoint, parkExtendBrushStroke, PARK_BRUSH_MAX_STAMPS } from "../client/src/lib/petParkTerrainBrush";
 
@@ -166,5 +168,84 @@ test("both isometric axes obey the cap and preserve alignment on expansion", asy
     const p=parkSnapPathPoint({xPct:0.4,yPct:0.4},old,200);
     const expanded=parkExpandPoint(p,level,level+1), snapped=parkSnapPathPoint(expanded,next,200);
     assert.ok(Math.abs(snapped.xPct-expanded.xPct)<1e-8 && Math.abs(snapped.yPct-expanded.yPct)<1e-8);
+  }
+});
+
+test("admin eraser removes only touched terrain of the selected material, on original and expanded ground", async () => {
+  for (const level of [1, 3]) {
+    const world = parkGroundSize(level);
+    const point = (dx: number, dy: number) => ({ xPct: .5 + dx / world.width, yPct: .5 + dy / world.height });
+    const rows = [
+      { id: "target", kind: "terrain", effectType: "water_path", ...point(0, 0), size: 150 },
+      { id: "duplicate", kind: "terrain", effectType: "water_path", ...point(0, 0), size: 150 },
+      { id: "next", kind: "terrain", effectType: "water_path", ...point(75, 37.5), size: 150 },
+      { id: "other-material", kind: "terrain", effectType: "stone_path", ...point(0, 0), size: 150 },
+      { id: "decor", kind: "decor", effectType: "water_path", ...point(0, 0), size: 150 },
+      { id: "legacy-wide", kind: "terrain", effectType: "water_path", ...point(300, 10), size: 200 },
+    ];
+    let handler: RequestHandler | undefined;
+    let transactions = 0, deletes = 0;
+    const isAdmin = ((_req: unknown, _res: unknown, next: () => void) => next()) as RequestHandler;
+    const app = { get() {}, put() {}, patch() {}, delete() {},
+      post(path: string, ...actions: RequestHandler[]) {
+        if (path !== "/api/admin/pet-park/terrain-erase") return;
+        assert.equal(actions[0], isAdmin);
+        handler = actions.at(-1);
+      },
+    };
+    const dialect = new PgDialect();
+    const tx = {
+      select() { return { from(table: unknown) { return { where(condition: any) {
+        const params = dialect.sqlToQuery(condition).params;
+        if (table === petParkSettings) {
+          assert.deepEqual(params, ["main"]);
+          return { for: async (lock: string) => { assert.equal(lock, "update"); return [{ groundLevel: level }]; } };
+        }
+        assert.equal(table, petParkSceneItems);
+        assert.deepEqual(params, ["terrain", "water_path"]);
+        return Promise.resolve(rows.filter(row => row.kind === params[0] && row.effectType === params[1]));
+      } }; } }; },
+      delete(table: unknown) {
+        assert.equal(table, petParkSceneItems);
+        return { where(condition: any) {
+          deletes++;
+          const params = dialect.sqlToQuery(condition).params;
+          assert.deepEqual(params.slice(0, 2), ["terrain", "water_path"]);
+          const ids = params.slice(2);
+          return { returning: async () => {
+            const removed = rows.filter(row => row.kind === params[0] && row.effectType === params[1] && ids.includes(row.id));
+            for (const row of removed) rows.splice(rows.indexOf(row), 1);
+            return removed;
+          } };
+        } };
+      },
+    };
+    registerPetParkAdminRoutes(app as any, {
+      db: { transaction: async (fn: (tx: any) => Promise<unknown>) => { transactions++; return fn(tx); } } as any,
+      isAdmin, processWorldImage: async () => "unused.png",
+    });
+    assert.ok(handler);
+    const invoke = async (body: unknown) => {
+      const res: any = { statusCode: 200, body: null,
+        status(code: number) { this.statusCode = code; return this; },
+        json(body: unknown) { this.body = body; return this; },
+      };
+      await handler!({ body } as any, res, (() => {}) as any);
+      return res;
+    };
+    for (const body of [{}, { type: "fire", size: 150, points: [point(0, 0)] },
+      { type: "water_path", size: 150, points: Array(61).fill(point(0, 0)) },
+      { type: "water_path", size: 0, points: [point(0, 0)] },
+      { type: "water_path", size: 150, points: [{ xPct: 2, yPct: .5 }] }]) {
+      assert.equal((await invoke(body)).statusCode, 400);
+    }
+    assert.equal(transactions, 0);
+    const erase = (points: { xPct: number; yPct: number }[]) => invoke({ type: "water_path", size: 150, points });
+    assert.deepEqual((await erase([parkExpandPoint({ xPct: .5, yPct: .5 }, 1, level)])).body, { deleted: 2 });
+    assert.deepEqual(rows.map(row => row.id), ["next", "other-material", "decor", "legacy-wide"]);
+    assert.deepEqual((await erase([point(0, 0)])).body, { deleted: 0 });
+    assert.equal(deletes, 1, "empty erase must not issue a delete");
+    assert.deepEqual((await erase([point(75, 37.5), point(300, 0)])).body, { deleted: 2 });
+    assert.deepEqual(rows.map(row => row.id), ["other-material", "decor"]);
   }
 });
