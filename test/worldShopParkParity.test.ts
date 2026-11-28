@@ -73,10 +73,11 @@ test("World shop item controls match Pet Park editing without losing world-only 
   assert.doesNotMatch(world, /api\/shop\/pet-park\/buy|api\/shop\/.*\/buy|purchaseQuantity/);
   const page = read("client/src/pages/WorldSceneEditorPage.tsx");
   const controls = read("client/src/components/world-editor/WorldSceneControls.tsx");
-  assert.match(page, /onSelectionChange=\{setEditingShopItem\}/);
+  assert.match(page, /onSelectionChange=\{onShopSelectionChange\}/);
   assert.match(page, /shopItemEditing=\{editingShopItem\}/);
   assert.match(controls, /!props.shopItemEditing/);
-  assert.match(controls, /onClick=\{\(\) => openCreator\("shop"\)\}/);
+  assert.doesNotMatch(controls, /openCreator\("shop"\)/);
+  assert.match(page, /decorSelected=\{selectedInteriorId !== null\}/);
 });
 
 test("World shop stocks via same searchable, filtered two-column picker as Pet Park", () => {
@@ -98,7 +99,7 @@ test("World shop stocks via same searchable, filtered two-column picker as Pet P
   assert.match(route, /ne\(shopItems\.type, "garden_fruit"\)/);
   assert.match(route, /validParkShopPlacements\(body\.shopItemPlacements\)/);
   assert.match(route, /body\.shopItemPlacements\.some\(\(p: ParkShopPlacement\) => !activeStock\.includes\(p\.itemId\)\)/);
-  assert.match(world, /onChanged\(\)/);
+  assert.match(world, /onChanged\(confirmedIds, confirmedLayout\)/);
 });
 
 test("World can open a stocked or completely empty shop without switching purchase systems", () => {

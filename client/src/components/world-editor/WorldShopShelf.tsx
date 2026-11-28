@@ -58,11 +58,12 @@ function ShopPriceTag({ itemBoxSize }: { itemBoxSize: number }) {
  * pricing mutations, new coordinate stages, or catalog duplication.
  */
 export default function WorldShopShelf({
-  worldId, building, roomWidth, roomHeight, roomPoint, visibleRoomWidth, visibleRoomHeight, onChanged, onSelectionChange,
+  worldId, building, roomWidth, roomHeight, roomPoint, visibleRoomWidth, visibleRoomHeight, onChanged, decorSelected, onSelectionChange,
 }: {
   worldId: string; building: WorldScenePlacement; roomWidth: number; roomHeight: number;
   roomPoint: { xPct: number; yPct: number }; visibleRoomWidth: number; visibleRoomHeight: number;
-  onChanged: () => void; onSelectionChange?: (editing: boolean) => void;
+  onChanged: (ids: string[], layout: ParkShopPlacement[]) => void;
+  decorSelected: boolean; onSelectionChange?: (editing: boolean) => void;
 }) {
   const { toast } = useToast();
   const [ids, setIds] = useState<string[]>(() => [...building.shopItemIds]);
@@ -89,7 +90,17 @@ export default function WorldShopShelf({
     layoutRef.current = next;
     setLayout(next);
   }, [building.id, building.shopItemIds, building.shopItemPlacements]);
-  useEffect(() => { onSelectionChange?.(selectedId !== null); }, [selectedId, onSelectionChange]);
+  // A room object and a shelf item cannot own the editing toolbar at the same time.
+  const selectItem = (id: string | null) => {
+    setSelectedId(id);
+    onSelectionChange?.(id !== null);
+  };
+  useEffect(() => {
+    if (decorSelected && selectedId !== null) {
+      setSelectedId(null);
+      onSelectionChange?.(false);
+    }
+  }, [decorSelected, selectedId, onSelectionChange]);
   useEffect(() => {
     const timer = window.setTimeout(() => setSearchTerm(search), 240);
     return () => window.clearTimeout(timer);
@@ -147,7 +158,7 @@ export default function WorldShopShelf({
       setIds(confirmedIds);
       setLayout(confirmedLayout);
       layoutRef.current = confirmedLayout;
-      onChanged();
+      onChanged(confirmedIds, confirmedLayout);
     } catch (error) {
       setIds(previousIds);
       setLayout(previous);
@@ -182,7 +193,7 @@ export default function WorldShopShelf({
     if (!selectedId || savingRef.current) return;
     const nextIds = ids.filter(id => id !== selectedId);
     const next = layoutRef.current.filter(p => p.itemId !== selectedId);
-    setSelectedId(null);
+    selectItem(null);
     void save(nextIds, next, ids, layoutRef.current);
   };
 
@@ -191,7 +202,7 @@ export default function WorldShopShelf({
     event.stopPropagation();
     itemDrag.current = { pointerId: event.pointerId, itemId: placement.itemId,
       x: event.clientX, y: event.clientY, start: placement, moved: false };
-    setSelectedId(placement.itemId);
+    selectItem(placement.itemId);
     setDraggingItem(false);
     safeSetPointerCapture(event.currentTarget, event.pointerId);
   };
@@ -297,7 +308,7 @@ export default function WorldShopShelf({
           disabled={saving} onPointerDown={event => onItemDown(event, p)}
           onPointerMove={onItemMove} onPointerUp={onItemUp} onPointerCancel={onItemCancel}
           onLostPointerCapture={onItemCancel}
-          onClick={event => { event.stopPropagation(); setSelectedId(p.itemId); }}
+          onClick={event => { event.stopPropagation(); selectItem(p.itemId); }}
           className="pointer-events-auto absolute flex touch-none flex-col items-center justify-center rounded-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200"
           style={{
             width: imageSize, height: imageSize,
@@ -325,7 +336,7 @@ export default function WorldShopShelf({
         style={{ bottom: "max(16px, env(safe-area-inset-bottom, 0px))" }}>
         <div aria-label="Edit shop item artwork" data-testid="world-shop-edit-toolbar"
           onPointerDown={event => event.stopPropagation()}
-          className="pointer-events-auto flex w-full max-w-[380px] flex-wrap items-center justify-center gap-2 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl">
+          className="pointer-events-auto touch-manipulation flex w-full max-w-[380px] flex-wrap items-center justify-center gap-2 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl">
           <span className="max-w-[84px] truncate text-[11px] font-semibold">{selectedItem.name}</span>
           <button type="button" aria-label="Smaller merchandise" disabled={saving}
             onClick={() => updateSelected(p => ({ ...p, size: Math.max(PARK_SHOP_MIN_SIZE, p.size - 2) }))}
@@ -351,7 +362,7 @@ export default function WorldShopShelf({
           </span>
           <button type="button" aria-label="Remove merchandise" disabled={saving}
             onClick={removeItem} className="min-h-9 rounded-lg border border-[#b87f70]/55 bg-[#50312b] px-2 text-[10px]">Remove</button>
-          <button type="button" aria-label="Done editing item" onClick={() => setSelectedId(null)}
+          <button type="button" aria-label="Done editing item" onClick={() => selectItem(null)}
             className="min-h-9 rounded-lg border border-[#d7b973]/55 bg-[#214c34] px-2 text-[10px]">Done</button>
         </div>
       </div>
@@ -395,7 +406,7 @@ export default function WorldShopShelf({
             <Search size={14} aria-hidden="true" />
             <input type="search" value={search} onChange={event => setSearch(event.target.value)}
               aria-label="Search shop items" placeholder="Search items by name"
-              className="min-h-10 w-full bg-transparent text-xs outline-none" />
+              className="min-h-11 w-full bg-transparent text-base outline-none touch-auto select-text" />
           </div>
           <div className="my-2 flex flex-wrap gap-1" aria-label="Filter shop items">
             {FILTERS.map(value => <button key={value.type} type="button" aria-pressed={filter === value.type}

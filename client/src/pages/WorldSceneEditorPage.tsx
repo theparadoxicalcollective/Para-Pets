@@ -1,5 +1,5 @@
 import { MiniPetArtwork, SceneCharacterMotionStyles, sceneNpcIdleClass } from "@/components/MiniPetRenderer";
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -21,7 +21,7 @@ import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
-import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
+import { worldInteriorLights } from "@/lib/worldInteriorLighting";
 import {
   worldEditorCameraGeometry, worldEditorClampZoom, worldEditorMinZoom,
   worldEditorClampCamera, worldEditorZoomAnchorPan,
@@ -115,6 +115,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
   const [editingShopItem, setEditingShopItem] = useState(false);
+  const onShopSelectionChange = useCallback((editing: boolean) => {
+    setEditingShopItem(editing);
+    if (editing) setSelectedInteriorId(null);
+  }, []);
   // The slider previews locally without refetching or repainting another scene.
   type DarknessDraft = { buildingId: string; value: number };
   const [interiorDarknessDraft, setInteriorDarknessDraft] = useState<DarknessDraft | null>(null);
@@ -339,15 +343,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorW = roomCamera.width;
   const interiorH = roomCamera.height;
   const roomPoint = { xPct: roomCamera.center.x, yPct: roomCamera.center.y };
-  const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
-    .filter(item => item.buildingId === activeBuilding.id &&
-      (isHouseInteriorEffectType(item.effectType) || item.effectType === "colored_light"))
-    // Colored Light is the customizable outdoor form of lamp_light. Even
-    // when saved inside an older building, its visible orb must cut a real
-    // light pool out of the room's existing darkness mask.
-    .map(item => ({ id: item.id,
-      type: (item.effectType === "colored_light" ? "lamp_light" : item.effectType) as HouseInteriorEffect["type"],
-      x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
+  const roomItems = activeBuilding ? content.interiorItems.filter(item => item.buildingId === activeBuilding.id) : [];
+  const interiorLights = worldInteriorLights(roomItems.map(item =>
+    objectPreview?.id === item.id ? { ...item, ...objectPreview } : item), interiorW, interiorH);
 
   useEffect(() => {
     setInteriorCenterX(.5);
@@ -856,47 +854,58 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           effects={interiorLights}
           panX={0} imgWidth={interiorW} sceneHeight={interiorH}
           sunlightStrength={previewSunlightStrength} keepMaskMounted transitionMs={0} zIndex={2}/>
-        {content.interiorItems.filter(item => item.buildingId === activeBuilding.id).map(item => {
-          const pos = objectPosition(item);
-          const asset = assetFor(item.assetId);
-          const px = item.size * interiorW / 850;
-          return <button key={item.id} type="button"
-            data-testid={`world-interior-item-${item.id}`}
-            className="absolute touch-none rounded border border-transparent focus-visible:border-[#f5ce73]"
-            style={{
-              left: pos.xPct * interiorW, top: pos.yPct * interiorH, width: px, height: px,
-              transform: `translate(-50%, -50%)${worldSceneRotationCss(item.rotation)}`, zIndex: Math.round(pos.yPct * 10000),
+        {/* As in Pet Park: darken the room and decor together, then draw the
+            visible effects above the mask. Depth sorting stays within each layer. */}
+        {(["decor", "effect"] as const).map(kind => <div key={kind}
+          className="absolute inset-0 pointer-events-none" style={{ zIndex: kind === "decor" ? 1 : 3 }}>
+          {roomItems.filter(item => item.kind === kind).map(item => {
+            const pos = objectPosition(item);
+            const asset = assetFor(item.assetId);
+            const px = item.size * interiorW / 850;
+            return <button key={item.id} type="button"
+              data-testid={`world-interior-item-${item.id}`}
+              className="pointer-events-auto absolute touch-none rounded border border-transparent focus-visible:border-[#f5ce73]"
+              style={{
+                left: pos.xPct * interiorW, top: pos.yPct * interiorH, width: px, height: px,
+                transform: `translate(-50%, -50%)${worldSceneRotationCss(item.rotation)}`, zIndex: Math.round(pos.yPct * 10000),
 
-            }}
-            onPointerDown={event => startObject(event, item, "interior")}
-            onPointerMove={moveObject} onPointerUp={finishObject}
-            onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
-            onClick={event => {
-              if (event.detail === 0) setSelectedInteriorId(item.id);
-              event.stopPropagation();
-            }}>
-            <span className="pointer-events-none absolute inset-0"
-              style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
-              {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain"
-                style={selectedInteriorId === item.id ? {
-                  filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)",
-                } : undefined} draggable={false} />}
-              {item.kind === "effect" && item.effectType &&
-                <span className="absolute inset-0" style={{
-                  opacity: item.effectType === "warm_glow" ? worldLighting.daylightStrength : 1,
-                  transition: "opacity 1200ms linear",
-                }}>
-                  <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} adminPreview />
-                </span>}
-            </span>
-          </button>;
-        })}
-        {activeBuilding.isShop && <WorldShopShelf worldId={worldId} building={activeBuilding}
+              }}
+              onPointerDown={event => startObject(event, item, "interior")}
+              onPointerMove={moveObject} onPointerUp={finishObject}
+              onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
+              onClick={event => {
+                if (event.detail === 0) setSelectedInteriorId(item.id);
+                event.stopPropagation();
+              }}>
+              <span className="pointer-events-none absolute inset-0"
+                style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
+                {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain"
+                  style={selectedInteriorId === item.id ? {
+                    filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)",
+                  } : undefined} draggable={false} />}
+                {item.kind === "effect" && item.effectType &&
+                  <span className="absolute inset-0" style={{
+                    opacity: item.effectType === "warm_glow" ? previewSunlightStrength : 1,
+                    transition: "opacity 1200ms linear",
+                  }}>
+                    <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} adminPreview interior />
+                  </span>}
+              </span>
+            </button>;
+          })}
+        </div>)}
+        {activeBuilding.isShop && <WorldShopShelf key={activeBuilding.id} worldId={worldId} building={activeBuilding}
           roomWidth={interiorW} roomHeight={interiorH} roomPoint={roomPoint}
           visibleRoomWidth={Math.min(1, size.width / interiorW)}
           visibleRoomHeight={Math.min(1, size.height / interiorH)}
-          onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
-          onSelectionChange={setEditingShopItem} />}
+          onChanged={(shopItemIds, shopItemPlacements) => {
+            cache.setQueryData<WorldSceneContent>(sceneQueryKey, current => current ? {
+              ...current, placements: current.placements.map(placement => placement.id === activeBuilding.id
+                ? { ...placement, shopItemIds, shopItemPlacements } : placement),
+            } : current);
+            void cache.invalidateQueries({ queryKey: sceneQueryKey });
+          }}
+          decorSelected={selectedInteriorId !== null} onSelectionChange={onShopSelectionChange} />}
         </>}
       </div> : <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-[#decba0]">
         This building has no interior artwork yet. Choose Add Old World Page or upload a room image.

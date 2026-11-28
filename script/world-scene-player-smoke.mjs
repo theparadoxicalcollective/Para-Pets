@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "vite";
 import { chromium } from "playwright";
+import sharp from "sharp";
 
 // Real player renderer, original location component and quest overlay.
 // All requests are isolated fixtures; no production account or write routes.
@@ -80,7 +81,8 @@ try{
         {...base,id:"spring",kind:"terrain",effectType:"water_path",xPct:.35,yPct:.57,size:150},
         {...base,id:"effect",kind:"effect",effectType:"sparkles",xPct:.5,yPct:.15,size:300}],
       interiorItems:[{id:"room-decor",worldId:"swamp",buildingId:"shop",kind:"decor",assetId:"decor-art",effectType:null,xPct:.55,yPct:.6,size:130,flipped:false},
-        {id:"room-lamp",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"lamp_light",effectColor:"#7b5cff",xPct:.3,yPct:.3,size:70,flipped:false}],
+        {id:"room-lamp",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"lamp_light",effectColor:"#7b5cff",xPct:.3,yPct:.3,size:70,flipped:false},
+        {id:"room-fire",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"fire",xPct:.64,yPct:.42,size:60,flipped:false}],
       linkedPages:[oldShop,oldJanson,{id:"old-distant",worldId:"swamp",name:"Distant Building",type:"building",bgUrl:null}],npcs:[npc],miniPets:[miniPet]};
     let state={quests:[quest,{...quest,questKey:"sell_fish",title:"Sell Fish",status:"locked"}],dailyQuest:{...quest,questKey:"daily_catch_fish",status:"locked"},marketUnlocked:false};
     let plot={plotItemId:"garden",xPct:.46,yPct:.60,size:150,phase:"empty",cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null};
@@ -207,6 +209,28 @@ try{
     assert.ok(Math.abs(child.width/bg.width-130/850)<.02,"room decor uses the authored image scale");
     assert.ok(bg.width >= width-1 && bg.height >= height-1, "room covers viewport, not letterboxed");
     assert.ok(Math.abs(bg.width/bg.height-.8)<.01, "room artwork retains its aspect ratio");
+    // A screenshot of the actual rendered room, not just its SVG structure:
+    // a light pool must brighten the artwork beyond the effect sprite, and a
+    // distant decoration must be darkened by the very same mask.
+    await page.getByTestId("player-new-world-interior-item-room-fire").waitFor();
+    const mask = page.getByTestId("home-interior-darkness-layer");
+    assert.equal(await mask.locator("mask circle").count(), 2);
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="player-new-world-interior"] img')]
+      .every(img => img.complete && img.naturalWidth > 0));
+    const { data, info } = await sharp(await page.screenshot()).raw().toBuffer({resolveWithObject:true});
+    function pixel(x, y) {
+      const px = Math.round(bg.x + x * bg.width), py = Math.round(bg.y + y * bg.height);
+      assert.ok(px >= 0 && px < info.width && py >= 0 && py < info.height, "sample inside viewport");
+      const i = (py * info.width + px) * info.channels;
+      return [...data.subarray(i, i + 3)];
+    }
+    const unlit = pixel(.5, .78);
+    const lampPool = pixel(.3, .37);
+    const firePool = pixel(.64, .49);
+    const dimmedDecor = pixel(.55, .65);
+    assert.ok(lampPool[1] > unlit[1] + 7, `${name}: lamp lights nearby floor: ${lampPool} vs ${unlit}`);
+    assert.ok(firePool[1] > unlit[1] + 7, `${name}: campfire lights nearby floor: ${firePool} vs ${unlit}`);
+    assert.ok(dimmedDecor[0] < 110, `${name}: ordinary placed decor is dimmed too: ${dimmedDecor}`);
     const closeRoom=page.getByRole("button",{name:"Close building"});
     const closeBounds=await closeRoom.boundingBox();
     assert.ok(closeBounds.y>=8 && closeBounds.y+closeBounds.height<=height && closeBounds.width>=44 && closeBounds.height>=44,

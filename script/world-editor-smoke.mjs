@@ -123,7 +123,7 @@ function makeScene(worldId) {
   };
 }
 await server.listen();
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH, args: ["--no-sandbox", "--disable-dev-shm-usage"] } : {}) });
 try {
   for (const [name, width, height] of [["phone", 390, 844], ["tablet", 834, 1194]]) {
     const context = await browser.newContext({
@@ -470,6 +470,13 @@ try {
     // Model a link already saved before the UI was removed. Refresh the real
     // editor, and verify it never clears that link or loses its original room.
     worlds.haunted_woods.scene.placements.find(p => p.id === savedShopBuilding.id).legacyLocationId = legacyPages[0].id;
+    // Existing room artwork covers the default merchandise position. The
+    // selected shelf item must remain reachable, even with decor selected.
+    const shopDecorId = "shop-decor-overlap";
+    worlds.haunted_woods.scene.interiorItems.push({
+      id: shopDecorId, worldId: "haunted_woods", buildingId: savedShopBuilding.id,
+      kind: "decor", assetId: ids.decor, effectType: null, xPct: .5, yPct: .38, size: 220, flipped: false,
+    });
     await page.reload({ waitUntil: "domcontentloaded" });
     const linkedBuilding = page.getByTestId("world-scene-placement-" + savedShopBuilding.id);
     await linkedBuilding.waitFor({ state: "visible" });
@@ -519,6 +526,9 @@ try {
     await addShop.waitFor({ state: "visible" });
     assert.equal(await page.getByTestId("world-shop-shelf").count(), 1,
       name + ": an empty shop remains editable");
+    const shopDecor = page.getByTestId("world-interior-item-" + shopDecorId);
+    await shopDecor.tap();
+    await page.getByTestId("world-scene-selected-controls").waitFor();
     await addShop.click();
     await page.getByTestId("world-shop-picker").waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Items", exact: true }).click();
@@ -533,14 +543,22 @@ try {
     await merchandise.waitFor({ state: "visible" });
     assert.equal(await page.getByTestId("world-shop-tag-coin").count() > 0, true,
       name + ": World and Pet Park use coin-only price tags");
-    await merchandise.click();
+    await merchandise.tap();
+    await page.getByTestId("world-scene-selected-controls").waitFor({ state: "detached" });
     const preview = page.getByTestId("world-shop-price-preview");
     await preview.waitFor({ state: "visible" });
-    // The shelf reports selection through an effect to its parent World
-    // controls. Wait for that second React commit rather than racing it.
+    // Only the merchandise controls should own the editor while selected.
     await page.getByTestId("world-scene-controls").waitFor({ state: "detached" });
     assert.equal(await page.getByTestId("world-scene-controls").count(), 0,
       name + ": selecting merchandise hides overlapping World bottom controls");
+    for (const label of ["Rotate merchandise clockwise 15 degrees", "Flip merchandise horizontally", "Larger merchandise"]) {
+      const button = page.getByRole("button", { name: label });
+      // Wait for the previous save before each separate toolbar gesture.
+      await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
+      await Promise.all([page.waitForResponse(r => r.url().includes("/placements/" + savedShopBuilding.id) &&
+        r.request().method() === "PATCH" && r.request().postDataJSON().shopItemPlacements), button.tap()]);
+    }
+    await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
     const beforeTag = worlds.haunted_woods.scene.placements.find(p =>
       p.id === savedShopBuilding.id).shopItemPlacements[0];
     const marker = await page.getByTestId("world-shop-price-drag-handle").boundingBox();
@@ -548,18 +566,41 @@ try {
     assert.ok(marker && artBox, name + ": preview and price-tag drag handle are visible");
     const tagSaved = page.waitForResponse(r => r.url().includes("/placements/" + savedShopBuilding.id) &&
       r.request().method() === "PATCH" && r.request().postDataJSON().shopItemPlacements);
-    await page.mouse.move(marker.x + marker.width / 2, marker.y + marker.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(artBox.x + artBox.width * .32, artBox.y + artBox.height * .3, { steps: 4 });
-    await page.mouse.up();
+    const shopTouch = await context.newCDPSession(page);
+    const from = { x: marker.x + marker.width / 2, y: marker.y + marker.height / 2 };
+    const to = { x: artBox.x + artBox.width * .32, y: artBox.y + artBox.height * .3 };
+    await shopTouch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ ...from, id: 1 }] });
+    for (const t of [.25, .5, .75, 1]) await shopTouch.send("Input.dispatchTouchEvent", {
+      type: "touchMove", touchPoints: [{ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, id: 1 }],
+    });
+    await shopTouch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await shopTouch.detach();
     await tagSaved;
     const afterTag = worlds.haunted_woods.scene.placements.find(p =>
       p.id === savedShopBuilding.id).shopItemPlacements[0];
     assert.notDeepEqual([afterTag.priceTagXPct, afterTag.priceTagYPct],
       [beforeTag.priceTagXPct, beforeTag.priceTagYPct],
       name + ": dragging the preview tag persists image-local coordinates");
+    const finalStock = worlds.haunted_woods.scene.placements.find(p =>
+      p.id === savedShopBuilding.id).shopItemPlacements[0];
+    assert.equal(finalStock.rotation, 15);
+    assert.equal(finalStock.flippedX, true);
+    assert.equal(finalStock.size, 14);
     await page.getByRole("button", { name: "Done editing item" }).click();
     await page.getByTestId("world-scene-controls").waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Exit Room" }).click();
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    await merchandise.waitFor({ state: "visible" });
+    await merchandise.tap();
+    await page.getByTestId("world-shop-price-preview").waitFor();
+    assert.equal(await page.getByTestId("world-shop-rotation").textContent(), "15°");
+    assert.equal(await page.getByTestId("world-shop-flip").getAttribute("aria-pressed"), "true");
+    const restoredTag = await page.getByTestId("world-shop-price-drag-handle").evaluate(el =>
+      [parseFloat(el.style.left) / 100, parseFloat(el.style.top) / 100]);
+    assert.ok(Math.abs(restoredTag[0] - afterTag.priceTagXPct) < .001 &&
+      Math.abs(restoredTag[1] - afterTag.priceTagYPct) < .001,
+      name + ": reopening preserves the saved tag anchor");
+    await page.getByRole("button", { name: "Done editing item" }).click();
     await page.getByRole("button", { name: "Exit Room" }).click();
     await page.getByRole("button", { name: "Deselect world object" }).click();
 
