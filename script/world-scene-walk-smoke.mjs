@@ -57,7 +57,7 @@ try {
       assets:[{id:"fence-art",name:"Fence",kind:"decor",worldId,imageUrl:fence},
         {id:"grass-art",name:"Walkable mat",kind:"decor",worldId,imageUrl:solid},
         {id:"room-art",name:"Shop",kind:"building",worldId,imageUrl:solid,interiorImageUrl:room}],
-      placements:[{...base,id:"fence",assetId:"fence-art",xPct:.56,yPct:.5,size:120},
+      placements:[{...base,id:"fence",assetId:"fence-art",xPct:.56,yPct:.487,size:120},
         {...base,id:"mat",assetId:"grass-art",xPct:.46,yPct:.5,decorSurface:"ground",size:150},
         {...base,id:"building",kind:"building",assetId:"room-art",xPct:.5,yPct:.45,size:180},
         {...base,id:"water",kind:"terrain",effectType:"water_path",xPct:.5,yPct:.58,size:300},
@@ -144,6 +144,43 @@ try {
     const stopped=await position();
     await page.waitForTimeout(150);
     assert.deepEqual(await position(),stopped,"release immediately stops walking and camera");
+    // Walk behind the same fence through its raised artwork, then attempt
+    // to walk forward THROUGH its base. Its sprite must cover the avatar
+    // behind it, but never create an impassable roof-height rectangle.
+    const waitFeet = (axis, direction, threshold)=>page.waitForFunction(({axis,direction,threshold})=>{
+      const a=document.querySelector('[data-testid="player-world-avatar"]').getBoundingClientRect();
+      const w=document.querySelector('[data-testid="player-new-world-art"]').getBoundingClientRect();
+      const p=axis==="x"?(a.x+a.width/2-w.x)/w.width:(a.y+a.height*.94-w.y)/w.height;
+      return direction==="above"?p>threshold:p<threshold;
+    },{axis,direction,threshold});
+    await start(0,-45);
+    await waitFeet("y","below",.487);
+    await touch("touchEnd",[]);
+    await joy.waitFor({state:"hidden"});
+    await start(45,0);
+    await waitFeet("x","above",.548);
+    await touch("touchEnd",[]);
+    await joy.waitFor({state:"hidden"});
+    const behind=await position();
+    assert.ok(behind.x>.548 && behind.x<.56 && behind.y<.488, "walk behind the opaque artwork");
+    const fenceDepth=await page.getByTestId("player-new-world-object-fence").evaluate(el=>Number(getComputedStyle(el.parentElement).zIndex));
+    assert.ok(await actor.evaluate(el=>Number(getComputedStyle(el).zIndex))<fenceDepth,"fence paints in front of avatar behind it");
+    await start(0,45);
+    await waitFeet("y","above",.494);
+    await page.waitForTimeout(350);
+    const rearBlocked=await position();
+    assert.ok(rearBlocked.y<.499,"the base still blocks travel from behind: "+JSON.stringify(rearBlocked));
+    await touch("touchEnd",[]);
+    await joy.waitFor({state:"hidden"});
+    await start(45,0);
+    await waitFeet("x","above",.566);
+    await touch("touchEnd",[]);
+    await joy.waitFor({state:"hidden"});
+    await start(0,45);
+    await waitFeet("y","above",.505);
+    await touch("touchEnd",[]);
+    await joy.waitFor({state:"hidden"});
+    assert.ok(await actor.evaluate(el=>Number(getComputedStyle(el).zIndex))>fenceDepth,"avatar paints in front when ahead of the base");
     await start(-45,0);
     await page.waitForFunction(before=>{
       const w=document.querySelector('[data-testid="player-new-world-art"]').getBoundingClientRect();
@@ -192,6 +229,6 @@ try {
     assert.deepEqual(writes,[],"walking never writes player or authored scene data");
     assert.deepEqual(errors,[]);
     await cdp.detach();await context.close();
-    console.log("PASS world gait/clothing, reduced motion, joystick, barrier, camera, pinch and building",width,height,worldId);
+    console.log("PASS world gait/clothing, reduced motion, joystick, behind/base barrier, camera, pinch and building",width,height,worldId);
   }
 } finally {await browser.close();await server.close();}

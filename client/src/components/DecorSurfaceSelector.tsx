@@ -9,13 +9,14 @@ const OPTIONS: { value: DecorRole; label: string; description: string }[] = [
 
 /** Single-choice controls make conflicting decor behavior settings impossible. */
 export default function DecorSurfaceSelector({
-  value, onChange, disabled = false, name, testId,
+  value, onChange, disabled = false, name, testId, worldFootprint = false,
 }: {
   value: DecorRole;
   onChange: (value: DecorRole) => void;
   disabled?: boolean;
   name: string;
   testId: string;
+  worldFootprint?: boolean;
 }) {
   return <fieldset data-testid={testId}
     disabled={disabled}
@@ -36,7 +37,7 @@ export default function DecorSurfaceSelector({
             className="mt-0.5 h-5 w-5 shrink-0 accent-[#f2d17f]" />
           <span className="min-w-0">
             <strong className="block text-sm font-semibold leading-5 text-[#ffebba]">{option.label}</strong>
-            <span className="mt-0.5 block text-xs leading-snug text-[#f5e4bb]">{option.description}</span>
+            <span className="mt-0.5 block text-xs leading-snug text-[#f5e4bb]">{worldFootprint && option.value === "barrier" ? "Default. The ground-contact base blocks walking. Players can pass behind raised artwork." : option.description}</span>
           </span>
         </label>;
       })}

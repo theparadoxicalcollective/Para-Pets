@@ -246,7 +246,7 @@ export default function WorldSceneCreateForm({
           Size is saved when the object is placed. Depth follows ground position automatically.
         </p>
       </div>
-      {!inside && <DecorSurfaceSelector
+      {!inside && <DecorSurfaceSelector worldFootprint
         name="world-new-decoration-role" testId="world-create-decor-behavior"
         value={newDecorRole} onChange={setNewDecorRole} disabled={saving} />}
     </>}

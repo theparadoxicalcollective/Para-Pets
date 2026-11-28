@@ -43,7 +43,7 @@ import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { fetchPlayerAvatar, playerAvatarQueryKey, wardrobeLayers, type PlayerAvatarState } from "@/lib/playerAvatarWardrobe";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import { parkSquareArtworkSampler } from "@/lib/petParkImageHit";
-import { WORLD_AVATAR_SIZE, WORLD_WALK_SPAWN, worldWalkBounds, worldWalkCameraPan, worldWalkCollision, worldWalkSpawn, worldWalkStep } from "@/lib/worldSceneWalk";
+import { WORLD_AVATAR_SIZE, WORLD_WALK_SPAWN, worldWalkArtworkMask, worldWalkBounds, worldWalkCameraPan, worldWalkCollision, worldWalkSpawn, worldWalkStep, type WorldWalkArtworkMask } from "@/lib/worldSceneWalk";
 
 const WorldSceneSoulExchange = lazy(() => import("@/components/world/WorldSceneSoulExchange"));
 const WorldSceneFishingDialog = lazy(() => import("@/components/world/WorldSceneFishingDialog"));
@@ -81,7 +81,7 @@ export default function WorldScenePlayerPage({
   const walkingPointer = useRef<number | null>(null);
   const [joystickCenter, setJoystickCenter] = useState<Point>({ x: 0, y: 0 });
   const [selectedNpc, setSelectedNpc] = useState<{ name: string; message: string } | null>(null);
-  const artworkMasks = useRef(new Map<string, (x: number, y: number) => boolean>());
+  const artworkMasks = useRef(new Map<string, WorldWalkArtworkMask>());
   const [inside, setInside] = useState<string | null>(null);
   const [selectedGardenPlotId, setSelectedGardenPlotId] = useState<string | null>(null);
   const [wateringGardenPlotId, setWateringGardenPlotId] = useState<string | null>(null);
@@ -592,7 +592,7 @@ export default function WorldScenePlayerPage({
               if (!avatar || (p.kind !== "building" && p.kind !== "decor") || artworkMasks.current.has(art)) return;
               // Keep masks only; never retain decoded images or read canvas in a frame.
               if (artworkMasks.current.size >= 300) artworkMasks.current.delete(artworkMasks.current.keys().next().value!);
-              artworkMasks.current.set(art, parkSquareArtworkSampler(event.currentTarget));
+              artworkMasks.current.set(art, worldWalkArtworkMask(parkSquareArtworkSampler(event.currentTarget)));
             }}
             className={`absolute inset-0 w-full h-full object-contain ${npc ? sceneNpcIdleClass(p.idleAnimation, visible) : ""}`} draggable={false} />}
           {effectsNearby && (p.kind === "decor" || p.kind === "building") && <WorldDecorEffects effects={p.decorEffects}
@@ -624,7 +624,7 @@ export default function WorldScenePlayerPage({
       const url = assetsById.get(image.dataset.worldCollisionArt ?? "")?.imageUrl;
       if (url && image.complete && image.naturalWidth && !artworkMasks.current.has(url)) {
         if (artworkMasks.current.size >= 300) artworkMasks.current.delete(artworkMasks.current.keys().next().value!);
-        artworkMasks.current.set(url, parkSquareArtworkSampler(image));
+        artworkMasks.current.set(url, worldWalkArtworkMask(parkSquareArtworkSampler(image)));
       }
     }
   }, [avatar, assetsById]);

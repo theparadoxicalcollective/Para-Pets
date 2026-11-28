@@ -648,7 +648,7 @@ export default function WorldSceneControls(props: Props) {
         <p className="text-[11px] font-normal text-amber-100/70">All linked copies share this name.</p>
       </div>}
       {!props.activeBuilding && props.selected?.kind === "decor" && <>
-        <DecorSurfaceSelector name={`world-decor-role-${props.selected.id}`}
+        <DecorSurfaceSelector worldFootprint name={`world-decor-role-${props.selected.id}`}
           testId="world-decoration-behavior"
           value={pendingDecorRole?.id === props.selected.id ? pendingDecorRole.role : decorRole(props.selected)}
           disabled={busy} onChange={role => void changeDecorRole(role)} />
