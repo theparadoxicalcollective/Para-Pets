@@ -71,6 +71,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     pointerId: number; id: string; x: number; y: number;
   } | null>(null);
   const selectedPageTap = useRef<WorldEditorTap | null>(null);
+  // Entering a room on pointerup changes the hit target before the browser's
+  // compatibility mouse sequence fires. Consume that one trailing gesture;
+  // the very next real pointerdown or keyboard interaction re-enables controls.
+  const roomEntryClickPending = useRef(false);
   const legacyOpening = useRef<AbortController | null>(null);
   const resetPageGesture = () => {
     selectedPageTap.current = null;
@@ -309,6 +313,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       return;
     }
     if (target.kind === "room") {
+      roomEntryClickPending.current = true;
       // Keep the same selection and outdoor camera when closing the room.
       setActiveBuildingId(item.id);
       setSelectedInteriorId(null);
@@ -512,6 +517,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const cancelObject = () => { selectedPageTap.current = null; objectDrag.current = null; setObjectPreview(null); };
 
   const endTouch = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (fishMode) return;
     if (activeBuilding) {
       if (interiorDrag.current?.id === event.pointerId) interiorDrag.current = null;
       const tap = pendingObjectTap.current;
@@ -644,7 +650,20 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     style={{ backgroundColor: groundBackdrop }}
     data-testid="world-scene-editor"
     onPointerDownCapture={event => {
+      roomEntryClickPending.current = false;
       if (event.target instanceof Node && !viewportRef.current?.contains(event.target)) resetPageGesture();
+    }}
+    onKeyDownCapture={() => { roomEntryClickPending.current = false; }}
+    onMouseDownCapture={event => {
+      if (!roomEntryClickPending.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }}
+    onClickCapture={event => {
+      if (!roomEntryClickPending.current || event.detail === 0) return;
+      roomEntryClickPending.current = false;
+      event.preventDefault();
+      event.stopPropagation();
     }}>
     <SceneCharacterMotionStyles />
     {/* Use clipping, not a scroll container: browser focus must not scroll
@@ -727,8 +746,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       }}
       onPointerDown={fishMode ? undefined : activeBuilding ? startRoomPan : startCamera}
       onPointerMove={fishMode ? undefined : activeBuilding ? moveRoomPan : moveCamera}
-      onPointerUp={fishMode ? undefined : endTouch} onPointerCancel={fishMode ? undefined : endTouch}
-      onLostPointerCapture={fishMode ? undefined : endTouch}
+      onPointerUp={endTouch} onPointerCancel={endTouch}
+      onLostPointerCapture={endTouch}
       onWheel={event => {
         // Preserve outdoor zoom, but a room is always a full-height scene.
         // Neither a wheel nor a pinch should turn it into a floating picture.
