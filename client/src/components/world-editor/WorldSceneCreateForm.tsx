@@ -127,10 +127,12 @@ export default function WorldSceneCreateForm({
     </label>}
 
     {isBuilding && <>
-      <label className="block space-y-1 text-sm">Building Name
-        <input aria-label="Building name" placeholder="e.g. Woodland Cottage"
+      <label className="block space-y-1 text-sm" data-world-name-field>Building Name
+        <input type="text" name="world-building-label" autoComplete="off" autoCorrect="off" spellCheck={false}
+          data-world-name-input data-ios-edge-control="true"
+          aria-label="Building name" placeholder="e.g. Woodland Cottage"
           maxLength={80} value={name} onChange={event => setName(event.target.value)}
-          className={`w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45 ${border}`}/>
+          className={`w-full min-h-11 rounded-xl border bg-[#10291d] p-3 text-base select-text touch-auto placeholder:text-amber-100/45 ${border}`}/>
       </label>
       <div className={card}>
         <label htmlFor="world-building-starting-size" className="flex justify-between gap-2 text-sm">

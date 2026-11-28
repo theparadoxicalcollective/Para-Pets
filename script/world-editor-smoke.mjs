@@ -327,6 +327,54 @@ try {
       throw error;
     }
     await page.getByRole("button", { name: "+ Building" }).waitFor({ state: "visible" });
+
+    // Mobile software keyboards shrink/shift the visible app stage without
+    // necessarily changing layout viewport units. Exercise the real editor
+    // fields with that geometry, including a genuine browser clipboard paste.
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const editNameWithKeyboard = async (input, value, saveButton) => {
+      const stage = page.locator("#game-stage");
+      const originalStyle = await stage.getAttribute("style");
+      const beforeWrites = apiWrites.length;
+      await input.tap();
+      assert.ok(await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize) >= 16 &&
+        getComputedStyle(el).userSelect === "text" && el.autocomplete === "off" &&
+        el.dataset.iosEdgeControl === "true"), name + ": native name editing is large and selectable");
+      await stage.evaluate((el, height) => {
+        el.style.top = "22px";
+        el.style.height = Math.floor(height * .51) + "px";
+      }, height);
+      await page.waitForFunction(() => {
+        const input = document.activeElement;
+        const body = document.querySelector('[data-testid="world-scene-creator-scroll"]');
+        const sheet = document.querySelector('[data-testid="world-scene-creator-panel"]');
+        const stage = document.querySelector("#game-stage");
+        if (!input?.matches("[data-world-name-input]") || !body || !sheet || !stage) return false;
+        const a = input.getBoundingClientRect(), b = body.getBoundingClientRect();
+        const c = sheet.getBoundingClientRect(), d = stage.getBoundingClientRect();
+        return a.height >= 40 && a.top >= b.top - 1 && a.bottom <= b.bottom + 1 &&
+          c.top >= d.top - 1 && c.bottom <= d.bottom + 1;
+      });
+      await input.press("Control+a");
+      await page.keyboard.insertText("Temporary text");
+      assert.equal(await input.inputValue(), "Temporary text");
+      await page.evaluate(text => navigator.clipboard.writeText(text), value);
+      await input.press("Control+a");
+      await input.press("Control+v");
+      await page.waitForFunction(value => document.activeElement?.value === value, value);
+      assert.equal(apiWrites.length, beforeWrites, name + ": typing and paste never save or move an object");
+      if (saveButton) {
+        const saveBounds = await saveButton.boundingBox(), sheetBounds = await page.getByTestId("world-scene-creator-scroll").boundingBox();
+        assert.ok(saveBounds && sheetBounds && saveBounds.y >= sheetBounds.y - 1 &&
+          saveBounds.y + saveBounds.height <= sheetBounds.y + sheetBounds.height + 1,
+          name + ": Save Name remains reachable with the keyboard open");
+      }
+      return async () => {
+        await input.evaluate(el => el.blur()).catch(() => {});
+        await stage.evaluate((el, style) => el.setAttribute("style", style), originalStyle);
+        await page.waitForFunction(height => Math.abs(document.querySelector("#game-stage").getBoundingClientRect().height - height) < 2, height);
+      };
+    };
     if (name === "phone") {
       const result = await page.evaluate(async () => {
         const { readWorldArtwork } = await import("/src/lib/worldArtworkUpload.ts");
@@ -364,7 +412,8 @@ try {
     await page.getByRole("button", { name: "+ Building" }).click();
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
     assert.equal(await page.getByLabel("Building starting size").inputValue(), "300");
-    await page.getByLabel("Building name").fill("Enchanted Cottage");
+    const restoreNewName = await editNameWithKeyboard(page.getByLabel("Building name"), "Enchanted Cottage");
+    await restoreNewName();
     // New buildings are independent; their gameplay can be connected through
     // future code changes without a page-link selector in the editor.
     assert.equal(await page.getByTestId("world-create-legacy-options").count(), 0,
@@ -430,11 +479,13 @@ try {
     await page.getByTestId("world-edit-original-hotspot").waitFor({ state: "visible" });
     assert.equal(await page.getByLabel("Add Old World Page").count(), 0,
       name + ": linked buildings retain safe retirement without link editing");
-    await page.getByLabel("Rename world building").fill("Enchanted Cottage Renamed");
+    const restoreBuildingName = await editNameWithKeyboard(page.getByLabel("Rename world building"),
+      "Enchanted Cottage Renamed", page.getByRole("button", { name: "Save Name" }));
     await Promise.all([
       page.waitForResponse(r => r.url().endsWith("/assets/" + savedShopBuilding.assetId) && r.request().method() === "PATCH"),
       page.getByRole("button", { name: "Save Name" }).click(),
     ]);
+    await restoreBuildingName();
     assert.equal(worlds.haunted_woods.scene.placements.find(p => p.id === savedShopBuilding.id).legacyLocationId,
       legacyPages[0].id, name + ": unrelated edits do not remove an existing link");
     assert.ok(!apiWrites.some(w => w.method === "PATCH" && w.body && "legacyLocationId" in w.body));
@@ -588,7 +639,7 @@ try {
     assert.equal(await saveDecorName.isDisabled(), true);
     await decorName.fill("   ");
     assert.equal(await saveDecorName.isDisabled(), true, name + ": blank names cannot be saved");
-    await decorName.fill("  Haunted Fishing Leaderboard  ");
+    const restoreDecorName = await editNameWithKeyboard(decorName, "  Haunted Fishing Leaderboard  ", saveDecorName);
     const originalAsset = structuredClone(worlds.haunted_woods.scene.assets.find(a => a.id === firstDecor.assetId));
     const originalPlacements = structuredClone(worlds.haunted_woods.scene.placements);
     const otherWorld = structuredClone(worlds.swamp.scene);
@@ -596,6 +647,7 @@ try {
       page.waitForResponse(r => r.url().endsWith("/assets/" + firstDecor.assetId) && r.request().method() === "PATCH"),
       saveDecorName.click(),
     ]);
+    await restoreDecorName();
     assert.ok(renamedResponse.ok());
     assert.deepEqual(apiWrites.at(-1).body, { name: "Haunted Fishing Leaderboard" });
     await page.getByRole("heading", { name: "Edit Haunted Fishing Leaderboard" }).waitFor();
