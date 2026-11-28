@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ParkGroundTheme } from "@shared/petParkGround";
 import { PARK_GROUND_PALETTES, type ParkGroundPalette } from "@/lib/petParkGroundPalette";
 import {
@@ -6,6 +6,8 @@ import {
   parkTerrainPreviewCoversViewport, parkTerrainPreviewTransform, type ParkTerrainViewport,
   parkTerrainRasterTileWindow, PARK_TERRAIN_TILE_PIXELS, PARK_TERRAIN_TILE_GUTTER, PARK_TERRAIN_TILE_LIMIT,
 } from "@/lib/petParkTerrain";
+
+import { PARK_WATER_BASE, parkWaterImage } from "@/lib/petParkWaterTexture";
 
 export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
 
@@ -138,6 +140,16 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   cacheRasterTiles?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hasWater = !!view.waterPatches?.length;
+  const [waterTexture, setWaterTexture] = useState<HTMLImageElement>();
+  useEffect(() => {
+    if (!hasWater) return;
+    const image = parkWaterImage();
+    const ready = () => setWaterTexture(image);
+    if (image.complete && image.naturalWidth) { ready(); return; }
+    image.addEventListener("load", ready);
+    return () => image.removeEventListener("load", ready);
+  }, [hasWater]);
   const rasterCache = useRef({ scale: 0, ratio: 0, tiles: new Map<string, HTMLCanvasElement>() });
   const clearRasterCache = () => {
     // Explicitly release backing stores instead of leaving WebKit to retain
@@ -154,7 +166,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     view: ParkTerrainViewport & { groundTheme?: ParkGroundTheme; groundPalette?: ParkGroundPalette;
       dirtPatches?: readonly ParkDirtPatch[]; stonePatches?: readonly ParkDirtPatch[];
       waterPatches?: readonly ParkDirtPatch[]; cacheRasterTiles?: boolean };
-    marginX: number; marginY: number;
+    marginX: number; marginY: number; waterTexture?: HTMLImageElement;
   }>(null);
   // The exposed path edges depend only on saved stamps and world geometry.
   // Reuse them when the camera outruns its raster overscan; rebuilding the
@@ -185,7 +197,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       const theme = view.groundTheme ?? "grass";
       if (view.dirtPatches?.length) paintConnectedPaths(ctx, rasterView, view.dirtPatches, "dirt_path", theme, view.groundPalette, dirtEdges);
       if (view.stonePatches?.length) paintConnectedPaths(ctx, rasterView, view.stonePatches, "stone_path", theme, view.groundPalette, stoneEdges);
-      if (view.waterPatches?.length) paintConnectedPaths(ctx, rasterView, view.waterPatches, "water_path", theme, view.groundPalette, waterEdges);
+      if (view.waterPatches?.length) paintConnectedPaths(ctx, rasterView, view.waterPatches, "water_path", theme, view.groundPalette, waterEdges, waterTexture);
     };
     const paint = () => {
       const ctx = canvas.getContext("2d", { alpha: false });
@@ -202,6 +214,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       canvas.style.height = expanded.viewportHeight + "px";
       canvas.style.transform = "";
       canvas.dataset.parkCameraPreview = "false";
+      canvas.dataset.parkWaterTexture = waterTexture ? "ready" : "fallback";
       const cache = rasterCache.current;
       if (staticChanged || cache.scale !== view.scale || cache.ratio !== ratio || !view.cacheRasterTiles) {
         clearRasterCache();
@@ -219,7 +232,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       if (!useTiles) {
         clearRasterCache();
         drawRaster(ctx, expanded, ratio);
-        painted.current = { view, marginX, marginY };
+        painted.current = { view, marginX, marginY, waterTexture };
         delete canvas.dataset.parkTerrainTileHits;
         delete canvas.dataset.parkTerrainTileMisses;
         return;
@@ -249,7 +262,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
             delete canvas.dataset.parkTerrainTileHits;
             delete canvas.dataset.parkTerrainTileMisses;
             drawRaster(ctx, expanded, ratio);
-            painted.current = { view, marginX, marginY };
+            painted.current = { view, marginX, marginY, waterTexture };
             return;
           }
           // Paint a gutter around the tile before cropping it. Adjacent
@@ -279,10 +292,11 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       canvas.style.transform = `translate(${view.panX - rasterView.panX}px, ${view.panY - rasterView.panY}px)`;
       canvas.dataset.parkTerrainTileHits = String(hits);
       canvas.dataset.parkTerrainTileMisses = String(misses);
-      painted.current = { view: rasterView, marginX, marginY };
+      painted.current = { view: rasterView, marginX, marginY, waterTexture };
     };
     const previous = painted.current;
     const staticChanged = !previous ||
+      previous.waterTexture !== waterTexture ||
       previous.view.viewportWidth !== view.viewportWidth ||
       previous.view.viewportHeight !== view.viewportHeight ||
       previous.view.worldWidth !== view.worldWidth ||
@@ -326,7 +340,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     };
   }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight,
       view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches,
-      view.waterPatches, view.groundTheme, view.groundPalette, view.cacheRasterTiles, dirtEdges, stoneEdges, waterEdges]);
+      view.waterPatches, view.groundTheme, view.groundPalette, view.cacheRasterTiles, dirtEdges, stoneEdges, waterEdges, waterTexture]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
     className="pointer-events-none absolute" style={{ backgroundColor: (view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"]).base }} />;
@@ -447,7 +461,7 @@ export type ParkConnectedPathKind = "dirt_path" | "stone_path" | "water_path";
  * translucent DOM tiles or an additional map interaction layer. */
 export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport,
   stamps: readonly ParkDirtPatch[], kind: ParkConnectedPathKind, groundTheme: ParkGroundTheme = "grass", groundPalette?: ParkGroundPalette,
-  cachedEdges?: readonly DirtExposedEdge[]) {
+  cachedEdges?: readonly DirtExposedEdge[], waterTexture?: HTMLImageElement) {
   const visible = parkVisibleTerrainBounds(view);
   if (visible.left >= visible.right || visible.top >= visible.bottom) return;
 
@@ -481,8 +495,8 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
 
   // One opaque, softly shadowed fill means overlapping tiles are seamless.
   // Adjacent stamps can overlap freely without dark or bright rings.
-  ctx.fillStyle = kind === "dirt_path" ? "#624832" : kind === "stone_path" ? "#747671" : "#286d78";
-  ctx.shadowColor = kind === "water_path" ? "rgba(16,66,68,.36)" : "rgba(32, 36, 21, .33)";
+  ctx.fillStyle = kind === "dirt_path" ? "#624832" : kind === "stone_path" ? "#747671" : PARK_WATER_BASE;
+  ctx.shadowColor = kind === "water_path" ? "rgba(5,33,38,.46)" : "rgba(32, 36, 21, .33)";
   ctx.shadowBlur = 6;
   ctx.fill();
   ctx.shadowBlur = 0;
@@ -494,57 +508,52 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
     left: Math.max(visible.left, left), top: Math.max(visible.top, top),
     right: Math.min(visible.right, right), bottom: Math.min(visible.bottom, bottom),
   };
-  const cellSize = kind === "water_path" ? 24 : kind === "stone_path" ? 34 : 29;
-  const rowSize = kind === "water_path" ? 19 : kind === "stone_path" ? 30 : 25;
-  const grain = parkTerrainCellWindow(grainBounds, cellSize, rowSize, 1);
-  for (let row = grain.minY; row <= grain.maxY; row++) {
-    for (let col = grain.minX; col <= grain.maxX; col++) {
-      const tone = parkTerrainNoise(col, row, 41);
-      if (tone < (kind === "dirt_path" ? 0.18 : 0.11)) continue;
-      const x = (col + 0.15 + parkTerrainNoise(col, row, 42) * 0.7) * cellSize;
-      const y = (row + 0.12 + parkTerrainNoise(col, row, 43) * 0.7) * rowSize;
-      const size = 2 + parkTerrainNoise(col, row, 44) * 9;
-      if (kind === "dirt_path") {
-        ctx.fillStyle = tone > 0.59 ? "rgba(171, 132, 88, .18)" : "rgba(37, 27, 21, .20)";
-        ctx.beginPath();
-        ctx.ellipse(x, y, size, Math.max(1, size * 0.33), -0.3, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (kind === "stone_path") {
-        // Irregular weathered slate, rounded corners, mineral flecks and
-        // hairline grout; all marks are globally anchored across tile seams.
-        const radius = 5 + tone * 10;
-        ctx.fillStyle = tone > .58 ? "rgba(204,203,186,.20)" : "rgba(36,47,50,.21)";
-        ctx.beginPath();
-        ctx.moveTo(x - radius, y - radius * .32);
-        ctx.lineTo(x - radius * .15, y - radius * .65);
-        ctx.lineTo(x + radius, y - radius * .35);
-        ctx.lineTo(x + radius * .76, y + radius * .55);
-        ctx.lineTo(x - radius * .68, y + radius * .65);
-        ctx.closePath();
-        ctx.fill();
-        if (tone > .70) {
-          ctx.strokeStyle = "rgba(40,50,48,.24)";
-          ctx.lineWidth = .7;
+  if (kind === "water_path") {
+    // A single seamless static texture covers the entire clipped union. The
+    // repeated pattern is anchored at world (0,0), never at a stamp or camera.
+    const pattern = waterTexture ? ctx.createPattern(waterTexture, "repeat") : null;
+    if (pattern) {
+      ctx.fillStyle = pattern;
+      ctx.fillRect(grainBounds.left, grainBounds.top,
+        grainBounds.right - grainBounds.left, grainBounds.bottom - grainBounds.top);
+    }
+  } else {
+    const cellSize = kind === "stone_path" ? 34 : 29;
+    const rowSize = kind === "stone_path" ? 30 : 25;
+    const grain = parkTerrainCellWindow(grainBounds, cellSize, rowSize, 1);
+    for (let row = grain.minY; row <= grain.maxY; row++) {
+      for (let col = grain.minX; col <= grain.maxX; col++) {
+        const tone = parkTerrainNoise(col, row, 41);
+        if (tone < (kind === "dirt_path" ? 0.18 : 0.11)) continue;
+        const x = (col + 0.15 + parkTerrainNoise(col, row, 42) * 0.7) * cellSize;
+        const y = (row + 0.12 + parkTerrainNoise(col, row, 43) * 0.7) * rowSize;
+        const size = 2 + parkTerrainNoise(col, row, 44) * 9;
+        if (kind === "dirt_path") {
+          ctx.fillStyle = tone > 0.59 ? "rgba(171, 132, 88, .18)" : "rgba(37, 27, 21, .20)";
           ctx.beginPath();
-          ctx.moveTo(x - radius * .63, y + radius * .38);
-          ctx.lineTo(x + radius * .65, y - radius * .15);
-          ctx.stroke();
-        }
-      } else {
-        // Deep teal pools with directional caustic streaks. Short, uneven
-        // highlights read as rippling still water without any per-frame loop.
-        const rx = 8 + tone * 13;
-        ctx.fillStyle = tone > .64 ? "rgba(193,237,226,.25)" : "rgba(14,64,82,.27)";
-        ctx.beginPath();
-        ctx.ellipse(x, y, rx, .8 + tone * 2.2, -.16 + tone * .25, 0, Math.PI * 2);
-        ctx.fill();
-        if (tone > .78) {
-          ctx.strokeStyle = "rgba(233,251,231,.29)";
-          ctx.lineWidth = 1;
+          ctx.ellipse(x, y, size, Math.max(1, size * 0.33), -0.3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (kind === "stone_path") {
+          // Irregular weathered slate, rounded corners, mineral flecks and
+          // hairline grout; all marks are globally anchored across tile seams.
+          const radius = 5 + tone * 10;
+          ctx.fillStyle = tone > .58 ? "rgba(204,203,186,.20)" : "rgba(36,47,50,.21)";
           ctx.beginPath();
-          ctx.moveTo(x - rx * .7, y - 3);
-          ctx.lineTo(x + rx * .45, y - 5);
-          ctx.stroke();
+          ctx.moveTo(x - radius, y - radius * .32);
+          ctx.lineTo(x - radius * .15, y - radius * .65);
+          ctx.lineTo(x + radius, y - radius * .35);
+          ctx.lineTo(x + radius * .76, y + radius * .55);
+          ctx.lineTo(x - radius * .68, y + radius * .65);
+          ctx.closePath();
+          ctx.fill();
+          if (tone > .70) {
+            ctx.strokeStyle = "rgba(40,50,48,.24)";
+            ctx.lineWidth = .7;
+            ctx.beginPath();
+            ctx.moveTo(x - radius * .63, y + radius * .38);
+            ctx.lineTo(x + radius * .65, y - radius * .15);
+            ctx.stroke();
+          }
         }
       }
     }

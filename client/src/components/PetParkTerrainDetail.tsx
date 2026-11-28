@@ -1,7 +1,8 @@
 import type { ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
+import { PARK_WATER_BASE, PARK_WATER_TEXTURE_URL } from "@/lib/petParkWaterTexture";
 
 /**
- * A soft-edged, image-free terrain stamp in the existing 2.5D park scene.
+ * A soft-edged terrain preview stamp in the existing 2.5D park scene.
  * The parent owns normalized placement, scaling, editing and stacking.
  */
 export default function PetParkTerrainDetail({ type, tilled = false }: { type: ParkTerrainDetailType; tilled?: boolean }) {
@@ -68,13 +69,8 @@ export default function PetParkTerrainDetail({ type, tilled = false }: { type: P
   if (type === "water_path") return <div aria-hidden="true"
     className="pointer-events-none absolute inset-0 overflow-hidden"
     style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-      background: "linear-gradient(160deg,#256575,#2a8590 55%,#174b61)" }}>
-    <svg viewBox="0 0 240 120" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-      <path d="M24 62 Q65 48 104 56 T199 54 M62 83 Q120 68 174 84 M97 33 Q124 29 160 35"
-        stroke="#c0ebe4" strokeOpacity=".48" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <path d="M47 68 Q86 62 118 69 T214 69" stroke="#143f57" strokeOpacity=".35" strokeWidth="6" fill="none" />
-    </svg>
-  </div>;
+      backgroundColor: PARK_WATER_BASE, backgroundImage: `url(${PARK_WATER_TEXTURE_URL})`,
+      backgroundSize: "512% auto", backgroundPosition: "20% 45%" }} />;
   if (type === "stone_patch") return <div aria-hidden="true" className={base}>
     <div className="absolute inset-[6%] rounded-[50%]" style={{ background: "radial-gradient(ellipse,rgba(74,96,61,.22),transparent 70%)" }} />
     <svg viewBox="0 0 240 125" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" fill="none">

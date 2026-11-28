@@ -76,6 +76,7 @@ try{
    if(await canvas.count()) await page.waitForFunction(()=>document.querySelector('canvas')?.dataset.parkCameraPreview==="false");
   };
   await canvas.waitFor();
+  await page.waitForFunction(()=>document.querySelector("canvas")?.dataset.parkWaterTexture==="ready");
   await page.waitForFunction(()=>document.querySelector('canvas')?.dataset.parkCameraPreview==="false");
   const original=await snapshot();
   await set({mode:"cached"});
@@ -96,7 +97,27 @@ try{
   await set({mode:"direct",revision:0,panX:-940});
   const movedDiff=await diff(movedCached,await snapshot());
   assert.ok(movedDiff.mean<3&&movedDiff.large<.025,JSON.stringify(movedDiff));
-  await set({mode:"mask-full",panX:-720});
+  // The original pan places most water offscreen on a phone. Move the
+  // actual connected water union into view, then compare the direct editor
+  // raster with the published-world cache on both mobile viewport sizes.
+  await set({mode:"direct",panX:-1320,panY:-650});
+  const waterDirect=await snapshot();
+  const {data,info}=await sharp(waterDirect).removeAlpha().raw().toBuffer({resolveWithObject:true});
+  // Inspect a central area within the connected water, away from the banks.
+  let deep=0,reflections=0,samples=0;
+  for(let y=110;y<380;y+=2) for(let x=100;x<320;x+=2){
+    const i=(Math.floor(y*info.height/height)*info.width+Math.floor(x*info.width/width))*info.channels;
+    const [r,g,b]=[data[i],data[i+1],data[i+2]];
+    if(g<65&&b<90&&b>r+25) deep++;
+    if(g>105&&b>110&&Math.min(g,b)>r+35) reflections++;
+    samples++;
+  }
+  assert.ok(deep>samples*.08&&reflections>samples*.005,JSON.stringify({deep,reflections,samples}));
+  await set({mode:"cached"});
+  const waterDiff=await diff(waterDirect,await snapshot());
+  assert.ok(waterDiff.mean<3&&waterDiff.large<.025,JSON.stringify(waterDiff));
+  // Restore the original lighting camera for the existing mask regressions.
+  await set({mode:"mask-full",panX:-720,panY:-900});
   const fullMask=await snapshot();
   await set({mode:"mask-window"});
   const mask=page.getByTestId("home-outdoor-darkness-layer");
@@ -110,7 +131,7 @@ try{
   const panMaskDiff=await diff(pannedMask,await snapshot());
   assert.ok(panMaskDiff.mean<1&&panMaskDiff.large<.005,JSON.stringify(panMaskDiff));
   assert.deepEqual(errors,[]);
-  console.log("PASS",width,height,{initial,moved,returned,terrainDiff,movedDiff,maskDiff,panMaskDiff});
+  console.log("PASS",width,height,{initial,moved,returned,terrainDiff,movedDiff,waterDiff,maskDiff,panMaskDiff});
   await context.close();
  }
 }finally{await browser.close();await server.close();}
