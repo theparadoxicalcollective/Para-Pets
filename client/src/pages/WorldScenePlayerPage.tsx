@@ -13,7 +13,7 @@ import { gardenCropProgress, gardenItemNeedsRefill, type GardenPlayerState } fro
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { decorDrawDepth } from "@shared/decorSurface";
-import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
+import { worldInteriorLights } from "@/lib/worldInteriorLighting";
 import type { ParkEffectType } from "@shared/petParkEffects";
 import { chooseNpcMessage, getNpcQuestAssociations, parseNpcMetadata } from "@/lib/npcMetadata";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
@@ -662,11 +662,7 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
     if (event.type === "lostpointercapture" && event.target !== event.currentTarget) return;
     if (roomDrag.current?.id === event.pointerId) roomDrag.current = null;
   };
-  const lights: HouseInteriorEffect[] = items.filter(item =>
-    isHouseInteriorEffectType(item.effectType) || item.effectType === "colored_light").map(item => ({
-      id: item.id, type: (item.effectType === "colored_light" ? "lamp_light" : item.effectType) as HouseInteriorEffect["type"],
-      x: item.xPct, y: item.yPct, size: item.size * width / Math.max(1, height) / 8.5,
-    }));
+  const lights = worldInteriorLights(items, width, height);
   return <div ref={ref} className="absolute inset-0 overflow-hidden touch-none"
     onPointerDown={event => {
       if (!ready || soulStone || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
@@ -707,29 +703,32 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
       {ready && <HomeInteriorDarknessLayer darkness={building.interiorDarkness ?? 35}
         effects={lights} panX={0} imgWidth={width} sceneHeight={height}
         sunlightStrength={lighting.daylightStrength} keepMaskMounted transitionMs={0} zIndex={2} />}
-      {ready && items.map(item => {
-        const asset = item.assetId ? assets.get(item.assetId) : null;
-        const size = item.size * width / 850;
-        const isSoulStone = resolveWorldSceneInteriorAction(worldId, item.kind, asset) === "soul-exchange";
-        return <div key={item.id} data-testid={`player-new-world-interior-item-${item.id}`}
-          className="absolute pointer-events-none" style={{
-            left: item.xPct * width, top: item.yPct * height, width: size, height: size,
-            transform: `translate(-50%,-50%)${worldSceneRotationCss(item.rotation)}${item.flipped ? " scaleX(-1)" : ""}`,
-            zIndex: Math.round(item.yPct * 10000),
-          }}>
-          {size > 0 && asset && (isSoulStone ? <button type="button"
-            ref={soulStoneId === item.id ? soulStoneRef : undefined}
-            data-testid="world-soul-exchange-stone" aria-label="The Soul Exchange Stone"
-            className="pointer-events-auto absolute inset-0 h-full w-full touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
-            onClick={() => { if (!soulStone) setSoulStoneId(item.id); }}>
-            <WorldSceneArtwork imageUrl={asset.imageUrl} cssSize={size} alt="" draggable={false} className="h-full w-full object-contain" />
-          </button> : <WorldSceneArtwork imageUrl={asset.imageUrl} cssSize={size} alt="" draggable={false} className="h-full w-full object-contain" />)}
-          {item.kind === "effect" && item.effectType && <span className="absolute inset-0"
-            style={{ opacity: item.effectType === "warm_glow" ? lighting.daylightStrength : 1 }}>
-            <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} />
-          </span>}
-        </div>;
-      })}
+      {ready && (["decor", "effect"] as const).map(kind => <div key={kind}
+        className="absolute inset-0 pointer-events-none" style={{ zIndex: kind === "decor" ? 1 : 3 }}>
+        {items.filter(item => item.kind === kind).map(item => {
+          const asset = item.assetId ? assets.get(item.assetId) : null;
+          const size = item.size * width / 850;
+          const isSoulStone = resolveWorldSceneInteriorAction(worldId, item.kind, asset) === "soul-exchange";
+          return <div key={item.id} data-testid={`player-new-world-interior-item-${item.id}`}
+            className="absolute pointer-events-none" style={{
+              left: item.xPct * width, top: item.yPct * height, width: size, height: size,
+              transform: `translate(-50%,-50%)${worldSceneRotationCss(item.rotation)}${item.flipped ? " scaleX(-1)" : ""}`,
+              zIndex: Math.round(item.yPct * 10000),
+            }}>
+            {size > 0 && asset && (isSoulStone ? <button type="button"
+              ref={soulStoneId === item.id ? soulStoneRef : undefined}
+              data-testid="world-soul-exchange-stone" aria-label="The Soul Exchange Stone"
+              className="pointer-events-auto absolute inset-0 h-full w-full touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+              onClick={() => { if (!soulStone) setSoulStoneId(item.id); }}>
+              <WorldSceneArtwork imageUrl={asset.imageUrl} cssSize={size} alt="" draggable={false} className="h-full w-full object-contain" />
+            </button> : <WorldSceneArtwork imageUrl={asset.imageUrl} cssSize={size} alt="" draggable={false} className="h-full w-full object-contain" />)}
+            {item.kind === "effect" && item.effectType && <span className="absolute inset-0"
+              style={{ opacity: item.effectType === "warm_glow" ? lighting.daylightStrength : 1 }}>
+              <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} interior />
+            </span>}
+          </div>;
+        })}
+      </div>)}
     </div>
     {!ready && <div role={artError ? "alert" : "status"} className="absolute inset-0 grid place-items-center p-6 text-center text-[#f1d899]">
       {artError ? "Room artwork could not be loaded. Close and reopen the room." : "Loading room artwork…"}

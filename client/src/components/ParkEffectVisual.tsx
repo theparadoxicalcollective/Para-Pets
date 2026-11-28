@@ -156,15 +156,15 @@ function ParkVerticalWaterFlow({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 
-export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = false, color, fireflyStrength = 1, sceneFireflies = false }: { type: ParkEffectType; reducedMotion?: boolean; adminPreview?: boolean; color?: string; fireflyStrength?: number; sceneFireflies?: boolean }) {
+export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = false, color, fireflyStrength = 1, sceneFireflies = false, interior = false }: { type: ParkEffectType; reducedMotion?: boolean; adminPreview?: boolean; color?: string; fireflyStrength?: number; sceneFireflies?: boolean; interior?: boolean }) {
   // The live scene draws a single synchronized visual and illumination pair
   // inside its darkness SVG. The separate art stays available for editors.
   if (type === "fireflies") return sceneFireflies ? null
     : <ParkFireflyPreview reducedMotion={reducedMotion || fireflyStrength <= 0} />;
   if (type === "colored_light") return <HomeOutdoorEffectVisual type="lamp_light"
     reducedMotion={reducedMotion} adminPreview={adminPreview}
-    warmSceneLamp orbColor={parkLightColor(color)} />;
-  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} warmSceneLamp orbColor={type === "lamp_light" && color ? parkLightColor(color) : undefined} />;
+    warmSceneLamp={!interior} orbColor={parkLightColor(color)} />;
+  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} warmSceneLamp={!interior} orbColor={type === "lamp_light" && color ? parkLightColor(color) : undefined} />;
   if (type === "waterfall_mist") return <ParkWaterfallMist reducedMotion={reducedMotion} />;
   if (type === "water_shimmer") return <ParkWaterShimmer reducedMotion={reducedMotion} />;
   if (type === "water_flow") return <ParkVerticalWaterFlow reducedMotion={reducedMotion} />;
