@@ -535,6 +535,27 @@ try {
       name + ": decor upload uses its filename without extra naming steps");
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "decor" &&
       w.body.size === 100), name + ": decor is placed in one operation");
+    // The actual touch controls save exact angles per placement, wrap left
+    // through 360, and draft rendering reflects each response immediately.
+    const rotate = async (direction, angle) => {
+      const label = direction === "reset" ? "Reset selected artwork rotation"
+        : "Rotate selected artwork " + direction + " 5 degrees";
+      const rotationButton = page.getByRole("button", { name: label });
+      try { await rotationButton.tap(); }
+      catch (error) {
+        console.error("Rotation action failed", name, label, await rotationButton.evaluate(el=>({disabled:el.disabled,rect:el.getBoundingClientRect().toJSON(),style:getComputedStyle(el).pointerEvents})).catch(()=>null),
+          await page.getByTestId("world-scene-selected-controls").innerText().catch(()=>null));
+        await page.screenshot({path:"/tmp/para-rotation-editor-failure.png"}).catch(()=>{});
+        throw error;
+      }
+      await page.waitForFunction(value => document.querySelector('[data-testid="world-scene-rotation-angle"]')?.textContent === value+"°",angle);
+    };
+    await rotate("left",355);
+    await rotate("right",0);
+    await rotate("right",5);
+    assert.equal(worlds.haunted_woods.scene.placements.find(p=>p.id===firstDecor.id).rotation,5);
+    const originalRotation = await page.getByTestId("world-scene-placement-"+firstDecor.id).evaluate(el=>el.style.transform);
+    assert.match(originalRotation,/rotate\(5deg\)/);
     const duplicateButton = page.getByRole("button", { name: "Duplicate world decoration" });
     await duplicateButton.waitFor({ state: "visible" });
     const [duplicateResponse] = await Promise.all([
@@ -545,6 +566,10 @@ try {
     assert.ok(apiWrites.filter(w => w.tail === "placements" && w.body.kind === "decor").length >= 2,
       name + ": linked decoration duplicates reuse one uploaded asset");
     assert.equal(firstDecor.assetId, secondDecor.assetId, name + ": linked copies share a decor type");
+    assert.equal(secondDecor.rotation,5,name+": duplicates preserve the saved rotation");
+    await rotate("reset",0);
+    assert.equal(worlds.haunted_woods.scene.placements.find(p=>p.id===firstDecor.id).rotation,5,
+      name+": rotating one copy must not rotate another linked copy");
     assert.equal(secondDecor.decorSurface, "grass",
       name + ": copying a Grass decoration must inherit Grass automatically");
     await page.getByRole("button", { name: "Edit selected object details" }).click();
@@ -733,12 +758,22 @@ try {
       w.method === "PATCH" && w.body.xPct !== .38),
       name + ": editor drag must save to its world-specific endpoint");
 
+    await rotate("right",5);
+    await rotate("right",10);
+    const rotatedBox=await worldSprite.boundingBox();
+    assert.match(await worldSprite.evaluate(el=>el.style.transform),/rotate\(10deg\)/);
+    await page.getByRole("button",{name:"Deselect world object"}).tap();
+    await page.touchscreen.tap(rotatedBox.x+rotatedBox.width/2,rotatedBox.y+rotatedBox.height/2);
+    await page.getByTestId("world-scene-rotation-angle").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("world-scene-rotation-angle").textContent(),"10°");
+    await rotate("reset",0);
+
     // Selecting artwork must leave almost all of the scene accessible for
     // touch dragging. Heavy preview/effects only render in the opt-in sheet.
     const movementBar = page.getByTestId("world-scene-selected-controls");
     const movementBox = await movementBar.boundingBox();
     assert.ok(movementBox && movementBox.height < height * .25,
-      name + ": selected controls must not block the upper world canvas");
+      name + ": selected controls must not block the upper world canvas: " + JSON.stringify(movementBox));
     assert.equal(await movementBar.locator('[data-testid="world-decoration-artwork-editor"]').count(), 0,
       name + ": selected movement controls must not include the large artwork preview");
     await page.getByRole("button", { name: "Edit selected object details" }).click();
@@ -759,6 +794,8 @@ try {
     // The existing fixture includes an interior lamp, so the SVG mask is live.
     await page.getByRole("button", { name: "Deselect world object" }).click();
     await page.getByTestId("world-scene-placement-" + ids.building).click();
+    await rotate("right",5);
+    assert.match(await page.getByTestId("world-scene-placement-"+ids.building).evaluate(el=>el.style.transform),/rotate\(5deg\)/);
     const exteriorBeforeRoom = await page.getByTestId("world-scene-placement-" + ids.building).boundingBox();
     await page.getByRole("button", { name: "Enter Building" }).click();
     const darknessSlider = page.getByTestId("world-editor-interior-darkness-slider");
@@ -946,6 +983,14 @@ try {
     const roomItem = page.getByTestId("world-interior-item-" + ids.room);
     await roomItem.focus();
     await roomItem.press("Enter");
+    const oldRoomItem = structuredClone(worlds.haunted_woods.scene.interiorItems.find(p=>p.id===ids.room));
+    await rotate("left",355);
+    assert.match(await roomItem.evaluate(el=>el.style.transform),/rotate\(355deg\)/);
+    assert.deepEqual(worlds.haunted_woods.scene.interiorItems.find(p=>p.id===ids.room),{...oldRoomItem,rotation:355});
+    await page.getByRole("button",{name:"Deselect world object"}).tap();
+    await roomItem.focus();
+    await roomItem.press("Enter");
+    assert.equal(await page.getByTestId("world-scene-rotation-angle").textContent(),"355°");
     await page.getByRole("button", { name: "Edit selected object details" }).click();
     const insideName = page.getByTestId("world-decoration-name-editor").getByLabel("Decoration Name");
     assert.equal(await insideName.inputValue(), worlds.haunted_woods.scene.assets.find(a => a.id === ids.decor).name);

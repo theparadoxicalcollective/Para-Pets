@@ -22,7 +22,7 @@ export type WorldScenePlacement = {
   /** Per-placed-building room dimming, unaffected by the outdoor day/night clock. */
   interiorDarkness: number;
   interiorNightDarkness: number | null;
-  xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
+  xPct: number; yPct: number; size: number; flipped: boolean; rotation?: number; layer: number;
   decorEffects: ParkDecorEffect[]; isWaterSource: boolean; decorSurface: DecorSurface;
   isShop: boolean; legacyLocationId: string | null;
   shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
@@ -33,7 +33,7 @@ export type WorldSceneInteriorItem = {
   kind: WorldSceneInteriorKind; assetId: string | null; effectType: string | null;
   /** Optional for older saved scenes; null preserves the original lamp artwork. */
   effectColor?: string | null;
-  xPct: number; yPct: number; size: number; flipped: boolean;
+  xPct: number; yPct: number; size: number; flipped: boolean; rotation?: number;
 };
 
 export type WorldSceneContent = {
@@ -81,13 +81,34 @@ export function validSize(value: unknown): value is number {
 export function validLayer(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= -10000 && value <= 10000;
 }
+/** Clockwise degrees; older scenes and older clients omit rotation = 0. */
+export const WORLD_SCENE_ROTATION_STEP = 5;
+export function validWorldSceneRotation(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value < 360;
+}
+export function canRotateWorldSceneKind(kind: string): boolean {
+  return kind === "decor" || kind === "building";
+}
+export function stepWorldSceneRotation(rotation: number | undefined, direction: -1 | 1): number {
+  return ((rotation ?? 0) + direction * WORLD_SCENE_ROTATION_STEP + 360) % 360;
+}
+/** Same center pivot and flip-before-rotate ordering in editor and player. */
+export function worldSceneRotationCss(rotation?: number): string {
+  return rotation ? ` rotate(${rotation}deg)` : "";
+}
+export function worldSceneRotatedSquareExtent(size: number, rotation?: number): number {
+  if (!rotation) return size;
+  const radians = rotation * Math.PI / 180;
+  return size * (Math.abs(Math.cos(radians)) + Math.abs(Math.sin(radians)));
+}
 export function validPlacementTransform(v: unknown): v is {
-  xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
+  xPct: number; yPct: number; size: number; flipped: boolean; rotation?: number; layer: number;
 } {
   if (!v || typeof v !== "object" || Array.isArray(v)) return false;
   const p = v as Record<string, unknown>;
   return validPosition(p.xPct) && validPosition(p.yPct) && validSize(p.size) &&
-    typeof p.flipped === "boolean" && validLayer(p.layer);
+    typeof p.flipped === "boolean" && validLayer(p.layer) &&
+    (p.rotation === undefined || validWorldSceneRotation(p.rotation));
 }
 export function validDecorEffects(value: unknown): value is ParkDecorEffect[] {
   return isValidParkDecorEffects(value) &&

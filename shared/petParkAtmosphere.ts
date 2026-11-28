@@ -8,6 +8,7 @@ export type ParkAtmosphereObject = {
   yPct: number;
   size: number;
   flipped: boolean;
+  rotation?: number;
   effectType?: string | null;
   decorEffects?: readonly ParkDecorEffect[];
 };

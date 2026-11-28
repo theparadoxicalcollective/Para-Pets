@@ -44,13 +44,17 @@ function validNormalized(value: unknown): value is number {
 }
 
 export function parkDecorEffectWorldPosition(
-  item: { xPct: number; yPct: number; size: number; flipped: boolean },
+  item: { xPct: number; yPct: number; size: number; flipped: boolean; rotation?: number },
   effect: ParkDecorEffect,
   scene: { width: number; height: number; scale: number },
 ): { x: number; y: number; size: number } {
   const artWidth = item.size * scene.scale;
-  const x = (item.xPct * scene.width + (item.flipped ? 0.5 - effect.x : effect.x - 0.5) * artWidth) / scene.width;
-  const y = (item.yPct * scene.height + (effect.y - 0.5) * artWidth) / scene.height;
+  const dx = (item.flipped ? 0.5 - effect.x : effect.x - 0.5) * artWidth;
+  const dy = (effect.y - 0.5) * artWidth;
+  const radians = (item.rotation ?? 0) * Math.PI / 180;
+  const cos = Math.cos(radians), sin = Math.sin(radians);
+  const x = (item.xPct * scene.width + dx * cos - dy * sin) / scene.width;
+  const y = (item.yPct * scene.height + dx * sin + dy * cos) / scene.height;
   return {
     x: Math.max(0, Math.min(1, x)),
     y: Math.max(0, Math.min(1, y)),

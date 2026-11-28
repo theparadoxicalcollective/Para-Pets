@@ -46,6 +46,9 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       )
     );
     ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS effect_color text;
+    -- Existing placements keep their original orientation; only admin artwork can rotate.
+    ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS rotation integer NOT NULL DEFAULT 0
+      CHECK (rotation BETWEEN 0 AND 359);
     -- Additive shared decor-type role across placements of one world asset; existing drafts remain barriers.
     ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS decor_surface text NOT NULL DEFAULT 'barrier'
       CHECK (decor_surface IN ('barrier', 'grass', 'ground'));
@@ -136,6 +139,8 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
     );
     -- Existing interior lamps keep their original appearance when no color is saved.
     ALTER TABLE world_scene_interior_items ADD COLUMN IF NOT EXISTS effect_color text;
+    ALTER TABLE world_scene_interior_items ADD COLUMN IF NOT EXISTS rotation integer NOT NULL DEFAULT 0
+      CHECK (rotation BETWEEN 0 AND 359);
     CREATE INDEX IF NOT EXISTS world_scene_interior_building_idx
       ON world_scene_interior_items (world_id, building_id);
   `);

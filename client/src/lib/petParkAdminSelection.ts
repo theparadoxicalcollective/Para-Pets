@@ -10,6 +10,7 @@ type ParkAdminObject = {
   kind?: string;
   effectType?: string | null;
   flipped: boolean;
+  rotation?: number;
 };
 
 /**
@@ -47,7 +48,7 @@ export function pickParkAdminArtwork(
     if (kind === "building" || object.kind === "decor" || object.kind === "npc") {
       // No image means no visible object pixel: never allow an invisible
       // rectangular placeholder to capture World/Pet Park scene gestures.
-      if (!image || !parkImageHitAt(image, clientX, clientY, object.flipped)) continue;
+      if (!image || !parkImageHitAt(image, clientX, clientY, object.flipped, object.rotation)) continue;
     } else if (object.kind === "terrain" &&
         (isParkConnectedPath(object.effectType) || object.effectType === "garden_plot")) {
       // Painted paths, water and garden plots use the actual isometric diamond.

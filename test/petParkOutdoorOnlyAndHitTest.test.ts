@@ -52,6 +52,26 @@ test("flipped building art mirrors its alpha hit zone", () => {
   });
 });
 
+test("rotated and mirrored artwork samples the actual opaque source pixels", () => {
+  withMask((x, y) => x < 24 && y >= 20 && y <= 80, src => {
+    for (const rotation of [5, 45, 90, 185, 355]) {
+      const radians = rotation * Math.PI / 180;
+      const cos = Math.cos(radians), sin = Math.sin(radians);
+      const extent = 100 * (Math.abs(cos) + Math.abs(sin));
+      const img = image(src, extent, extent);
+      const project = (x: number, y: number) => [
+        extent/2 + (x-50)*cos - (y-50)*sin,
+        extent/2 + (x-50)*sin + (y-50)*cos,
+      ] as const;
+      const opaque = project(14,50), transparent = project(86,50);
+      assert.equal(parkImageHitAt(img,...opaque,false,rotation), true);
+      assert.equal(parkImageHitAt(img,...transparent,false,rotation), false);
+      assert.equal(parkImageHitAt(img,...opaque,true,rotation), false);
+      assert.equal(parkImageHitAt(img,...transparent,true,rotation), true);
+    }
+  });
+});
+
 test("player hit targets are clipped to visible art (including object-contain padding)", () => {
   const bounds = { left: .2, top: .1, width: .4, height: .5 };
   const clip = parkImageHitClipPath(bounds, 200, 100)!;

@@ -170,6 +170,9 @@ try{
     await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
     await cdp.detach();
     await page.waitForFunction(before=>document.querySelector('[data-testid="player-new-world-object-shop"]').getBoundingClientRect().width>before*1.05,beforePinch);
+    scene.placements.find(item=>item.id==="shop").rotation=15;
+    await page.evaluate(()=>window.refreshScene());
+    await page.waitForFunction(()=>document.querySelector('[data-testid="location-old-shop"]')?.style.transform.includes("rotate(15deg)"));
     await shop.tap();
     const interior=page.getByTestId("player-new-world-interior");
     await interior.waitFor({state:"visible"});
@@ -203,10 +206,15 @@ try{
     await shop.tap();
     await interior.waitFor({state:"visible"});
     scene.interiorItems[0].xPct=.25;
+    scene.interiorItems[0].rotation=35;
+    scene.interiorItems[0].flipped=true;
     scene.interiorItems[1].effectColor="#44dd88";
     await page.evaluate(()=>window.refreshScene());
     await page.waitForFunction(()=>document.querySelector('[data-testid="player-new-world-interior-item-room-decor"]')?.style.left &&
       Math.abs(parseFloat(document.querySelector('[data-testid="player-new-world-interior-item-room-decor"]').style.left)/document.querySelector('[data-testid="player-new-world-interior"]').clientWidth-.25)<.02);
+    await page.waitForFunction(()=>document.querySelector('[data-testid="player-new-world-interior-item-room-decor"]')?.style.transform.includes("rotate(35deg) scaleX(-1)"));
+    assert.equal(await page.getByRole("button",{name:"Rotate selected artwork right 5 degrees"}).count(),0,
+      "rotation remains an admin-only edit control");
     await page.waitForFunction(() => /68,\s*221,\s*136/.test(document.querySelector(
       '[data-testid="player-new-world-interior-item-room-lamp"] [data-testid="home-lamp-light-core"]')?.style.backgroundImage ?? ""),
       undefined, { timeout: 10000 });

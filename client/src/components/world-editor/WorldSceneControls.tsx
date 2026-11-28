@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readWorldArtwork } from "@/lib/worldArtworkUpload";
-import { WORLD_ARTWORK_ACCEPT } from "@shared/worlds/worldSceneContent";
+import { RotateCcw, RotateCw } from "lucide-react";
+import { WORLD_ARTWORK_ACCEPT, canRotateWorldSceneKind, stepWorldSceneRotation } from "@shared/worlds/worldSceneContent";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
@@ -192,7 +193,7 @@ export default function WorldSceneControls(props: Props) {
   };
   const patchInterior = async (values: Record<string, unknown>) => {
     if (!props.selectedInterior) return;
-    await mutate("PATCH", `/interior-items/${props.selectedInterior.id}`, values);
+    return mutate("PATCH", `/interior-items/${props.selectedInterior.id}`, values);
   };
   const duplicateSelected = async () => {
     const source = props.selected;
@@ -203,7 +204,7 @@ export default function WorldSceneControls(props: Props) {
       kind: "decor", assetId: source.assetId, effectType: null,
       xPct: Math.max(0, Math.min(1, source.xPct + offset)),
       yPct: Math.max(0, Math.min(1, source.yPct + offset)),
-      size: source.size, flipped: source.flipped, layer: source.layer,
+      size: source.size, flipped: source.flipped, rotation: source.rotation ?? 0, layer: source.layer,
       decorEffects: source.decorEffects, isWaterSource: source.isWaterSource,
       decorSurface: source.decorSurface,
       isShop: false, shopItemIds: [],
@@ -231,6 +232,19 @@ export default function WorldSceneControls(props: Props) {
   };
 
   const selectedItem = props.activeBuilding ? props.selectedInterior : props.selected;
+  const canRotate = !!selectedItem && canRotateWorldSceneKind(selectedItem.kind);
+  const rotateSelected = async (rotation: number) => {
+    if (!selectedItem || !canRotate) return;
+    const inside = !!props.activeBuilding;
+    const updated = await (inside ? patchInterior({ rotation }) : patchSelected({ rotation }));
+    if (!updated) return;
+    // Keep the selected angle current even before the scene refetch arrives.
+    queryClient.setQueryData<WorldSceneContent>(["/api/admin/world-editor", props.worldId, "scene"], current =>
+      current ? inside
+        ? { ...current, interiorItems: current.interiorItems.map(item => item.id === updated.id ? { ...item, rotation: updated.rotation } : item) }
+        : { ...current, placements: current.placements.map(item => item.id === updated.id ? { ...item, rotation: updated.rotation } : item) }
+      : current);
+  };
   const selectedDecorAsset = selectedItem?.kind === "decor"
     ? props.scene.assets.find(asset => asset.kind === "decor" && asset.id === selectedItem.assetId)
     : undefined;
@@ -334,7 +348,7 @@ export default function WorldSceneControls(props: Props) {
     </div>}
     {!expanded && selectedItem && !props.roomToolsHidden && <section
       data-testid="world-scene-selected-controls" aria-label="Move selected world object"
-      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-xl"
+      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto flex max-w-sm flex-col gap-1 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-xl"
       style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
       <div className="flex items-center gap-2">
@@ -361,7 +375,20 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={quickAccent}
           aria-label="Edit selected object details" onClick={() => openCreator("selected")}>Edit</button>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
+      {canRotate && <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1.5" aria-label="Artwork rotation">
+        <button type="button" aria-label="Rotate selected artwork left 5 degrees" className={control + " min-h-11 flex items-center justify-center gap-1"}
+          disabled={busy} onClick={() => void rotateSelected(stepWorldSceneRotation(selectedItem.rotation, -1))}>
+          <RotateCcw size={16} aria-hidden="true" /> −5°
+        </button>
+        <span data-testid="world-scene-rotation-angle" className="min-w-9 text-center text-xs tabular-nums" aria-live="polite">{selectedItem.rotation ?? 0}°</span>
+        <button type="button" aria-label="Rotate selected artwork right 5 degrees" className={control + " min-h-11 flex items-center justify-center gap-1"}
+          disabled={busy} onClick={() => void rotateSelected(stepWorldSceneRotation(selectedItem.rotation, 1))}>
+          <RotateCw size={16} aria-hidden="true" /> +5°
+        </button>
+        <button type="button" aria-label="Reset selected artwork rotation" className={control + " min-h-11"}
+          disabled={busy || !(selectedItem.rotation ?? 0)} onClick={() => void rotateSelected(0)}>Reset</button>
+      </div>}
+      <div className="flex flex-wrap items-center gap-1">
         {!props.activeBuilding && props.selected?.kind === "decor" &&
           <button type="button" aria-label="Duplicate world decoration"
             className={control} disabled={busy}
@@ -371,7 +398,7 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-        {(props.activeBuilding || props.selected?.kind !== "building") && <span className="ml-auto self-center text-[10px] text-amber-100/65">
+        {(props.activeBuilding || props.selected?.kind !== "building") && <span className="ml-auto self-center text-[10px] leading-tight text-amber-100/65">
           {props.activeBuilding ? "Drag selected artwork to move · swipe left/right to view the room" : "Drag selected artwork to move · swipe background to pan"}
         </span>}
       </div>
