@@ -20,6 +20,11 @@ export function effectiveWorldLocked(worldId: string, savedValue?: string): bool
   return defaultWorldLocked(worldId);
 }
 
+/** Moderators have player visibility; only game administrators preview locks. */
+export function canPreviewLockedWorld(viewer?: { isAdmin?: boolean; isModerator?: boolean } | null): boolean {
+  return viewer?.isAdmin === true;
+}
+
 export function worldLockedForPlayer(
   worldId: string, states: readonly { worldId: string; locked?: boolean }[],
 ): boolean {
@@ -27,11 +32,11 @@ export function worldLockedForPlayer(
 }
 
 // Old pages are deliberately reachable by a specific link or existing gameplay
-// intent. Only staff may deliberately open an entire original map.
-export function shouldUseLegacyWorld(worldId: string, params: URLSearchParams, staff: boolean): boolean {
-  if (!isKnownWorldId(worldId)) return staff; // preserve existing custom admin map entries
+// intent. Only administrators may deliberately open an entire original map.
+export function shouldUseLegacyWorld(worldId: string, params: URLSearchParams, admin: boolean): boolean {
+  if (!isKnownWorldId(worldId)) return admin; // preserve existing custom admin map entries
   if (!hasRetainedLegacyWorld(worldId)) return false;
-  if (staff && params.get("legacyView") === "1") return true;
+  if (admin && params.get("legacyView") === "1") return true;
   return !!params.get("legacyLocationId") || !!params.get("questNpc") ||
     ["fishHint", "shopHint", "moltenHint", "openFishMarket", "jansonHint"].some(name => params.has(name));
 }

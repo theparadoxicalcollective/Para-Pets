@@ -20,7 +20,7 @@ import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldSh
 import { baseGardenToolKind } from "@shared/garden";
 import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
 import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
-import { getWorldDefinition, isWorldOpenToPlayers } from "@shared/worlds/worldRegistry";
+import { getWorldDefinition } from "@shared/worlds/worldRegistry";
 import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/registry";
 import { resolveWorldLocationInteraction, worldLocationRequiresHatchedPet } from "@/worlds/locationInteraction";
 import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
@@ -294,13 +294,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Redirect non-admin / non-moderator players away from locked worlds.
-  // Must be a useEffect (not conditional return) because hooks must run unconditionally.
-  useEffect(() => {
-    if (!currentUser.isAdmin && !currentUser.isModerator && !isWorldOpenToPlayers(worldId)) {
-      navigate("/map");
-    }
-  }, [worldId, currentUser.isAdmin, currentUser.isModerator]);
+  // WorldLoadingGate owns saved world access for all legacy room links too.
+  // Do not apply an obsolete static world list or grant a moderator bypass.
 
   const areaRef = useRef<HTMLDivElement>(null);
 

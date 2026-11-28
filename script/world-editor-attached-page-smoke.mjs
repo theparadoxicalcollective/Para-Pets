@@ -122,6 +122,12 @@ try {
     const cameraRoom=await page.locator("[data-world-editor-artwork]").getAttribute("style");
     await tap("room");await controls.getByText("Cabin",{exact:true}).waitFor();
     await pair("room");await page.getByTestId("world-editor-interior").waitFor();
+    // Touch browsers may dispatch a compatibility mousedown/click at the
+    // outdoor tap coordinates after the new room toolbar has mounted.
+    // Entering must not preview or save a new darkness setting.
+    assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(),"35",
+      name+": entering a room must not change the darkness slider");
+    assert.equal(writes.length,1,"room entry is read-only");
     await page.getByRole("button",{name:"Exit Room"}).click();
     assert.equal(await page.locator("[data-world-editor-artwork]").getAttribute("style"),cameraRoom);
     assert.match(await controls.innerText(),/Cabin/);
@@ -136,7 +142,7 @@ try {
     await page.waitForTimeout(520);
     await pair("legacy");
     await page.waitForURL("**/world/swamp?legacyLocationId=original-hall&returnEditor=haunted_woods");
-    assert.equal(writes.length,1,"only intended drag wrote scene position");
+    assert.equal(writes.length,1,"only intended drag wrote scene position: "+JSON.stringify(writes));
     assert.deepEqual(errors,[]);
     await context.close();
     console.log("PASS "+name+": selected-only double tap, no accidental drag/pan/pinch open, real admin wheel, ordinary decor, room return and legacy route");

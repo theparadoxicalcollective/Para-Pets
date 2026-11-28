@@ -63,11 +63,12 @@ test("world lookup helpers accept known ids without inventing unknown worlds", (
   assert.equal(getWorldDefinition("new-unregistered-world"), undefined);
 });
 
-test("WorldPage reads identity, access, and authored map height from the shared registry", () => {
+test("WorldPage reads identity and authored map height from the shared registry, with access owned by the route gate", () => {
   const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
 
   assert.match(source, /getWorldDefinition\(worldId\)/);
-  assert.match(source, /isWorldOpenToPlayers\(worldId\)/);
+  assert.doesNotMatch(source, /isWorldOpenToPlayers\(worldId\)/);
+  assert.match(readFileSync("client/src/App.tsx", "utf8"), /worldLockedForPlayer\(worldId, publications \?\? \[\]\)/);
   assert.match(source, /worldDefinition\?\.fixedMapHeight/);
   assert.match(source, /worldDefinition\.defaultName/);
 

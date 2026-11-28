@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { PET_PARK_GROUND_THEMES, isParkGroundTheme, parkGroundTheme, parkGroundSize } from "../shared/petParkGround";
 import { PARK_TERRAIN_DETAIL_OPTIONS, isPaintableParkTerrainDetail, isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "../shared/petParkTerrainDetails";
 import { PARK_GROUND_PALETTES } from "../client/src/lib/petParkGroundPalette";
-import { dirtPatchWorldRect, exposedDirtEdges, paintConnectedPaths, waterPathGeometry } from "../client/src/components/PetParkTerrain";
+import { dirtPatchWorldRect, exposedDirtEdges, paintConnectedPaths, waterPathGeometry, waterShimmerPath } from "../client/src/components/PetParkTerrain";
 import { PARK_WATER_BASE, PARK_WATER_TEXTURE_URL, PARK_WATER_APPEARANCE, worldWaterStyle } from "../client/src/lib/petParkWaterTexture";
 import { parkExtendPathStroke, parkPathPoint, parkPathGrid } from "../client/src/lib/petParkTerrainBrush";
 
@@ -216,7 +216,7 @@ test("world-specific water variants retain the original dimensions, lightweight 
     let tinted=0, difference=0;
     for (let i=0;i<data.length;i+=3) {
       const [r,g,b]=[data[i],data[i+1],data[i+2]];
-      if (theme==="haunted" ? b>g+10 && r>g+5 : r>g+20 && r>b+20) tinted++;
+      if (theme==="haunted" ? b>Math.max(r,g)+15 && Math.abs(r-g)<20 : r>g+20 && r>b+20) tinted++;
       difference+=Math.abs(data[i]-original[i]);
     }
     assert.ok(tinted > info.width*info.height*.9);
@@ -234,4 +234,23 @@ test("world-specific water variants retain the original dimensions, lightweight 
   }
   assert.match(readFileSync("client/src/components/world-editor/WorldTerrainBrush.tsx","utf8"), /waterStyle=\{worldWaterStyle\(props.worldId\)\}/);
   assert.match(painter,/previous.view.waterStyle !== view.waterStyle/);
+});
+
+test("water shimmer reuses rounded geometry and culls offscreen stamps without changing shoreline", async () => {
+  const view = { worldWidth:1000,worldHeight:1000,viewportWidth:300,viewportHeight:300,scale:1,panX:0,panY:0 };
+  const stamps=[{xPct:.15,yPct:.15,size:100},{xPct:.8,yPct:.8,size:100}];
+  const geometry=waterPathGeometry(stamps,1000,1000);
+  const path=waterShimmerPath(stamps,view,geometry);
+  assert.equal((path.match(/M/g)??[]).length,1);
+  assert.equal((path.match(/Q/g)??[]).length,4);
+  assert.equal(waterShimmerPath(stamps,{...view,panX:-350,panY:-350},geometry),"");
+  const asset=readFileSync("client/public/park-water-shimmer.webp");
+  assert.ok(asset.length<30*1024);
+  const metadata=await sharp(asset).metadata();
+  assert.equal(metadata.hasAlpha,true);
+  assert.deepEqual([metadata.width,metadata.height],[384,256]);
+  const css=readFileSync("client/src/index.css","utf8");
+  assert.match(css,/animation: park-water-drift 12s/);
+  assert.match(css,/park-water-shimmer\[data-camera-preview="true"\]/);
+  assert.match(css,/prefers-reduced-motion: reduce\) \{\s*\.park-water-shimmer/);
 });

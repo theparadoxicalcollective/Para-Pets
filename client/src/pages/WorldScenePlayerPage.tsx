@@ -1,3 +1,5 @@
+import WorldSwimFish from "@/components/WorldSwimFish";
+import type { WorldSwimScene } from "@shared/worlds/worldSwimAreas";
 import { MiniPetArtwork, SceneCharacterMotionStyles, sceneNpcIdleClass } from "@/components/MiniPetRenderer";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useLocation } from "wouter";
@@ -511,6 +513,9 @@ export default function WorldScenePlayerPage({
           dirtPatches={terrain.dirt} stonePatches={terrain.stone} waterPatches={terrain.water} />
         <div data-testid="player-new-world-art" className="pointer-events-none absolute left-0 top-0 z-0"
           style={{ width: camera.sceneWidth, height: camera.sceneHeight, transform: `translate3d(${actualPan.x}px,${actualPan.y}px,0)` }}>
+        <WorldSwimFish areas={sceneContent?.swimAreas} fish={sceneContent?.swimFish} buildingId={null} groundLevel={groundLevel}
+          width={camera.sceneWidth} height={camera.sceneHeight} scale={camera.scale} panX={actualPan.x} panY={actualPan.y}
+          viewportWidth={viewport.width} viewportHeight={viewport.height} />
         {placementArtwork}
         {(garden.data?.plots ?? []).map(plot => {
           if (!["planted", "seedling", "partial", "grown", "picked"].includes(plot.phase)) return null;
@@ -574,7 +579,7 @@ export default function WorldScenePlayerPage({
           nightImageUrl={activeAsset?.interiorImageUrl ? activeAsset.nightInteriorImageUrl : null}
           worldId={worldId} building={activeBuilding}
           items={(sceneContent?.interiorItems ?? []).filter(item => item.buildingId === activeBuilding.id)}
-          assets={assetsById} lighting={lighting} />
+          assets={assetsById} lighting={lighting} swimAreas={sceneContent?.swimAreas} swimFish={sceneContent?.swimFish} />
           : <div className="flex items-center justify-center h-full">This room has no interior artwork yet.</div>}
       </div>
       {linkedPage && <button data-testid="player-new-world-enter-linked-page"
@@ -627,7 +632,7 @@ export default function WorldScenePlayerPage({
 
 /** Match the authored room's natural aspect ratio and editor-relative 850px
  * size basis. A separate viewport keeps the room and UI above outdoor depth. */
-function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets, lighting }: {
+function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets, lighting, swimAreas, swimFish }: Partial<WorldSwimScene> & {
   worldId: string; imageUrl: string; nightImageUrl: string | null; building: WorldScenePlacement;
   items: WorldSceneInteriorItem[]; assets: Map<string, WorldSceneAsset>;
   lighting: ReturnType<typeof useHomeOutdoorLighting>;
@@ -700,6 +705,9 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
         }} />}
       {ready && nightImageUrl && lighting.nightInteriorArtworkActive && <WorldSceneArtwork imageUrl={nightImageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="" aria-hidden="true"
         data-testid="player-new-world-interior-night" className="absolute inset-0 h-full w-full object-fill" />}
+      {ready && <WorldSwimFish areas={swimAreas} fish={swimFish} buildingId={building.id} groundLevel={1}
+        width={width} height={height} scale={width / 850} panX={pan.x} panY={pan.y}
+        viewportWidth={viewport.width} viewportHeight={viewport.height} />}
       {ready && <HomeInteriorDarknessLayer darkness={building.interiorDarkness ?? 35}
         effects={lights} panX={0} imgWidth={width} sceneHeight={height}
         sunlightStrength={lighting.daylightStrength} keepMaskMounted transitionMs={0} zIndex={2} />}

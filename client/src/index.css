@@ -4405,3 +4405,60 @@ img[data-interactive], button img, a img {
 @media (prefers-reduced-motion: reduce) {
   .pet-park-reward-receipt, .pet-park-reward-receipt__amount, .pet-park-reward-receipt__spark { animation: none !important; }
 }
+
+
+/* One visual surface for all connected water, shared by the Park and worlds.
+   Only its small texture transform animates; the cached terrain and shoreline
+   never move or repaint on the animation clock. Pause during camera gestures. */
+.park-water-shimmer-surface {
+  inset: -18px;
+  opacity: .64;
+  animation: park-water-drift 12s ease-in-out infinite alternate;
+}
+@keyframes park-water-drift {
+  from { transform: translate3d(-7px,-3px,0); }
+  to { transform: translate3d(7px,3px,0); }
+}
+.park-water-shimmer[data-camera-preview="true"] .park-water-shimmer-surface {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .park-water-shimmer { display: none !important; }
+  .park-water-shimmer-surface { animation: none; }
+}
+
+/* World fish share the scene camera, with compositor-only movement and no JS
+   animation timers. Each track stays within its authored, clipped swim area. */
+.world-swim-track {
+  position: absolute;
+  left: 0;
+  transform: translateX(var(--swim-start));
+  animation: world-swim-traverse var(--swim-duration) var(--swim-delay) ease-in-out infinite;
+}
+.world-swim-bob {
+  width: 100%;
+  height: 100%;
+  animation: world-swim-bob 3.6s ease-in-out infinite;
+}
+.world-swim-sprite {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scaleX(var(--swim-facing));
+  animation: world-swim-turn var(--swim-duration) var(--swim-delay) step-end infinite;
+}
+@keyframes world-swim-traverse {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(var(--swim-travel)); }
+}
+@keyframes world-swim-turn {
+  0%, 100% { transform: scaleX(var(--swim-facing)); }
+  50% { transform: scaleX(calc(-1 * var(--swim-facing))); }
+}
+@keyframes world-swim-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(calc(-1 * var(--swim-wobble))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .world-swim-track, .world-swim-bob, .world-swim-sprite { animation: none; }
+}

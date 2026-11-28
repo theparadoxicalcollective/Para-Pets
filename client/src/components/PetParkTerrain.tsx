@@ -7,7 +7,7 @@ import {
   parkTerrainRasterTileWindow, PARK_TERRAIN_TILE_PIXELS, PARK_TERRAIN_TILE_GUTTER, PARK_TERRAIN_TILE_LIMIT,
 } from "@/lib/petParkTerrain";
 
-import { PARK_WATER_APPEARANCE, parkWaterImage, type ParkWaterStyle } from "@/lib/petParkWaterTexture";
+import { PARK_WATER_APPEARANCE, PARK_WATER_SHIMMER_URL, parkWaterImage, type ParkWaterStyle } from "@/lib/petParkWaterTexture";
 
 export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
 
@@ -35,6 +35,42 @@ const towards = (from: Point, to: Point, t: number): Point =>
   [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
 const diamondPoints = (cx: number, cy: number, halfW: number, halfH: number): Point[] =>
   [[cx, cy - halfH], [cx + halfW, cy], [cx, cy + halfH], [cx - halfW, cy]];
+
+type WaterPathSink = Pick<CanvasRenderingContext2D, "moveTo" | "lineTo" | "quadraticCurveTo" | "closePath">;
+function traceWaterDiamond(sink: WaterPathSink, points: Point[], geometry: WaterGeometry) {
+  for (let i = 0; i < 4; i++) {
+    const vertex = points[i];
+    const rounded = geometry.roundedCorners.has(pointKey(...vertex));
+    const incoming = rounded ? towards(vertex, points[(i + 3) % 4], WATER_CORNER_FRACTION) : vertex;
+    if (i === 0) sink.moveTo(...incoming); else sink.lineTo(...incoming);
+    if (rounded) sink.quadraticCurveTo(...vertex, ...towards(vertex, points[(i + 1) % 4], WATER_CORNER_FRACTION));
+  }
+  sink.closePath();
+}
+
+/** One visible, screen-sized union clip, matching the existing rounded
+ * terrain. Computed only when a raster is painted, never per animation frame. */
+export function waterShimmerPath(stamps: readonly ParkDirtPatch[], view: ParkTerrainViewport, geometry: WaterGeometry): string {
+  const bounds = parkVisibleTerrainBounds(view);
+  if (bounds.left >= bounds.right || bounds.top >= bounds.bottom) return "";
+  const segments: string[] = [];
+  const px = (x: number) => (x * view.scale + view.panX).toFixed(2);
+  const py = (y: number) => (y * view.scale + view.panY).toFixed(2);
+  const sink: WaterPathSink = {
+    moveTo: (x, y) => segments.push(`M${px(x)} ${py(y)}`),
+    lineTo: (x, y) => segments.push(`L${px(x)} ${py(y)}`),
+    quadraticCurveTo: (x, y, endX, endY) => segments.push(`Q${px(x)} ${py(y)} ${px(endX)} ${py(endY)}`),
+    closePath: () => segments.push("Z"),
+  };
+  for (const patch of stamps) {
+    if (!Number.isFinite(patch.xPct) || !Number.isFinite(patch.yPct) || !Number.isFinite(patch.size) || patch.size <= 0) continue;
+    const rect = dirtPatchWorldRect(patch, view.worldWidth, view.worldHeight);
+    if (rect.x > bounds.right || rect.x + rect.width < bounds.left ||
+        rect.y > bounds.bottom || rect.y + rect.height < bounds.top) continue;
+    traceWaterDiamond(sink, diamondPoints(patch.xPct * view.worldWidth, patch.yPct * view.worldHeight, patch.size / 2, patch.size / 4), geometry);
+  }
+  return segments.join(" ");
+}
 
 /** Calculate rounded water corners and exposed banks in the same spatial pass.
  * A corner is rounded only if its entire cutaway is clear of other stamps.
@@ -208,6 +244,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   cacheRasterTiles?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const shimmerRef = useRef<HTMLDivElement>(null);
   const hasWater = !!view.waterPatches?.length;
   const waterStyle = view.waterStyle ?? "teal";
   const [loadedWater, setLoadedWater] = useState<{ style: ParkWaterStyle; image: HTMLImageElement }>();
@@ -261,6 +298,36 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     };
     let frame: number | undefined;
     let timer: number | undefined;
+    const shimmer = shimmerRef.current;
+    // Reproject the exact same overlay with the ground during gestures.
+    // Its own slow texture transform pauses while the camera is moving.
+    const previewShimmer = () => {
+      if (!shimmer) return;
+      shimmer.style.transform = canvas.style.transform;
+      shimmer.dataset.cameraPreview = canvas.dataset.parkCameraPreview;
+    };
+    const paintShimmer = (rasterView: typeof view) => {
+      if (!shimmer) return;
+      const path = waterShimmerPath(view.waterPatches ?? [], rasterView, waterGeometry);
+      shimmer.style.display = path ? "" : "none";
+      if (!path) return;
+      shimmer.style.left = canvas.style.left;
+      shimmer.style.top = canvas.style.top;
+      shimmer.style.width = canvas.style.width;
+      shimmer.style.height = canvas.style.height;
+      shimmer.style.transformOrigin = "0 0";
+      shimmer.style.clipPath = `path("${path}")`;
+      // Water at the map edge is already clipped by paintConnectedPaths.
+      const top = Math.max(0, rasterView.panY);
+      const right = Math.min(rasterView.viewportWidth, rasterView.panX + rasterView.worldWidth * rasterView.scale);
+      const bottom = Math.min(rasterView.viewportHeight, rasterView.panY + rasterView.worldHeight * rasterView.scale);
+      const left = Math.max(0, rasterView.panX);
+      shimmer.style.clip = `rect(${top}px, ${right}px, ${bottom}px, ${left}px)`;
+      const surface = shimmer.firstElementChild as HTMLElement;
+      surface.style.backgroundSize = `${768 * rasterView.scale}px ${512 * rasterView.scale}px`;
+      surface.style.backgroundPosition = `${rasterView.panX + 18}px ${rasterView.panY + 18}px`;
+      previewShimmer();
+    };
     const drawRaster = (ctx: CanvasRenderingContext2D, rasterView: typeof view, ratio: number) => {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       paintTerrain(ctx, rasterView);
@@ -303,6 +370,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
         clearRasterCache();
         drawRaster(ctx, expanded, ratio);
         painted.current = { view, marginX, marginY, waterTexture };
+        paintShimmer(expanded);
         delete canvas.dataset.parkTerrainTileHits;
         delete canvas.dataset.parkTerrainTileMisses;
         return;
@@ -333,6 +401,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
             delete canvas.dataset.parkTerrainTileMisses;
             drawRaster(ctx, expanded, ratio);
             painted.current = { view, marginX, marginY, waterTexture };
+            paintShimmer(expanded);
             return;
           }
           // Paint a gutter around the tile before cropping it. Adjacent
@@ -363,6 +432,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       canvas.dataset.parkTerrainTileHits = String(hits);
       canvas.dataset.parkTerrainTileMisses = String(misses);
       painted.current = { view: rasterView, marginX, marginY, waterTexture };
+      paintShimmer({ ...expanded, panX: rasterView.panX + marginX, panY: rasterView.panY + marginY });
     };
     const previous = painted.current;
     const staticChanged = !previous ||
@@ -394,10 +464,12 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       } else if (Math.abs(dx) < .1 && Math.abs(dy) < .1 && Math.abs(ratio - 1) < .0001) {
         canvas.style.transform = `translate(${dx}px, ${dy}px)`;
         canvas.dataset.parkCameraPreview = "false";
+        previewShimmer();
       } else {
         canvas.style.transformOrigin = "0 0";
         canvas.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
         canvas.dataset.parkCameraPreview = "true";
+        previewShimmer();
         // Cancel/restart as new camera frames arrive. One accurate raster
         // rebuild at rest instead of dozens of heavy canvas repaints.
         timer = window.setTimeout(() => {
@@ -413,8 +485,15 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches,
       view.waterPatches, view.groundTheme, view.groundPalette, view.cacheRasterTiles, dirtEdges, stoneEdges, waterGeometry, waterTexture, waterStyle]);
 
-  return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
-    className="pointer-events-none absolute" style={{ backgroundColor: (view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"]).base }} />;
+  return <>
+    <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
+      className="pointer-events-none absolute" style={{ backgroundColor: (view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"]).base }} />
+    {hasWater && <div ref={shimmerRef} aria-hidden="true" data-testid="park-water-shimmer"
+      className="park-water-shimmer pointer-events-none absolute overflow-hidden" style={{ display: "none" }}>
+      <div className="park-water-shimmer-surface absolute"
+        style={{ backgroundImage: `url(${PARK_WATER_SHIMMER_URL})` }} />
+    </div>}
+  </>;
 }
 
 function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport & {
@@ -558,20 +637,14 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
         rect.y > visible.bottom || rect.y + rect.height < visible.top) continue;
     if (waterGeometry) {
       const points = diamondPoints(patch.xPct * view.worldWidth, patch.yPct * view.worldHeight, patch.size / 2, patch.size / 4);
-      for (let i = 0; i < 4; i++) {
-        const vertex = points[i];
-        const rounded = waterGeometry.roundedCorners.has(pointKey(...vertex));
-        const incoming = rounded ? towards(vertex, points[(i + 3) % 4], WATER_CORNER_FRACTION) : vertex;
-        if (i === 0) ctx.moveTo(...incoming); else ctx.lineTo(...incoming);
-        if (rounded) ctx.quadraticCurveTo(...vertex, ...towards(vertex, points[(i + 1) % 4], WATER_CORNER_FRACTION));
-      }
+      traceWaterDiamond(ctx, points, waterGeometry);
     } else {
       ctx.moveTo(rect.x + rect.width / 2, rect.y);
       ctx.lineTo(rect.x + rect.width, rect.y + rect.height / 2);
       ctx.lineTo(rect.x + rect.width / 2, rect.y + rect.height);
       ctx.lineTo(rect.x, rect.y + rect.height / 2);
+      ctx.closePath();
     }
-    ctx.closePath();
     left = Math.min(left, rect.x);
     top = Math.min(top, rect.y);
     right = Math.max(right, rect.x + rect.width);

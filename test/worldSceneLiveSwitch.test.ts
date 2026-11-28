@@ -69,7 +69,7 @@ test("old worlds and game progress remain untouched; database change is additive
   assert.doesNotMatch(routes, /delete\(worldLocations\)|delete\(worldSceneDrafts\)/);
   const app = read("client/src/App.tsx");
   assert.match(app, /<WorldScenePlayerPage/);
-  assert.match(app, /<WorldPage[^>]*user=\{worldUser\}/);
+  assert.match(app, /<WorldPage[^>]*user=\{user\}/);
   assert.match(app, /legacyLocationId/);
 });
 

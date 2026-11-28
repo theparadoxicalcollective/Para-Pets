@@ -56,6 +56,7 @@ type Props = {
   onEnter: (id: string) => void;
   selectedPageAvailable?: boolean;
   onPaint: () => void;
+  onFish: () => void;
   groundTheme: WorldGroundTheme;
   zoom: number;
   minZoom: number;
@@ -366,12 +367,14 @@ export default function WorldSceneControls(props: Props) {
         </div>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
+        <button type="button" className={quickButton} onClick={props.onFish}>+ Fish</button>
       </> : <>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "building")}>+ Building</button>
         <button type="button" className={quickButton} onClick={() => openCreator("npc")}>+ NPC</button>
         <button type="button" className={quickButton} onClick={() => openCreator("miniPet")}>+ Mini Pet</button>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
+        <button type="button" className={quickButton} onClick={props.onFish}>+ Fish</button>
         <button type="button" className={quickAccent} aria-label="Paint terrain"
           onClick={props.onPaint}>Paint terrain</button>
         <button type="button" className={quickAccent} data-testid="button-world-settings"
