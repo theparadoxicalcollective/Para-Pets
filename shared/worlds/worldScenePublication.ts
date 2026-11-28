@@ -1,4 +1,5 @@
 import { isKnownWorldId, type WorldId } from "./worldRegistry";
+import { WORLD_SCENE_MAX_ASSETS } from "./worldSceneContent";
 
 /** Current player-facing world status. The new scene is now always selected;
  * the lock setting controls access independently. */
@@ -63,7 +64,7 @@ export function auditWorldActivation(worldId: string, input: {
 }): string[] {
   const blockers = new Set<string>();
   if (!input.hasGround) blockers.add("Save this world's ground settings first.");
-  if (input.assets.length > 300 || input.placements.length > 4500 || (input.interiorItems?.length ?? 0) > 4500)
+  if (input.assets.length > WORLD_SCENE_MAX_ASSETS || input.placements.length > 4500 || (input.interiorItems?.length ?? 0) > 4500)
     blockers.add("This world exceeds the supported player scene limits.");
   const art = new Map(input.assets.filter(a => !!a.imageUrl).map(a => [a.id, a]));
   const npcs = new Map(input.npcs.filter(n => !!n.imageUrl).map(n => [n.id, n]));

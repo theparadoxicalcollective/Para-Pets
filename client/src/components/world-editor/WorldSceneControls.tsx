@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { readPetParkImageData } from "@/lib/petParkImageData";
+import { readWorldArtwork } from "@/lib/worldArtworkUpload";
+import { WORLD_ARTWORK_ACCEPT } from "@shared/worlds/worldSceneContent";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
@@ -213,7 +214,7 @@ export default function WorldSceneControls(props: Props) {
     file?: File) => {
     if (!file) return;
     try {
-      await mutate("PATCH", `/assets/${assetId}`, { [name]: await readPetParkImageData(file) });
+      await mutate("PATCH", `/assets/${assetId}`, { [name]: await readWorldArtwork(file, name === "interiorImageData" || name === "nightInteriorImageData" ? 2400 : 2000) });
     } catch (error) {
       toast({ title: "Artwork could not be read", description: String(error), variant: "destructive" });
     }
@@ -591,7 +592,7 @@ export default function WorldSceneControls(props: Props) {
             className="mx-auto h-20 w-full object-contain"/>}
           {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
             Replace Decoration Artwork
-            <input type="file" aria-label="Replace linked decoration artwork" accept="image/png,image/jpeg"
+            <input type="file" aria-label="Replace linked decoration artwork" accept={WORLD_ARTWORK_ACCEPT}
               className="sr-only" disabled={busy} onChange={event => {
                 void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
                 event.target.value = "";
@@ -621,7 +622,7 @@ export default function WorldSceneControls(props: Props) {
             alt="Current decoration Tap Image" className="mx-auto h-20 w-full object-contain"/>}
           <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
             {currentAsset.tapImageUrl ? "Replace Tap Image" : "Upload Tap Image"}
-            <input type="file" aria-label="Edit decoration Tap Image" accept="image/png,image/jpeg"
+            <input type="file" aria-label="Edit decoration Tap Image" accept={WORLD_ARTWORK_ACCEPT}
               className="sr-only" disabled={busy} onChange={event => {
                 void patchArtwork(currentAsset.id, "tapImageData", event.target.files?.[0]);
                 event.target.value = "";
@@ -667,7 +668,7 @@ export default function WorldSceneControls(props: Props) {
           <div className="space-y-2 pt-2">
           <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
           Replace Building Artwork
-          <input type="file" aria-label="Replace building artwork" accept="image/png,image/jpeg"
+          <input type="file" aria-label="Replace building artwork" accept={WORLD_ARTWORK_ACCEPT}
             className="sr-only" disabled={busy} onChange={event => {
               void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
               event.target.value = "";
@@ -675,7 +676,7 @@ export default function WorldSceneControls(props: Props) {
         </label>
         {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
           {currentAsset.interiorImageUrl ? "Replace Daytime Interior Background" : "Upload Daytime Interior Background"}
-          <input type="file" aria-label="Edit building interior image" accept="image/png,image/jpeg"
+          <input type="file" aria-label="Edit building interior image" accept={WORLD_ARTWORK_ACCEPT}
             className="sr-only" disabled={busy} onChange={event => {
               void patchArtwork(currentAsset.id, "interiorImageData", event.target.files?.[0]);
               event.target.value = "";
@@ -684,7 +685,7 @@ export default function WorldSceneControls(props: Props) {
         {currentAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/50 p-2 text-xs">
           <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center">
             {currentAsset.nightInteriorImageUrl ? "Replace Nighttime Interior Background" : "Upload Nighttime Interior Background (optional)"}
-            <input type="file" aria-label="Upload world nighttime interior image" accept="image/png,image/jpeg"
+            <input type="file" aria-label="Upload world nighttime interior image" accept={WORLD_ARTWORK_ACCEPT}
               className="sr-only" disabled={busy} onChange={event => {
                 void patchArtwork(currentAsset.id, "nightInteriorImageData", event.target.files?.[0]);
                 event.target.value = "";

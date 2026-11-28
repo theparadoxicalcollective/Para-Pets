@@ -5,7 +5,7 @@ import {
 } from "@shared/schema";
 import { defaultWorldSceneDraft, isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
 import {
-  validWorldArtwork, validPosition, validSize, validLayer, validSceneId,
+  worldArtworkError, worldArtworkRequestFits, WORLD_SCENE_MAX_ASSETS, validPosition, validSize, validLayer, validSceneId,
   validDecorEffects, validEffect, validInteriorEffectColor, validPlacementTransform, validShopIds,
   isWorldTerrainType, WORLD_TERRAIN_BRUSH_SIZES, worldTerrainCell,
 } from "@shared/worlds/worldSceneContent";
@@ -16,11 +16,12 @@ import { HOUSE_INTERIOR_DARKNESS_MIN, HOUSE_INTERIOR_DARKNESS_MAX } from "@share
 import { validParkShopPlacements, type ParkShopPlacement } from "@shared/petParkShopPlacements";
 import { WORLD_DEFINITION_LIST, type WorldId } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
+import { referencedWorldAssetFilter, worldAssetCapacityAvailable } from "../worldSceneAssetUsage";
 
 type Store = typeof database;
 type Asset = typeof worldSceneAssets.$inferSelect;
 type Placement = typeof worldScenePlacements.$inferSelect;
-const MAX_ASSETS = 300;
+const MAX_ASSETS = WORLD_SCENE_MAX_ASSETS;
 const MAX_OBJECTS = 4500;
 const MAX_INTERIOR = 120;
 
@@ -70,17 +71,23 @@ async function validCatalogNpc(db: Store, id: unknown): Promise<boolean> {
   )).limit(1);
   return !!npc;
 }
-async function withinLimit(db: Store, table: typeof worldSceneAssets | typeof worldScenePlacements, worldId: string, limit: number) {
-  if (table === worldSceneAssets) {
-    const [row] = await db.select({ total: count() }).from(worldSceneAssets)
-      .where(eq(worldSceneAssets.worldId, worldId));
-    return row.total < limit;
-  }
+async function withinPlacementLimit(db: Store, worldId: string) {
   const [row] = await db.select({ total: count() }).from(worldScenePlacements)
     .where(eq(worldScenePlacements.worldId, worldId));
-  return row.total < limit;
+  return row.total < MAX_OBJECTS;
 }
-
+const artworkInputs = [
+  ["imageData", "Artwork"],
+  ["tapImageData", "Alternate tap artwork"],
+  ["interiorImageData", "Daytime interior artwork"],
+  ["nightInteriorImageData", "Nighttime interior artwork"],
+] as const;
+function artworkValidationMessage(value: unknown, label: string) {
+  const error = worldArtworkError(value);
+  if (error === "size") return { status: 413, message: `${label} is too large (maximum 22.5 MiB per image). Try a smaller image.` };
+  if (error === "format") return { status: 400, message: `${label} must be a valid PNG, JPEG, WebP or GIF upload.` };
+  return null;
+}
 export function registerWorldSceneContentRoutes(app: Express, {
   db, isAdmin, processWorldImage,
 }: { db: Store; isAdmin: RequestHandler; processWorldImage: (data: string, size: number) => Promise<string> }): void {
@@ -90,7 +97,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     try {
       const [assets, placements, interiorItems] = await Promise.all([
-        db.select().from(worldSceneAssets).where(eq(worldSceneAssets.worldId, worldId))
+        db.select().from(worldSceneAssets).where(referencedWorldAssetFilter(worldId))
           .orderBy(asc(worldSceneAssets.createdAt)).limit(MAX_ASSETS + 1),
         db.select().from(worldScenePlacements).where(eq(worldScenePlacements.worldId, worldId))
           .orderBy(asc(worldScenePlacements.createdAt)).limit(MAX_OBJECTS + 1),
@@ -136,16 +143,22 @@ export function registerWorldSceneContentRoutes(app: Express, {
     const worldId = worldFrom(req);
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     const { kind, name, imageData, tapImageData = null, interiorImageData = null, nightInteriorImageData = null } = req.body ?? {};
-    if (!assetKind(kind) || !validName(name) || !validWorldArtwork(imageData) ||
-      (tapImageData !== null && !validWorldArtwork(tapImageData)) ||
-      (interiorImageData !== null && !validWorldArtwork(interiorImageData)) ||
-      (nightInteriorImageData !== null && !validWorldArtwork(nightInteriorImageData)) ||
-      (kind !== "building" && (interiorImageData !== null || nightInteriorImageData !== null))) {
-      return res.status(400).json({ message: "Invalid world asset upload" });
+    if (!assetKind(kind)) return res.status(400).json({ message: "Choose building or decoration artwork." });
+    if (!validName(name)) return res.status(400).json({ message: "Enter an artwork name of 1–80 characters." });
+    if (kind !== "building" && (interiorImageData !== null || nightInteriorImageData !== null))
+      return res.status(400).json({ message: "Interior backgrounds are only available for buildings." });
+    const images = [imageData, tapImageData, interiorImageData, nightInteriorImageData];
+    for (const [index, [, label]] of artworkInputs.entries()) {
+      if (index !== 0 && images[index] === null) continue;
+      const error = artworkValidationMessage(images[index], label);
+      if (error) return res.status(error.status).json({ message: error.message });
     }
+    if (!worldArtworkRequestFits(images)) return res.status(413).json({
+      message: "Combined artwork is too large. Add the main artwork first, then upload additional images using Edit.",
+    });
     try {
-      if (!(await withinLimit(db, worldSceneAssets, worldId, MAX_ASSETS)))
-        return res.status(409).json({ message: "World asset library is full" });
+      if (!(await worldAssetCapacityAvailable(db, worldId)))
+        return res.status(409).json({ message: "World has reached its 300 distinct placed artwork limit. Remove all placed copies of an artwork or duplicate existing artwork." });
       const imageUrl = await processWorldImage(imageData, 2000);
       const tapImageUrl = tapImageData ? await processWorldImage(tapImageData, 2000) : null;
       const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2400) : null;
@@ -156,7 +169,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       return res.status(201).json(asset);
     } catch (error) {
       console.error("[world-editor] asset create failed", error);
-      return res.status(500).json({ message: "Could not upload world artwork" });
+      return res.status(500).json({ message: "Could not process or store world artwork. Check that the image opens normally and retry." });
     }
   });
 
@@ -172,6 +185,9 @@ export function registerWorldSceneContentRoutes(app: Express, {
         if (!validName(body.name)) return res.status(400).json({ message: "Invalid asset name" });
         changes.name = body.name.trim();
       }
+      if (!worldArtworkRequestFits(artworkInputs.map(([key]) => body[key]))) return res.status(413).json({
+        message: "Combined artwork is too large. Upload each replacement separately.",
+      });
       for (const [input, field, size] of [
         ["imageData", "imageUrl", 2000],
         ["tapImageData", "tapImageUrl", 2000],
@@ -183,8 +199,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
           return res.status(400).json({ message: "Only buildings have interiors" });
         if (body[input] === null && field !== "imageUrl") changes[field] = null;
         else {
-          if (!validWorldArtwork(body[input]))
-            return res.status(400).json({ message: "Invalid image upload" });
+          const error = artworkValidationMessage(body[input], artworkInputs.find(([key]) => key === input)?.[1] ?? "Artwork");
+          if (error) return res.status(error.status).json({ message: error.message });
           changes[field] = await processWorldImage(body[input], size);
         }
       }
@@ -194,7 +210,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       return res.json(updated);
     } catch (error) {
       console.error("[world-editor] asset update failed", error);
-      return res.status(500).json({ message: "Could not update asset" });
+      return res.status(500).json({ message: "Could not update artwork. Check that the image opens normally and retry." });
     }
   });
 
@@ -303,6 +319,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
         if (!asset || asset.kind !== kind) return res.status(400).json({
           message: "Select a matching asset from this world's library",
         });
+        if (!(await worldAssetCapacityAvailable(db, worldId, asset.id)))
+          return res.status(409).json({ message: "World has reached its 300 distinct placed artwork limit." });
       }
       if (kind === "npc" && !(await validCatalogNpc(db, npcId)))
         return res.status(400).json({ message: "Choose an existing NPC from Admin NPCs" });
@@ -312,7 +330,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if (!(await validGlobalCatalogItems(db, shopItemIds))) return res.status(400).json({
         message: "Select existing shared inventory items for the shop",
       });
-      if (!(await withinLimit(db, worldScenePlacements, worldId, MAX_OBJECTS)))
+      if (!(await withinPlacementLimit(db, worldId)))
         return res.status(409).json({ message: "World placement limit reached" });
       // A world asset is the decor type. Copying/placing that asset must
       // inherit the existing type behavior even when an older client sends
@@ -590,6 +608,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
         const asset = await findAsset(db, worldId, body.assetId);
         if (!asset || asset.kind !== "decor" || body.effectType != null)
           return res.status(400).json({ message: "Select an interior decoration from this world" });
+        if (!(await worldAssetCapacityAvailable(db, worldId, asset.id)))
+          return res.status(409).json({ message: "World has reached its 300 distinct placed artwork limit." });
       } else if (!validEffect(body.effectType) || body.assetId != null) {
         return res.status(400).json({ message: "Invalid interior effect" });
       }
