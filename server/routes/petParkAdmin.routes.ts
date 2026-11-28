@@ -515,6 +515,45 @@ export function registerPetParkAdminRoutes(
     }
   });
 
+  // The park stores terrain as ordinary placed items, not world terrain keys.
+  // Match the existing 2:1 diamond footprint in world units, including older
+  // off-grid or larger stamps. Never touch other materials or placed objects.
+  app.post("/api/admin/pet-park/terrain-erase", isAdmin, async (req, res) => {
+    const { type, size, points } = req.body ?? {};
+    if (!isPaintableParkTerrainDetail(type) || !validSize(size) ||
+        !Array.isArray(points) || points.length < 1 || points.length > 60 ||
+        !points.every(point => point && validPosition(point.xPct) && validPosition(point.yPct))) {
+      return res.status(400).json({ message: "Invalid terrain erase stroke (1–60 points required)" });
+    }
+    try {
+      const removed = await db.transaction(async tx => {
+        // Serialize with ground expansion, which remaps these coordinates.
+        const [settings] = await tx.select({ groundLevel: petParkSettings.groundLevel })
+          .from(petParkSettings).where(eq(petParkSettings.id, "main")).for("update");
+        const world = parkGroundSize(settings?.groundLevel ?? 1);
+        const material = and(eq(petParkSceneItems.kind, "terrain"), eq(petParkSceneItems.effectType, type));
+        const stamps = await tx.select({
+          id: petParkSceneItems.id, xPct: petParkSceneItems.xPct,
+          yPct: petParkSceneItems.yPct, size: petParkSceneItems.size,
+        }).from(petParkSceneItems).where(material);
+        const ids = stamps.filter(stamp => points.some(point => {
+          const distance = Math.abs((point.xPct - stamp.xPct) * world.width)
+            + 2 * Math.abs((point.yPct - stamp.yPct) * world.height);
+          // Strict interior hit: a brush just touching the next tile's edge
+          // must not erase that neighboring tile.
+          return distance < Math.max(size, stamp.size) / 2 - 1e-7;
+        })).map(stamp => stamp.id);
+        if (!ids.length) return [];
+        return tx.delete(petParkSceneItems).where(and(material, inArray(petParkSceneItems.id, ids)))
+          .returning({ id: petParkSceneItems.id });
+      });
+      return res.json({ deleted: removed.length });
+    } catch (error) {
+      console.error("[pet-park] terrain erase failed", error);
+      return res.status(500).json({ message: "Could not erase Pet Park terrain" });
+    }
+  });
+
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
     const { kind, effectType, effectColor = null, imageData, tapImageData = null, decorEffects = [], xPct, yPct, size, flipped, layer, isWaterSource = false, decorSurface = "barrier", miniPetId = null, idleAnimation = null } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||

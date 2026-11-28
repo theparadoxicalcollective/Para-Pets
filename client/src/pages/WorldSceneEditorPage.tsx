@@ -1,5 +1,7 @@
+import WorldSwimFish from "@/components/WorldSwimFish";
+import WorldFishEditor from "@/components/world-editor/WorldFishEditor";
 import { MiniPetArtwork, SceneCharacterMotionStyles, sceneNpcIdleClass } from "@/components/MiniPetRenderer";
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -21,7 +23,7 @@ import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
-import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
+import { worldInteriorLights } from "@/lib/worldInteriorLighting";
 import {
   worldEditorCameraGeometry, worldEditorClampZoom, worldEditorMinZoom,
   worldEditorClampCamera, worldEditorZoomAnchorPan,
@@ -110,11 +112,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     if (cameraFrame.current !== null) window.cancelAnimationFrame(cameraFrame.current);
   }, []);
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
+  const [fishMode, setFishMode] = useState(false);
   const [paintMode, setPaintMode] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
   const [editingShopItem, setEditingShopItem] = useState(false);
+  const onShopSelectionChange = useCallback((editing: boolean) => {
+    setEditingShopItem(editing);
+    if (editing) setSelectedInteriorId(null);
+  }, []);
   // The slider previews locally without refetching or repainting another scene.
   type DarknessDraft = { buildingId: string; value: number };
   const [interiorDarknessDraft, setInteriorDarknessDraft] = useState<DarknessDraft | null>(null);
@@ -139,6 +146,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const world = getWorldDefinition(worldId);
   const npcCatalog = useWorldNpcCatalog(known);
   const queryKey = ["/api/admin/world-editor", worldId, "draft"];
+  useEffect(() => { setFishMode(false); }, [worldId, activeBuildingId]);
   const sceneQueryKey = ["/api/admin/world-editor", worldId, "scene"];
 
   const draft = useQuery<WorldSceneDraft>({
@@ -339,15 +347,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorW = roomCamera.width;
   const interiorH = roomCamera.height;
   const roomPoint = { xPct: roomCamera.center.x, yPct: roomCamera.center.y };
-  const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
-    .filter(item => item.buildingId === activeBuilding.id &&
-      (isHouseInteriorEffectType(item.effectType) || item.effectType === "colored_light"))
-    // Colored Light is the customizable outdoor form of lamp_light. Even
-    // when saved inside an older building, its visible orb must cut a real
-    // light pool out of the room's existing darkness mask.
-    .map(item => ({ id: item.id,
-      type: (item.effectType === "colored_light" ? "lamp_light" : item.effectType) as HouseInteriorEffect["type"],
-      x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
+  const roomItems = activeBuilding ? content.interiorItems.filter(item => item.buildingId === activeBuilding.id) : [];
+  const interiorLights = worldInteriorLights(roomItems.map(item =>
+    objectPreview?.id === item.id ? { ...item, ...objectPreview } : item), interiorW, interiorH);
 
   useEffect(() => {
     setInteriorCenterX(.5);
@@ -541,7 +543,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     }
   };
   const startCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (paintMode || activeBuilding || (event.button !== 0 && event.pointerType === "mouse")) return;
+    if (fishMode || paintMode || activeBuilding || (event.button !== 0 && event.pointerType === "mouse")) return;
     selectedPageTap.current = null;
     if (objectDrag.current && objectDrag.current.id !== event.pointerId) {
       // Starting a second finger means pinch/pan, never an object movement.
@@ -650,7 +652,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     <div ref={viewportRef} data-testid="world-scene-draft-viewport"
       className="absolute inset-0 overflow-clip" style={{ touchAction: "none", cursor: "grab" }}
       onPointerDownCapture={event => {
-        if (paintMode || activeBuilding || beauWheel.isOpening || beauWheel.state || !event.isPrimary ||
+        if (fishMode || paintMode || activeBuilding || beauWheel.isOpening || beauWheel.state || !event.isPrimary ||
             (event.button !== 0 && event.pointerType === "mouse")) return;
         if (legacyOpening.current) resetPageGesture();
         const art = viewportRef.current?.querySelector("[data-world-editor-artwork]");
@@ -670,6 +672,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         event.stopPropagation();
       }}
       onPointerMoveCapture={event => {
+        if (fishMode) return;
         if (paintMode || activeBuilding) return;
         const pending = pendingObjectTap.current;
         if (pending?.pointerId === event.pointerId &&
@@ -680,6 +683,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       onPointerUpCapture={event => {
         // Interior objects and the terrain brush own their pointer events.
         // Only intercept ordinary outdoor placement gestures here.
+        if (fishMode) return;
         if (paintMode || activeBuilding) return;
         if (objectDrag.current?.id === event.pointerId) {
           const drag = objectDrag.current;
@@ -712,6 +716,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         event.stopPropagation();
       }}
       onPointerCancelCapture={event => {
+        if (fishMode) return;
         if (paintMode || activeBuilding) return;
         selectedPageTap.current = null;
         if (pendingObjectTap.current?.pointerId === event.pointerId)
@@ -720,14 +725,15 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         endTouch(event);
         event.stopPropagation();
       }}
-      onPointerDown={activeBuilding ? startRoomPan : startCamera}
-      onPointerMove={activeBuilding ? moveRoomPan : moveCamera}
-      onPointerUp={endTouch} onPointerCancel={endTouch}
-      onLostPointerCapture={endTouch}
+      onPointerDown={fishMode ? undefined : activeBuilding ? startRoomPan : startCamera}
+      onPointerMove={fishMode ? undefined : activeBuilding ? moveRoomPan : moveCamera}
+      onPointerUp={fishMode ? undefined : endTouch} onPointerCancel={fishMode ? undefined : endTouch}
+      onLostPointerCapture={fishMode ? undefined : endTouch}
       onWheel={event => {
         // Preserve outdoor zoom, but a room is always a full-height scene.
         // Neither a wheel nor a pinch should turn it into a floating picture.
         event.preventDefault();
+        if (fishMode) return;
         if (activeBuilding) return;
         const rect = event.currentTarget.getBoundingClientRect();
         changeZoom(zoom * (event.deltaY > 0 ? 0.94 : 1.06), {
@@ -746,6 +752,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         <div data-world-editor-artwork className="pointer-events-none absolute left-0 top-0"
           style={{ width: camera.sceneWidth, height: camera.sceneHeight,
             transform: `translate(${actualPan.x}px, ${actualPan.y}px)` }}>
+          <WorldSwimFish areas={content.swimAreas} fish={content.swimFish} buildingId={null} groundLevel={groundLevel}
+            width={camera.sceneWidth} height={camera.sceneHeight} scale={camera.scale} panX={actualPan.x} panY={actualPan.y}
+            viewportWidth={size.width} viewportHeight={size.height} />
           {content.placements.map(p => {
             const position = objectPosition(p);
             // Only mount visible sprites. Large worlds may contain thousands of
@@ -851,52 +860,66 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           data-testid="world-editor-night-interior-image"
           className="absolute inset-0 h-full w-full object-fill pointer-events-none"
           style={{ display: previewNightInteriorArtworkActive ? "block" : "none" }} />}
+        <WorldSwimFish areas={content.swimAreas} fish={content.swimFish} buildingId={activeBuilding.id} groundLevel={groundLevel}
+          width={interiorW} height={interiorH} scale={interiorW / 850} panX={roomCamera.pan.x} panY={0}
+          viewportWidth={size.width} viewportHeight={size.height} />
         <HomeInteriorDarknessLayer
           darkness={interiorDarkness}
           effects={interiorLights}
           panX={0} imgWidth={interiorW} sceneHeight={interiorH}
           sunlightStrength={previewSunlightStrength} keepMaskMounted transitionMs={0} zIndex={2}/>
-        {content.interiorItems.filter(item => item.buildingId === activeBuilding.id).map(item => {
-          const pos = objectPosition(item);
-          const asset = assetFor(item.assetId);
-          const px = item.size * interiorW / 850;
-          return <button key={item.id} type="button"
-            data-testid={`world-interior-item-${item.id}`}
-            className="absolute touch-none rounded border border-transparent focus-visible:border-[#f5ce73]"
-            style={{
-              left: pos.xPct * interiorW, top: pos.yPct * interiorH, width: px, height: px,
-              transform: `translate(-50%, -50%)${worldSceneRotationCss(item.rotation)}`, zIndex: Math.round(pos.yPct * 10000),
+        {/* As in Pet Park: darken the room and decor together, then draw the
+            visible effects above the mask. Depth sorting stays within each layer. */}
+        {(["decor", "effect"] as const).map(kind => <div key={kind}
+          className="absolute inset-0 pointer-events-none" style={{ zIndex: kind === "decor" ? 1 : 3 }}>
+          {roomItems.filter(item => item.kind === kind).map(item => {
+            const pos = objectPosition(item);
+            const asset = assetFor(item.assetId);
+            const px = item.size * interiorW / 850;
+            return <button key={item.id} type="button"
+              data-testid={`world-interior-item-${item.id}`}
+              className="pointer-events-auto absolute touch-none rounded border border-transparent focus-visible:border-[#f5ce73]"
+              style={{
+                left: pos.xPct * interiorW, top: pos.yPct * interiorH, width: px, height: px,
+                transform: `translate(-50%, -50%)${worldSceneRotationCss(item.rotation)}`, zIndex: Math.round(pos.yPct * 10000),
 
-            }}
-            onPointerDown={event => startObject(event, item, "interior")}
-            onPointerMove={moveObject} onPointerUp={finishObject}
-            onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
-            onClick={event => {
-              if (event.detail === 0) setSelectedInteriorId(item.id);
-              event.stopPropagation();
-            }}>
-            <span className="pointer-events-none absolute inset-0"
-              style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
-              {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain"
-                style={selectedInteriorId === item.id ? {
-                  filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)",
-                } : undefined} draggable={false} />}
-              {item.kind === "effect" && item.effectType &&
-                <span className="absolute inset-0" style={{
-                  opacity: item.effectType === "warm_glow" ? worldLighting.daylightStrength : 1,
-                  transition: "opacity 1200ms linear",
-                }}>
-                  <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} adminPreview />
-                </span>}
-            </span>
-          </button>;
-        })}
-        {activeBuilding.isShop && <WorldShopShelf worldId={worldId} building={activeBuilding}
+              }}
+              onPointerDown={event => startObject(event, item, "interior")}
+              onPointerMove={moveObject} onPointerUp={finishObject}
+              onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
+              onClick={event => {
+                if (event.detail === 0) setSelectedInteriorId(item.id);
+                event.stopPropagation();
+              }}>
+              <span className="pointer-events-none absolute inset-0"
+                style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
+                {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain"
+                  style={selectedInteriorId === item.id ? {
+                    filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)",
+                  } : undefined} draggable={false} />}
+                {item.kind === "effect" && item.effectType &&
+                  <span className="absolute inset-0" style={{
+                    opacity: item.effectType === "warm_glow" ? previewSunlightStrength : 1,
+                    transition: "opacity 1200ms linear",
+                  }}>
+                    <ParkEffectVisual type={item.effectType as ParkEffectType} color={item.effectColor ?? undefined} reducedMotion={false} adminPreview interior />
+                  </span>}
+              </span>
+            </button>;
+          })}
+        </div>)}
+        {activeBuilding.isShop && <WorldShopShelf key={activeBuilding.id} worldId={worldId} building={activeBuilding}
           roomWidth={interiorW} roomHeight={interiorH} roomPoint={roomPoint}
           visibleRoomWidth={Math.min(1, size.width / interiorW)}
           visibleRoomHeight={Math.min(1, size.height / interiorH)}
-          onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
-          onSelectionChange={setEditingShopItem} />}
+          onChanged={(shopItemIds, shopItemPlacements) => {
+            cache.setQueryData<WorldSceneContent>(sceneQueryKey, current => current ? {
+              ...current, placements: current.placements.map(placement => placement.id === activeBuilding.id
+                ? { ...placement, shopItemIds, shopItemPlacements } : placement),
+            } : current);
+            void cache.invalidateQueries({ queryKey: sceneQueryKey });
+          }}
+          decorSelected={selectedInteriorId !== null} onSelectionChange={onShopSelectionChange} />}
         </>}
       </div> : <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-[#decba0]">
         This building has no interior artwork yet. Choose Add Old World Page or upload a room image.
@@ -908,6 +931,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         {interiorArtworkError === interiorImageUrl ? "Room artwork could not be loaded. Exit and reopen the room." : "Loading room artwork…"}
       </div>}
 
+      {fishMode && (!activeBuilding || roomArtworkReady) && <WorldFishEditor
+        key={worldId + ":" + (activeBuilding?.id ?? "outdoors")}
+        worldId={worldId} worldName={world.defaultName} buildingId={activeBuilding?.id ?? null} groundLevel={groundLevel}
+        areas={content.swimAreas ?? []} width={activeBuilding ? interiorW : camera.sceneWidth} height={activeBuilding ? interiorH : camera.sceneHeight}
+        panX={activeBuilding ? roomCamera.pan.x : actualPan.x} panY={activeBuilding ? 0 : actualPan.y}
+        viewportWidth={size.width} viewportHeight={size.height} onClose={() => setFishMode(false)}
+        onSaved={saved => {
+          cache.setQueryData<WorldSceneContent>(sceneQueryKey, old => old ? {...old, ...saved} : old);
+          void cache.invalidateQueries({queryKey: ["/api/worlds", worldId, "player-scene"]});
+        }} />}
       {paintMode && !activeBuilding && <WorldTerrainBrush
         worldId={worldId} raised viewportWidth={size.width} viewportHeight={size.height}
         sceneWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
@@ -936,7 +969,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-xs text-[#f5cf64]"
           onClick={() => { setActiveBuildingId(null); setSelectedInteriorId(null); }}>Exit Room</button> :
           <button type="button" aria-label="Expand Ground"
-            disabled={paintMode || saveDraft.isPending || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
+            disabled={fishMode || paintMode || saveDraft.isPending || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
             onClick={() => changeLevel(groundLevel + 1)}
             className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
             {saveDraft.isPending ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "⛶ Expand"}
@@ -944,7 +977,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       </div>
       {/* Tools float over the scene; hide them temporarily to reach the floor
           without ever moving the room up/down or changing its scale. */}
-      {activeBuilding && roomArtworkReady && !editingShopItem && <div className="mt-2 flex justify-end">
+      {activeBuilding && roomArtworkReady && !editingShopItem && !fishMode && <div className="mt-2 flex justify-end">
         <button type="button" data-testid="button-world-room-toggle-tools" aria-expanded={!roomToolsHidden}
           aria-label={roomToolsHidden ? "Show room tools" : "Hide room tools"}
           className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-xs text-[#f5cf64]"
@@ -953,7 +986,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         </button>
       </div>}
     </header>
-    {!paintMode && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
+    {!fishMode && !paintMode && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
       style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
       <span className="rounded-lg bg-black/70 px-3 py-1.5 text-[11px] text-amber-200">
         Saved edits update the player world when unlocked
@@ -963,7 +996,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     {(draft.isLoading || scene.isLoading || draft.isError || scene.isError) ?
       <div className="absolute z-40 inset-0 flex items-center justify-center bg-[#0d1f17]/90 p-5 text-center text-sm">
         {draft.isError || scene.isError ? "Saved world could not be loaded. Return to map and retry." : "Loading world editor…"}
-      </div> : !paintMode && <WorldSceneControls
+      </div> : !fishMode && !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} shopItemEditing={editingShopItem} placementPoint={createPoint}
         roomToolsHidden={!!activeBuilding && roomToolsHidden}
@@ -976,6 +1009,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         selectedPageAvailable={!!selectedPage}
         onEnter={id => { setActiveBuildingId(id); setSelectedInteriorId(null); }}
         onPaint={() => setPaintMode(true)}
+        onFish={() => { if (!activeBuilding || roomArtworkReady) { setSelectedId(null); setSelectedInteriorId(null); setFishMode(true); } }}
         groundTheme={groundTheme}
         zoom={zoom} minZoom={minZoom}
         onZoom={value => changeZoom(value)}

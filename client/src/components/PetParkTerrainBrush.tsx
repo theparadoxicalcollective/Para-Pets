@@ -26,6 +26,7 @@ export default function PetParkTerrainBrush(props: Props) {
   const savingRef = useRef(false);
   const [type, setType] = useState<ParkTerrainDetailType>("dirt_path");
   const [size, setSize] = useState(150);
+  const [erasing, setErasing] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [draft, setDraft] = useState<ParkBrushPoint[]>([]);
   const [saving, setSaving] = useState(false);
@@ -45,14 +46,14 @@ export default function PetParkTerrainBrush(props: Props) {
     setSaving(true);
     setSaveFailed(false);
     try {
-      await apiRequest("POST", "/api/admin/pet-park/terrain-strokes", { type, size, points });
+      await apiRequest("POST", `/api/admin/pet-park/${erasing ? "terrain-erase" : "terrain-strokes"}`, { type, size, points });
       props.onSaved();
       draftRef.current = [];
       setDraft([]);
     } catch (error) {
       setSaveFailed(true);
       setShowOptions(true); // Keep retry and clear available after a failed write.
-      toast({ title: "Could not save terrain stroke", description: String(error), variant: "destructive" });
+      toast({ title: erasing ? "Could not erase terrain" : "Could not save terrain stroke", description: String(error), variant: "destructive" });
       // Keep the completed stroke visible so the admin can retry or clear it.
     } finally {
       savingRef.current = false;
@@ -114,7 +115,7 @@ export default function PetParkTerrainBrush(props: Props) {
   };
 
   return <div className="pointer-events-none absolute inset-0 z-10" data-testid="pet-park-brush-mode">
-    <div ref={surface} aria-label="Paint Pet Park ground" data-testid="pet-park-terrain-brush-surface"
+    <div ref={surface} aria-label={erasing ? "Erase Pet Park ground" : "Paint Pet Park ground"} data-testid="pet-park-terrain-brush-surface"
       className="pointer-events-auto absolute inset-0 cursor-crosshair touch-none"
       onPointerDown={start} onPointerMove={move} onPointerUp={finish}
       onPointerCancel={cancel} onLostPointerCapture={cancel} />
@@ -124,12 +125,13 @@ export default function PetParkTerrainBrush(props: Props) {
         top: point.yPct * props.sceneHeight + props.panY,
         width: size * props.scale, height: size * props.scale * parkTerrainHeightRatio(type),
         transform: "translate(-50%, -50%)",
+        filter: erasing ? "hue-rotate(155deg) saturate(2)" : undefined,
       }}><PetParkTerrainDetail type={type} /></div>)}
     {/* Keep the painting canvas visible: a small edge toolbar stays compact
         until the admin explicitly opens tool/ground settings. This does not
         change the full-screen brush's world-coordinate hit surface. */}
     <div aria-label="Pet Park terrain brush controls" data-testid="pet-park-terrain-brush-toolbar"
-      className="pointer-events-auto absolute right-3 z-20 w-[min(260px,calc(100%-24px))] rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-lg"
+      className="pointer-events-auto absolute right-3 z-20 w-[min(310px,calc(100%-24px))] rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-lg"
       style={{ top: "max(100px, calc(env(safe-area-inset-top, 0px) + 72px))" }}
       onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()}>
       <div className="flex items-center gap-1.5">
@@ -142,6 +144,12 @@ export default function PetParkTerrainBrush(props: Props) {
           {showOptions ? "Hide" : "Tools"}
         </button>
         <button type="button" disabled={saving || changingGround || draft.length > 0}
+          aria-pressed={erasing} aria-label="Toggle terrain eraser"
+          onClick={() => setErasing(current => !current)}
+          className={`min-h-10 shrink-0 rounded-lg border px-2 text-xs font-semibold disabled:opacity-40 ${erasing ? "border-red-300 bg-[#5d2a29] text-red-100" : "border-[#b99a4c]/65 bg-[#0b2016]"}`}>
+          {erasing ? "Erase ON" : "Erase"}
+        </button>
+        <button type="button" disabled={saving || changingGround || draft.length > 0}
           onClick={props.onExit} className="min-h-10 shrink-0 rounded-lg border border-[#b99a4c]/65 bg-[#0b2016] px-2.5 text-xs disabled:opacity-40">
           Done
         </button>
@@ -151,7 +159,7 @@ export default function PetParkTerrainBrush(props: Props) {
       </p>}
       {showOptions && <div data-testid="pet-park-terrain-brush-palette"
         className="mt-2 max-h-[min(50dvh,360px)] space-y-3 overflow-y-auto overscroll-contain border-t border-[#b99a4c]/40 pt-2">
-        <p className="text-[11px] text-amber-100/75">Choose a path or plot, then tap or drag on the park. Release to save.</p>
+        <p className="text-[11px] text-amber-100/75">Choose a path or plot, then tap or drag on the park. Release to save. Enable Erase to remove only the selected material.</p>
         <div>
           <p className="mb-1 text-xs font-semibold">Paths, Water & Garden</p>
           <div className="grid grid-cols-2 gap-1.5">

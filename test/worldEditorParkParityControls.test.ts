@@ -32,7 +32,8 @@ test("Being a shop changes functionality, not an on-map badge or label", () => {
   const controls=read("client/src/components/world-editor/WorldSceneControls.tsx");
   assert.doesNotMatch(page, /<span[^>]*>Shop<\/span>/);
   assert.match(controls, /aria-label="Is Shop building"/);
-  assert.match(controls, /openCreator\("shop"\)/);
+  assert.doesNotMatch(controls, /openCreator\("shop"\)/);
+  assert.match(controls, /\+ Add Item to place merchandise and position price tags/);
   // The shelf itself is rendered by the entered-building page, not the toolbar.
   assert.match(page, /<WorldShopShelf/);
 });

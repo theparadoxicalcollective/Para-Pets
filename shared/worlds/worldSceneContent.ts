@@ -1,3 +1,4 @@
+import type { WorldSwimScene } from "./worldSwimAreas";
 import type { SceneMiniPet, MiniPetAnimation } from "../miniPet";
 import type { ParkDecorEffect } from "../petParkDecorEffects";
 import type { ParkShopPlacement } from "../petParkShopPlacements";
@@ -38,7 +39,7 @@ export type WorldSceneInteriorItem = {
   xPct: number; yPct: number; size: number; flipped: boolean; rotation?: number;
 };
 
-export type WorldSceneContent = {
+export type WorldSceneContent = Partial<WorldSwimScene> & {
   miniPets?: SceneMiniPet[];
   assets: WorldSceneAsset[];
   placements: WorldScenePlacement[];

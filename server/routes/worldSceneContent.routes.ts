@@ -1,3 +1,4 @@
+import { loadWorldSwimScene } from "./worldSwimAreas.routes";
 import { loadSceneMiniPets } from "../sceneMiniPets";
 import { isMiniPetAnimation, sceneIdleAnimation } from "@shared/miniPet";
 import type { Express, Request, RequestHandler } from "express";
@@ -110,7 +111,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if (assets.length > MAX_ASSETS || placements.length > MAX_OBJECTS || interiorItems.length > MAX_OBJECTS) {
         return res.status(409).json({ message: "World draft exceeds supported scene limits" });
       }
-      return res.json({ assets, placements, interiorItems, miniPets: await loadSceneMiniPets(db, placements.map(p => p.miniPetId)) });
+      return res.json({ assets, placements, interiorItems, ...await loadWorldSwimScene(db, worldId, placements), miniPets: await loadSceneMiniPets(db, placements.map(p => p.miniPetId)) });
     } catch (error) {
       console.error("[world-editor] scene read failed", error);
       return res.status(500).json({ message: "Could not read private world scene" });

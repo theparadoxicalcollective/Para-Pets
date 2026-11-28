@@ -118,6 +118,7 @@ import { registerPetStateRoutes } from "./routes/petState.routes";
 import { registerPetParkSlotRoutes } from "./routes/petParkSlots.routes";
 import { registerPetParkPlayerRoutes } from "./routes/petParkPlayer.routes";
 import { registerPetParkAdminRoutes } from "./routes/petParkAdmin.routes";
+import { registerWorldSwimAreasRoutes } from "./routes/worldSwimAreas.routes";
 import { registerWorldSceneDraftRoutes } from "./routes/worldSceneDraft.routes";
 import { registerWorldSceneContentRoutes } from "./routes/worldSceneContent.routes";
 import { registerWorldScenePublicationRoutes } from "./routes/worldScenePublication.routes";
@@ -1572,6 +1573,7 @@ export async function registerRoutes(
   registerPetParkSlotRoutes(app, isAuthenticated);
   registerPetParkPlayerRoutes(app, isAuthenticated, applyPetXp);
   registerPetParkAdminRoutes(app, { db, isAdmin, processWorldImage });
+  registerWorldSwimAreasRoutes(app, { db, isAdmin });
   registerWorldSceneDraftRoutes(app, { db, isAdmin });
   registerWorldSceneContentRoutes(app, { db, isAdmin, processWorldImage });
   registerWorldScenePublicationRoutes(app, { db, isAdmin, isAuthenticated });

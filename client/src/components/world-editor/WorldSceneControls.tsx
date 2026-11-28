@@ -21,7 +21,7 @@ import type {
 import type { ParkEffectType } from "@shared/petParkEffects";
 import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 
-type Panel = "library" | "effects" | "selected" | "shop" | "interior" | "npc" | "miniPet" | "settings";
+type Panel = "library" | "effects" | "selected" | "interior" | "npc" | "miniPet" | "settings";
 const EFFECT_CHOICES: Array<{
   type: ParkEffectType; label: string; description: string; size: number; group: "outdoor" | "water";
 }> = [
@@ -56,6 +56,7 @@ type Props = {
   onEnter: (id: string) => void;
   selectedPageAvailable?: boolean;
   onPaint: () => void;
+  onFish: () => void;
   groundTheme: WorldGroundTheme;
   zoom: number;
   minZoom: number;
@@ -69,7 +70,6 @@ export default function WorldSceneControls(props: Props) {
   const [panel, setPanel] = useState<Panel>("library");
   const [busy, setBusy] = useState(false);
   const [pendingDecorRole, setPendingDecorRole] = useState<{ id: string; role: DecorRole } | null>(null);
-  const [search, setSearch] = useState("");
   const [themeDraft, setThemeDraft] = useState<WorldGroundTheme>(props.groundTheme);
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
   const [decorNameDraft, setDecorNameDraft] = useState("");
@@ -122,21 +122,6 @@ export default function WorldSceneControls(props: Props) {
   const currentAsset = props.scene.assets.find(asset => asset.id === props.selected?.assetId);
   const interiorAsset = props.scene.assets.find(asset => asset.id === props.activeBuilding?.assetId);
   useEffect(() => { setBuildingNameDraft(currentAsset?.name ?? ""); }, [currentAsset?.id, currentAsset?.name]);
-  const shopBuilding = props.activeBuilding ??
-    (props.selected?.kind === "building" ? props.selected : null);
-
-  const catalog = useQuery<Array<{ id: string; name: string; type: string }>>({
-    queryKey: [root, "shop-catalog", search],
-    enabled: panel === "shop" && !!shopBuilding,
-    queryFn: async () => {
-      const response = await fetch(`${root}/shop-catalog?q=${encodeURIComponent(search)}`,
-        { credentials: "include" });
-      if (!response.ok) throw new Error("Could not load shop catalog");
-      return response.json();
-    },
-    staleTime: 60_000,
-  });
-
   const mutate = async (method: "POST" | "PATCH" | "DELETE", route: string, data?: unknown) => {
     if (busy) return null;
     setBusy(true);
@@ -291,10 +276,6 @@ export default function WorldSceneControls(props: Props) {
   useEffect(() => {
     setDecorNameDraft(selectedDecorAsset?.name ?? "");
   }, [selectedDecorAsset?.id, selectedDecorAsset?.name, expanded]);
-  const patchShop = async (values: Record<string, unknown>) => {
-    if (!shopBuilding) return;
-    await mutate("PATCH", `/placements/${shopBuilding.id}`, values);
-  };
   const control = "rounded-md border border-[#a88b49]/70 bg-[#21422c] px-2.5 py-2 text-[11px] font-semibold disabled:opacity-40";
   const danger = "rounded-md border border-red-300/40 bg-[#451f25] px-2.5 py-2 text-[11px] text-[#ffd4c9] disabled:opacity-40";
   const field = "w-full rounded-md border border-[#a88b49]/60 bg-[#132a20] p-2 text-xs text-[#f5e5bb]";
@@ -354,7 +335,7 @@ export default function WorldSceneControls(props: Props) {
   return <>
     {!expanded && !props.roomToolsHidden && !selectedItem && !props.shopItemEditing && <div
       data-testid="world-scene-controls" aria-label="World editing toolbar"
-      className={`pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg gap-1.5 ${props.activeBuilding ? (props.activeBuilding.isShop ? "grid-cols-3" : "grid-cols-2") : "grid-cols-3 min-[360px]:grid-cols-4"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg gap-1.5 ${props.activeBuilding ? "grid-cols-2" : "grid-cols-3 min-[360px]:grid-cols-4"}`}
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
       {props.activeBuilding ? <>
@@ -386,21 +367,21 @@ export default function WorldSceneControls(props: Props) {
         </div>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
-        {props.activeBuilding.isShop &&
-          <button type="button" className={quickButton} onClick={() => openCreator("shop")}>Shop Setup</button>}
+        <button type="button" className={quickButton} onClick={props.onFish}>+ Fish</button>
       </> : <>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "building")}>+ Building</button>
         <button type="button" className={quickButton} onClick={() => openCreator("npc")}>+ NPC</button>
         <button type="button" className={quickButton} onClick={() => openCreator("miniPet")}>+ Mini Pet</button>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
+        <button type="button" className={quickButton} onClick={props.onFish}>+ Fish</button>
         <button type="button" className={quickAccent} aria-label="Paint terrain"
           onClick={props.onPaint}>Paint terrain</button>
         <button type="button" className={quickAccent} data-testid="button-world-settings"
           aria-label="World Settings" onClick={() => openCreator("settings")}>World Settings</button>
       </>}
     </div>}
-    {!expanded && selectedItem && !props.roomToolsHidden && <section
+    {!expanded && selectedItem && !props.roomToolsHidden && !props.shopItemEditing && <section
       data-testid="world-scene-selected-controls" aria-label="Move selected world object"
       className="pointer-events-auto absolute inset-x-3 z-30 mx-auto flex max-w-sm flex-col gap-1 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-xl"
       style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
@@ -537,7 +518,6 @@ export default function WorldSceneControls(props: Props) {
               : panel === "npc" ? "Add NPC"
               : panel === "miniPet" ? "Add Mini Pet"
               : panel === "selected" ? "Edit " + selectedName
-              : panel === "shop" ? "Building Shop Setup"
               : panel === "interior" ? "Building Interior" : "World Tools"}
           </h2>
           <button type="button" aria-label="Close editor" onClick={() => setExpanded(false)}
@@ -797,7 +777,7 @@ export default function WorldSceneControls(props: Props) {
             onChange={event => void patchSelected({ isShop: event.target.checked })}/>
         </label>
         <p className="text-[11px] text-amber-100/65">
-          Enter Building and Shop Setup are also available directly on the selected object toolbar.
+          When Is Shop is ON, enter the building and use + Add Item to place merchandise and position price tags.
         </p>
       </div>}
             {props.activeBuilding && <p className="text-xs text-amber-100/80">
@@ -805,33 +785,6 @@ export default function WorldSceneControls(props: Props) {
             </p>}
           </>}
         </div>}
-
-        {panel === "shop" && shopBuilding && <>
-          <h3 className={heading}>Building Shop</h3>
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={shopBuilding.isShop} disabled={busy}
-              onChange={e => void patchShop({ isShop: e.target.checked })} /> Enable shop for future world integration
-          </label>
-          <input aria-label="Search shared item catalog" value={search} onChange={e => setSearch(e.target.value)}
-            className={field} placeholder="Find pets, seeds, tools, items..." />
-          <p className="text-[11px] text-[#ceb98c]">Stock references Para Pets' existing item catalog and shared player inventory. Shops aren't public until their worlds are integrated.</p>
-          {catalog.isLoading ? <p className="text-xs">Loading items...</p> :
-            catalog.isError ? <p className="text-xs">Could not load shared catalog</p> :
-            <div className="max-h-40 overflow-y-auto space-y-1">
-              {(catalog.data ?? []).map(item => <label key={item.id}
-                className="flex items-center gap-2 rounded-md border border-[#5d6f48] p-2 text-[11px]">
-                <input type="checkbox" checked={shopBuilding.shopItemIds.includes(item.id)} disabled={busy}
-                  onChange={e => {
-                    const items = e.target.checked
-                      ? [...shopBuilding.shopItemIds, item.id]
-                      : shopBuilding.shopItemIds.filter(id => id !== item.id);
-                    void patchShop({ shopItemIds: items });
-                  }} />
-                <span className="truncate">{item.name} <span className="opacity-60">({item.type})</span></span>
-              </label>)}
-            </div>}
-          <p className="text-[11px]">Selected stock: {shopBuilding.shopItemIds.length}</p>
-        </>}
 
         {panel === "interior" && props.activeBuilding && <>
           <h3 className={heading}>Interior for {interiorAsset?.name}</h3>

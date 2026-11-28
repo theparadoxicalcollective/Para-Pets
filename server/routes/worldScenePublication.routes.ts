@@ -1,3 +1,4 @@
+import { loadWorldSwimScene } from "./worldSwimAreas.routes";
 import { loadSceneMiniPets } from "../sceneMiniPets";
 import type { Express, RequestHandler } from "express";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
@@ -214,6 +215,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       return res.json({
         worldId, groundLevel: ground.groundLevel, groundTheme: ground.groundTheme,
         assets, placements, interiorItems, linkedPages, npcs: connectedNpcs,
+        ...await loadWorldSwimScene(db, worldId, placements),
         miniPets: await loadSceneMiniPets(db, placements.map(p => p.miniPetId)),
       });
     } catch (error) {

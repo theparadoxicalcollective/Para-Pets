@@ -120,6 +120,7 @@ jobs:
           node script/pet-park-placement-smoke.mjs
           node script/pet-park-live-access-smoke.mjs
           node script/world-editor-smoke.mjs
+          node script/world-swim-fish-smoke.mjs
           node script/world-access-smoke.mjs
           node script/world-editor-attached-page-smoke.mjs
           node script/world-scene-player-smoke.mjs

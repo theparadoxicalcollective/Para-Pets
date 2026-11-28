@@ -26,16 +26,21 @@ test("building/decor editing keeps placement, stock, retirement and lighting act
   for(const key of ["world-edit-decor-effects","world-decoration-tap-image-editor",
     "world-edit-original-hotspot","world-edit-building-effects","world-edit-building-artwork",
     "world-water-effect-options"])assert.ok(c.includes(key));
-  for(const key of ["Enter Building","Shop Setup","Add world effects","Duplicate",
+  for(const key of ["Enter Building","+ Add Item","Add world effects","Duplicate",
     "useWorldLegacyPages","onInteriorDarknessCommit","onInteriorPreviewClockChange",
     "patchInterior","world-editor-interior-darkness-slider"])assert.ok(c.includes(key),key);
   assert.ok(!c.includes("390×844"));
 });
 test("interior colored lamps use the same darkness cutouts as indoor lamp lights",()=>{
-  const s=src("client/src/pages/WorldSceneEditorPage.tsx");
+  const s=src("client/src/lib/worldInteriorLighting.ts");
   assert.match(s,/item\.effectType === "colored_light"/);
   assert.match(s,/type: \(item\.effectType === "colored_light" \? "lamp_light"/);
-  assert.match(s,/<HomeInteriorDarknessLayer/);
+  for (const page of ["WorldSceneEditorPage", "WorldScenePlayerPage"]) {
+    const component = src("client/src/pages/" + page + ".tsx");
+    assert.match(component, /worldInteriorLights\(/);
+    assert.match(component, /<HomeInteriorDarknessLayer/);
+    assert.match(component, /zIndex: kind === "decor" \? 1 : 3/);
+  }
 });
 test("World and Pet Park lights and fireflies retain aligned size and scene coordinates",()=>{
   const scene={width:1000,height:1000,scale:1};
