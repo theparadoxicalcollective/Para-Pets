@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PetParkTerrain from "@/components/PetParkTerrain";
+import { worldWaterStyle } from "@/lib/petParkWaterTexture";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import PetParkGardenMenu, { type GardenOwnedItem } from "@/components/PetParkGardenMenu";
 import PetParkCropArtwork from "@/components/PetParkCropArtwork";
@@ -503,6 +504,7 @@ export default function WorldScenePlayerPage({
         <PetParkTerrain cacheRasterTiles
           groundTheme={worldGroundRenderTheme(groundTheme)}
           groundPalette={worldGroundPalette(groundTheme)}
+          waterStyle={worldWaterStyle(worldId)}
           viewportWidth={viewport.width} viewportHeight={viewport.height}
           worldWidth={camera.worldWidth} worldHeight={camera.worldHeight}
           scale={camera.scale} panX={actualPan.x} panY={actualPan.y}

@@ -7,10 +7,16 @@ import { readHauntedFishingSpot } from "../client/src/lib/hauntedFishingSpot";
 const world = HAUNTED_WOODS_WORLD_ID;
 const asset = { worldId: world, name: HAUNTED_FISH_LEADERBOARD_DECOR_NAME, kind: "decor", imageUrl: "/art.png" };
 
-test("the exact Haunted Woods Fish Leaderboard decoration opens the fishing leaderboard", () => {
+test("the exact Haunted Woods fishing leaderboard decoration names open the fishing leaderboard", () => {
   assert.equal(resolveWorldSceneAction(world, "decor", asset), "fishing-leaderboard");
   assert.equal(resolveWorldSceneAction(world, "decor", { ...asset, name: "  FISH LEADERBOARD  " }), "fishing-leaderboard");
-  for (const name of ["Fish", "Fish Leaderboard Sign", "Fishing Shop", "Haunted Casino"])
+  for (const name of ["Fishing Leaderboard", "  FISHING LEADERBOARD  ", "Haunted Fishing Leaderboard",
+    "Haunted Forest Fishing Leaderboard", "HAUNTED WOODS FISHING LEADERBOARD"]) {
+    assert.equal(resolveWorldSceneAction(world, "decor", { ...asset, name }), "fishing-leaderboard");
+    assert.equal(resolveWorldSceneAction("swamp", "decor", { ...asset, worldId: "swamp", name }), null);
+    assert.equal(resolveWorldSceneAction(world, "decor", { ...asset, worldId: "swamp", name }), null);
+  }
+  for (const name of ["Fish", "Fish Leaderboard Sign", "Fishing Leaderboard Sign", "Fishing Shop", "Haunted Casino"])
     assert.equal(resolveWorldSceneAction(world, "decor", { ...asset, name }), null);
   for (const kind of ["building", "npc", "terrain", "effect"])
     assert.equal(resolveWorldSceneAction(world, kind, asset), null);

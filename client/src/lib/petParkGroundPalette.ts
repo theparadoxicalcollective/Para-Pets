@@ -35,12 +35,12 @@ export const PARK_GROUND_PALETTES: Record<ParkGroundTheme, ParkGroundPalette> = 
     strokeLight: "rgba(153,153,145,.21)", strokeDark: "rgba(10,22,25,.5)",
   },
   swamp: {
-    base: "#394b38", rgb: [57, 75, 56],
-    washLight: "rgba(125,140,71,.22)", washLightMid: "rgba(118,122,59,.09)",
-    washDark: "rgba(23,53,37,.4)", washDarkMid: "rgba(28,56,38,.19)",
-    facetLight: "rgba(154,149,77,.068)", facetDark: "rgba(13,40,26,.13)",
-    patchLight: "rgba(150,153,75,.12)", patchDark: "rgba(19,49,32,.25)",
-    strokeLight: "rgba(164,170,99,.29)", strokeDark: "rgba(18,48,32,.48)",
+    base: "#263a2a", rgb: [38, 58, 42],
+    washLight: "rgba(83,113,65,.23)", washLightMid: "rgba(74,98,58,.10)",
+    washDark: "rgba(10,36,24,.43)", washDarkMid: "rgba(17,43,28,.21)",
+    facetLight: "rgba(110,126,74,.07)", facetDark: "rgba(7,29,19,.14)",
+    patchLight: "rgba(104,130,75,.12)", patchDark: "rgba(11,36,22,.28)",
+    strokeLight: "rgba(127,152,95,.26)", strokeDark: "rgba(9,34,21,.48)",
   },
   volcanic: {
     base: "#332d31", rgb: [51, 45, 49],

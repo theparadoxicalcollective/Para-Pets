@@ -53,11 +53,13 @@ try {
     const reads=[],writes=[],errors=[];
     page.on("pageerror",e=>errors.push(e.message));
     let primaryStatus=200, fallbackStatus=200;
+    const boardName=name==="phone"?"Fishing Leaderboard":"Haunted Forest Fishing Leaderboard";
+    const fixtureScene={...scene,assets:scene.assets.map(a=>a.id==="board-art"?{...a,name:boardName}:a)};
     await page.route("**/api/**",route=>{
       const req=route.request(),path=new URL(req.url()).pathname;
       (req.method()==="GET"?reads:writes).push(path);
-      if(path==="/api/worlds/haunted_woods/player-scene")return route.fulfill({json:scene});
-      if(path==="/api/worlds/swamp/player-scene")return route.fulfill({json:{...scene,assets:scene.assets.map(a=>({...a,worldId:"swamp"})),placements:scene.placements.map(p=>({...p,worldId:"swamp"}))}});
+      if(path==="/api/worlds/haunted_woods/player-scene")return route.fulfill({json:fixtureScene});
+      if(path==="/api/worlds/swamp/player-scene")return route.fulfill({json:{...fixtureScene,assets:fixtureScene.assets.map(a=>({...a,worldId:"swamp"})),placements:fixtureScene.placements.map(p=>({...p,worldId:"swamp"}))}});
       if(path==="/api/auth/me")return route.fulfill({json:{id:"qa",username:"QA",coins:100,isAdmin:false}});
       if(path==="/api/fishing/leaderboard/haunted_woods")return route.fulfill({json:leaderboard});
       if(path===`/api/location/${wraithwater}`||path===`/api/location/${moonveil}`){
@@ -77,6 +79,7 @@ try {
     await board.waitFor({state:"visible",timeout:30000});
     assert.equal(await object("ordinary").isDisabled(),true);
     assert.equal(await object("shimmer").isDisabled(),true);
+    assert.equal(await board.isEnabled(),true,boardName+" must be tappable");
     await board.tap();
     await panel.getByText("HAUNTED HOOKS",{exact:true}).waitFor();
     await panel.getByText("Ghost Angler",{exact:true}).waitFor();

@@ -5,8 +5,8 @@ import sharp from "sharp";
 import { PET_PARK_GROUND_THEMES, isParkGroundTheme, parkGroundTheme, parkGroundSize } from "../shared/petParkGround";
 import { PARK_TERRAIN_DETAIL_OPTIONS, isPaintableParkTerrainDetail, isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "../shared/petParkTerrainDetails";
 import { PARK_GROUND_PALETTES } from "../client/src/lib/petParkGroundPalette";
-import { dirtPatchWorldRect, exposedDirtEdges, paintConnectedPaths } from "../client/src/components/PetParkTerrain";
-import { PARK_WATER_BASE, PARK_WATER_TEXTURE_URL } from "../client/src/lib/petParkWaterTexture";
+import { dirtPatchWorldRect, exposedDirtEdges, paintConnectedPaths, waterPathGeometry } from "../client/src/components/PetParkTerrain";
+import { PARK_WATER_BASE, PARK_WATER_TEXTURE_URL, PARK_WATER_APPEARANCE, worldWaterStyle } from "../client/src/lib/petParkWaterTexture";
 import { parkExtendPathStroke, parkPathPoint, parkPathGrid } from "../client/src/lib/petParkTerrainBrush";
 
 const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
@@ -20,6 +20,7 @@ const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.t
 test("five named ground styles use the original green default, stable geometric world and distinct palettes", () => {
   assert.deepEqual(PET_PARK_GROUND_THEMES.map(x => x.type), ["grass", "snow", "haunted", "swamp", "volcanic"]);
   assert.equal(PARK_GROUND_PALETTES.grass.base, "#2c4934");
+  assert.equal(PARK_GROUND_PALETTES.swamp.base, "#263a2a");
   assert.equal(parkGroundTheme(undefined), "grass");
   assert.equal(parkGroundTheme("<script>"), "grass");
   assert.equal(isParkGroundTheme("snow"), true);
@@ -83,7 +84,7 @@ function tracedContext() {
   const trace: string[] = [];
   const ctx = {
     save() {}, restore() {}, translate() {}, scale() {}, beginPath() {},
-    moveTo() {}, lineTo() {}, closePath() {}, rect() {},
+    moveTo() {}, lineTo() {}, quadraticCurveTo() { trace.push("curve"); }, closePath() {}, rect() {},
     clip() { trace.push("clip"); }, fill() { trace.push("fill"); },
     createPattern(_image: HTMLImageElement, repetition: string) {
       trace.push("pattern:" + repetition); return {};
@@ -159,7 +160,7 @@ test("water texture is a lightweight opaque teal surface with soft, seamless rep
   assert.ok(edgeDifference < interiorDifference * .8 + 3 * (width + height));
   assert.match(PARK_WATER_BASE, /^#[0-9a-f]{6}$/);
   const preview = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
-  assert.match(preview, /PARK_WATER_TEXTURE_URL/);
+  assert.match(preview, /PARK_WATER_APPEARANCE\[waterStyle\]\.textureUrl/);
   assert.match(painter, /previous.waterTexture !== waterTexture/, "late texture loading must invalidate cached player rasters");
 });
 
@@ -173,4 +174,64 @@ test("theme persists as an admin-only scene property, never as a paint stamp or 
   assert.doesNotMatch(routes.slice(routes.indexOf('app.patch("/api/admin/pet-park/ground-theme"'),routes.indexOf('app.post("/api/admin/pet-park/buildings"')), /petParkDeposits|petParkSceneItems|groundLevel|coinsPerHour/);
   assert.match(painter, /className="pointer-events-none absolute"/, "overscanned ground still cannot intercept gameplay gestures");
   assert.match(painter, /canvas\.style\.left = -marginX/, "overscan offsets the raster without shifting terrain placements");
+});
+
+test("water rounds free convex corners only, leaving shared and overlapping contacts intact", () => {
+  const width = 1000, height = 1000;
+  const tile = (x: number, y: number, size = 200) => ({ xPct: x / width, yPct: y / height, size });
+  const a = tile(400, 400), b = tile(500, 450);
+  const geometry = (stamps: ReturnType<typeof tile>[]) => waterPathGeometry(stamps, width, height);
+  const key = (x: number, y: number) => x * 1000 + ":" + y * 1000;
+  assert.equal(geometry([a]).roundedCorners.size, 4);
+  assert.deepEqual(geometry([a, a]).roundedCorners, geometry([a]).roundedCorners);
+  const adjacent = geometry([a, b]);
+  assert.equal(adjacent.roundedCorners.size, 4);
+  assert.ok(!adjacent.roundedCorners.has(key(500,400)));
+  assert.ok(!adjacent.roundedCorners.has(key(400,450)));
+  // A point-touch, partial overlap or smaller stamp must never be cut apart.
+  assert.ok(!geometry([a,tile(600,400)]).roundedCorners.has(key(500,400)));
+  assert.ok(!geometry([a,tile(535,400,100)]).roundedCorners.has(key(500,400)));
+  assert.ok(!geometry([a,tile(490,410,80)]).roundedCorners.has(key(500,400)));
+  assert.equal(geometry([a,tile(800,800)]).roundedCorners.size, 8);
+  const view = { worldWidth: width, worldHeight: height, viewportWidth: 1000, viewportHeight: 1000, scale: 1, panX: 0, panY: 0 };
+  const direct = tracedContext(), cached = tracedContext(), stone = tracedContext();
+  paintConnectedPaths(direct.ctx, view, [a,b], "water_path");
+  paintConnectedPaths(cached.ctx, view, [a,b], "water_path", "grass", undefined, adjacent.edges, undefined, "teal", adjacent);
+  paintConnectedPaths(stone.ctx, view, [a,b], "stone_path");
+  assert.deepEqual(direct.trace,cached.trace);
+  assert.equal(direct.trace.filter(x=>x==="curve").length,4);
+  assert.ok(!stone.trace.includes("curve"));
+});
+
+test("world-specific water variants retain the original dimensions, lightweight seamless surface and proper color", async () => {
+  assert.equal(worldWaterStyle("haunted_woods"),"haunted");
+  assert.equal(worldWaterStyle("volcanic"),"volcanic");
+  for (const world of ["swamp","forest","city","snow","unknown"]) assert.equal(worldWaterStyle(world),"teal");
+  const original = await sharp("client/public" + PARK_WATER_TEXTURE_URL).raw().toBuffer();
+  for (const theme of ["haunted","volcanic"] as const) {
+    const file = readFileSync("client/public" + PARK_WATER_APPEARANCE[theme].textureUrl);
+    assert.ok(file.length < 80 * 1024);
+    const {data,info} = await sharp(file).raw().toBuffer({resolveWithObject:true});
+    assert.deepEqual([info.width,info.height,info.channels],[768,512,3]);
+    let tinted=0, difference=0;
+    for (let i=0;i<data.length;i+=3) {
+      const [r,g,b]=[data[i],data[i+1],data[i+2]];
+      if (theme==="haunted" ? b>g+10 && r>g+5 : r>g+20 && r>b+20) tinted++;
+      difference+=Math.abs(data[i]-original[i]);
+    }
+    assert.ok(tinted > info.width*info.height*.9);
+    assert.ok(difference > info.width*info.height*10);
+    let seam=0;
+    const pixel=(x:number,y:number,c:number)=>data[(y*info.width+x)*3+c];
+    for(let c=0;c<3;c++){
+      for(let y=0;y<info.height;y++) seam+=Math.abs(pixel(0,y,c)-pixel(info.width-1,y,c));
+      for(let x=0;x<info.width;x++) seam+=Math.abs(pixel(x,0,c)-pixel(x,info.height-1,c));
+    }
+    assert.ok(seam/(3*(info.width+info.height))<5);
+  }
+  for (const page of ["WorldSceneEditorPage","WorldScenePlayerPage"]) {
+    assert.match(readFileSync("client/src/pages/"+page+".tsx","utf8"), /waterStyle=\{worldWaterStyle\(worldId\)\}/);
+  }
+  assert.match(readFileSync("client/src/components/world-editor/WorldTerrainBrush.tsx","utf8"), /waterStyle=\{worldWaterStyle\(props.worldId\)\}/);
+  assert.match(painter,/previous.view.waterStyle !== view.waterStyle/);
 });

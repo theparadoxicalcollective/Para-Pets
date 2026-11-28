@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetParkTerrain from "@/components/PetParkTerrain";
+import { worldWaterStyle } from "@/lib/petParkWaterTexture";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
@@ -737,6 +738,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       {!activeBuilding ? <>
         <PetParkTerrain groundTheme={worldGroundRenderTheme(groundTheme)}
           groundPalette={worldGroundPalette(groundTheme)}
+          waterStyle={worldWaterStyle(worldId)}
           viewportWidth={size.width} viewportHeight={size.height}
           worldWidth={camera.worldWidth} worldHeight={camera.worldHeight}
           scale={camera.scale} panX={actualPan.x} panY={actualPan.y}

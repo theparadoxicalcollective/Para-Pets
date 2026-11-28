@@ -1,6 +1,6 @@
 import { SceneMiniPetPicker, SceneIdleAnimationSelector } from "@/components/SceneCharacterControls";
 import { sceneIdleAnimation, type SceneMiniPet, type MiniPetAnimation } from "@shared/miniPet";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -75,6 +75,36 @@ export default function WorldSceneControls(props: Props) {
   const [decorNameDraft, setDecorNameDraft] = useState("");
   const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [expanded, setExpanded] = useState(false);
+  const creatorScrollRef = useRef<HTMLDivElement>(null);
+  // The existing device stage already tracks the visual viewport when the
+  // keyboard opens. Keep a focused name field in the sheet's own scroll area,
+  // including when the stage shrinks or Safari pans its visual viewport.
+  useEffect(() => {
+    const scroller = creatorScrollRef.current;
+    if (!expanded || !scroller) return;
+    let frame = 0;
+    const revealFocusedName = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const input = document.activeElement;
+        if (!(input instanceof HTMLInputElement) ||
+            !input.hasAttribute("data-world-name-input") || !scroller.contains(input)) return;
+        const visible = scroller.getBoundingClientRect();
+        const group = input.closest("[data-world-name-field]")?.getBoundingClientRect();
+        const bounds = group && group.height <= visible.height - 24 ? group : input.getBoundingClientRect();
+        if (bounds.top < visible.top + 12) scroller.scrollTop += bounds.top - visible.top - 12;
+        else if (bounds.bottom > visible.bottom - 12) scroller.scrollTop += bounds.bottom - visible.bottom + 12;
+      });
+    };
+    const observer = new ResizeObserver(revealFocusedName);
+    observer.observe(scroller);
+    scroller.addEventListener("focusin", revealFocusedName);
+    return () => {
+      observer.disconnect();
+      scroller.removeEventListener("focusin", revealFocusedName);
+      cancelAnimationFrame(frame);
+    };
+  }, [expanded, panel]);
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
   const root = `/api/admin/world-editor/${props.worldId}`;
   const npcCatalog = useWorldNpcCatalog(!props.activeBuilding);
@@ -268,6 +298,9 @@ export default function WorldSceneControls(props: Props) {
   const control = "rounded-md border border-[#a88b49]/70 bg-[#21422c] px-2.5 py-2 text-[11px] font-semibold disabled:opacity-40";
   const danger = "rounded-md border border-red-300/40 bg-[#451f25] px-2.5 py-2 text-[11px] text-[#ffd4c9] disabled:opacity-40";
   const field = "w-full rounded-md border border-[#a88b49]/60 bg-[#132a20] p-2 text-xs text-[#f5e5bb]";
+  // 16 CSS pixels prevents mobile Safari's input-focus zoom; keep the normal
+  // text selection/callout rather than treating name editing as a map gesture.
+  const nameField = "w-full min-h-11 rounded-md border border-[#a88b49]/60 bg-[#132a20] p-2 text-base text-[#f5e5bb] select-text touch-auto";
   const disclosure = "space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-3 [&>summary]:cursor-pointer [&>summary]:select-none [&>summary]:min-h-9 [&>summary]:flex [&>summary]:items-center [&>summary]:font-semibold [&>summary]:text-[#f5d98e] [&>summary]:text-xs";
   const heading = "text-xs font-semibold text-[#f7d783]";
 
@@ -489,13 +522,13 @@ export default function WorldSceneControls(props: Props) {
         </details>
       </div>
     </section>}
-    {expanded && panel !== "settings" && <div className="fixed inset-0 z-[90] flex items-end justify-center"
+    {expanded && panel !== "settings" && <div className="absolute inset-0 z-[90] flex items-end justify-center"
       role="dialog" aria-modal="true"
       aria-label={panel === "library" ? "Add world object" : panel === "effects" ? "Add world effects" : "Edit world object"}>
       <button type="button" aria-label="Close add object" className="absolute inset-0 bg-black/65"
         onClick={() => setExpanded(false)} />
       <section data-testid="world-scene-creator-panel"
-        className="relative z-10 flex max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#10291d] font-fantasy text-amber-100 shadow-2xl"
+        className="relative z-10 flex min-h-0 max-h-[min(78%,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#10291d] font-fantasy text-amber-100 shadow-2xl"
         onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
           <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
@@ -510,7 +543,7 @@ export default function WorldSceneControls(props: Props) {
           <button type="button" aria-label="Close editor" onClick={() => setExpanded(false)}
             className="rounded-full border border-amber-500/35 bg-amber-500/15 px-3 py-2 text-[#f5cf64]">×</button>
         </div>
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+        <div ref={creatorScrollRef} data-testid="world-scene-creator-scroll" className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain scroll-py-3 px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
         {panel === "library" && <WorldSceneCreateForm
           key={`${props.worldId}:${props.activeBuilding?.id ?? "world"}:${assetKindFilter ?? "decor"}`}
           worldId={props.worldId}
@@ -619,9 +652,11 @@ export default function WorldSceneControls(props: Props) {
               Close this panel to move the selected object. Size, flip and duplicate stay available on the scene.
             </p>
       {selectedDecorAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-3"
-        data-testid="world-decoration-name-editor">
+        data-testid="world-decoration-name-editor" data-world-name-field>
         <label className="block space-y-1 text-xs font-semibold">Decoration Name
-          <input value={decorNameDraft} maxLength={80} disabled={busy} className={field}
+          <input type="text" name="world-decoration-label" autoComplete="off" autoCorrect="off" spellCheck={false}
+            data-world-name-input data-ios-edge-control="true"
+            value={decorNameDraft} maxLength={80} disabled={busy} className={nameField}
             onChange={event => setDecorNameDraft(event.target.value)} />
         </label>
         <button type="button" className={control}
@@ -706,15 +741,19 @@ export default function WorldSceneControls(props: Props) {
             effects={props.selected.decorEffects} disabled={busy}
             onChange={effects => void patchSelected({ decorEffects: effects })}/>
         </details>}
-        <label className="block space-y-1 text-xs">Building Name
-          <input aria-label="Rename world building" value={buildingNameDraft}
-            onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
-            className={field}/>
-        </label>
-        <button type="button" className={control}
-          disabled={busy || !buildingNameDraft.trim() || buildingNameDraft === currentAsset?.name}
-          onClick={() => currentAsset && void mutate("PATCH", `/assets/${currentAsset.id}`,
-            { name: buildingNameDraft.trim() })}>Save Name</button>
+        <div className="space-y-2" data-world-name-field>
+          <label className="block space-y-1 text-xs">Building Name
+            <input type="text" name="world-building-label" autoComplete="off" autoCorrect="off" spellCheck={false}
+              data-world-name-input data-ios-edge-control="true"
+              aria-label="Rename world building" value={buildingNameDraft}
+              onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
+              disabled={busy} className={nameField}/>
+          </label>
+          <button type="button" className={control}
+            disabled={busy || !buildingNameDraft.trim() || buildingNameDraft === currentAsset?.name}
+            onClick={() => currentAsset && void mutate("PATCH", `/assets/${currentAsset.id}`,
+              { name: buildingNameDraft.trim() })}>Save Name</button>
+        </div>
         {currentAsset && <details className={disclosure} data-testid="world-edit-building-artwork">
           <summary>Exterior &amp; interior artwork</summary>
           <div className="space-y-2 pt-2">
