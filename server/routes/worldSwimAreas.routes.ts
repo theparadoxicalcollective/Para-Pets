@@ -6,7 +6,8 @@ import { readSwimAreas, swimAreaKey, validSwimAreas, type WorldSwimArea, type Wo
 import type { db as database } from "../db";
 
 type Store = typeof database;
-const catalogFields = { id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl, facingDirection: shopItems.facingDirection };
+const catalogFields = { id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl, facingDirection: shopItems.facingDirection,
+  starRarity: shopItems.starRarity, fishSwimZone: shopItems.fishSwimZone };
 const fishFilter = () => and(eq(shopItems.type, "fishing"), eq(shopItems.fishingType, "fish"), isNotNull(shopItems.imageUrl), ne(shopItems.imageUrl, ""));
 const fishIds = (areas: WorldSwimArea[]) => [...new Set(areas.flatMap(a => a.fish.map(f => f.fishId)))];
 async function referencedFish(db: Store, areas: WorldSwimArea[]) {

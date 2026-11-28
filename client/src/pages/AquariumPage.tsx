@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientPointInStageElement } from "@/lib/stage";
+import { aquariumFishSize, confineAquariumFish, makeSwimmer, stepAquariumFish, type AqFishEntry, type SwimmingFish } from "@/lib/aquariumFishMotion";
+import { fishArtFacingScale, isBottomFish } from "@/lib/fishSwimMotion";
 import aquariumBg from "@assets/bg_aquarium.png";
 import bayouAquariumBg from "@assets/C98FF13A-0E53-4BA8-9036-24139DA75818_1783394294636.png";
 import volcanicAquariumBg from "@assets/731E39C0-FA17-469A-BD4E-7DCAF0456B7A_1783402475912.png";
@@ -19,41 +21,7 @@ interface AqCaughtFish {
   item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null; fishSwimZone?: string | null; hasParts?: boolean; isSeaAnimal?: boolean } | null;
 }
 
-interface AqFishEntry {
-  id: string;
-  shopItemId: string;
-  name: string;
-  imageUrl: string | null;
-  starRarity: number | null;
-  facingDirection: string | null;
-  fishSwimZone?: string | null;
-  hasParts?: boolean;
-  isSeaAnimal?: boolean;
-}
-
-interface SwimmingFish extends AqFishEntry {
-  x: number;
-  y: number;
-  vx: number;
-  targetVx: number;
-  wobble: number;
-  wobbleSpeed: number;
-  facingRight: boolean;
-  baseSpeed: number;
-  state: "normal" | "fast" | "chasing" | "fleeing";
-  stateTimer: number;
-  chaseTargetId?: string;
-  targetY?: number;
-  targetYTimer?: number;
-}
-
-const BOTTOM_FLOOR_MIN = 76;
-const BOTTOM_FLOOR_MAX = 94;
-const BOTTOM_VISIT_MIN = 50;
-const BOTTOM_VISIT_MAX = 65;
-const BOTTOM_HARD_MIN = BOTTOM_VISIT_MIN;
-const BOTTOM_HARD_MAX = BOTTOM_FLOOR_MAX;
-
+const EMPTY_FISH: AqCaughtFish[] = [];
 const AQ_MAX = 30;
 const AQ_TEAL = "#5eead4";
 const BAYOU_PRICE = 20000;
@@ -65,40 +33,6 @@ const AQUARIUM_CONFIG: Record<"bayou" | "volcanic", { label: string; price: numb
   bayou:    { label: "Bayou Aquarium",    price: BAYOU_PRICE,    bg: bayouAquariumBg,    desc: "A murky second tank — 30 fish capacity" },
   volcanic: { label: "Volcanic Aquarium", price: VOLCANIC_PRICE, bg: volcanicAquariumBg, desc: "A smoldering deep-sea tank — 30 fish capacity" },
 };
-
-function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
-  const tier = Math.random();
-  const isBottom = entry.fishSwimZone === "bottom";
-  const speedMultiplier = isBottom ? 0.55 : 0.70;
-  const rawSpeed = tier < 0.33
-    ? 0.050 + Math.random() * 0.020
-    : tier < 0.67
-    ? 0.085 + Math.random() * 0.030
-    : 0.130 + Math.random() * 0.035;
-  const baseSpeed = rawSpeed * speedMultiplier;
-  const startsRight = entry.facingDirection !== "left";
-  const defaultY = isBottom
-    ? BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN)
-    : 26 + Math.random() * 44;
-  const initialVx = startsRight ? baseSpeed : -baseSpeed;
-  return {
-    ...entry,
-    x: x ?? (Math.random() * 80),
-    y: y ?? defaultY,
-    vx: initialVx,
-    targetVx: initialVx,
-    wobble: Math.random() * Math.PI * 2,
-    wobbleSpeed: 0.022 + Math.random() * 0.014,
-    facingRight: startsRight,
-    baseSpeed,
-    state: "normal",
-    stateTimer: 60 + Math.floor(Math.random() * 120),
-    targetY: isBottom
-      ? BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN)
-      : undefined,
-    targetYTimer: isBottom ? 200 + Math.floor(Math.random() * 400) : undefined,
-  };
-}
 
 const FISH_PARTS_CANVAS = 500;
 const FISH_RENDER_SIZE = 220;
@@ -145,7 +79,7 @@ interface FishPartData {
   zIndex: number;
 }
 
-function FishPartsView({ fishItemId, size, flipped, isSeaAnimal }: { fishItemId: string; size: number; flipped: boolean; isSeaAnimal: boolean }) {
+const FishPartsView = React.memo(function FishPartsView({ fishItemId, size, flipped, isSeaAnimal }: { fishItemId: string; size: number; flipped: boolean; isSeaAnimal: boolean }) {
   const { data: parts = [] } = useQuery<FishPartData[]>({
     queryKey: ["/api/fish-parts", fishItemId],
     queryFn: async () => {
@@ -190,7 +124,7 @@ function FishPartsView({ fishItemId, size, flipped, isSeaAnimal }: { fishItemId:
       </div>
     </div>
   );
-}
+});
 
 export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: () => void; userId: string; readOnly?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -246,12 +180,12 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
     });
   }, [aqDefaultKey, queryClient, readOnly]);
 
-  const { data: ownFishInventory = [] } = useQuery<AqCaughtFish[]>({
+  const { data: ownFishInventory = EMPTY_FISH } = useQuery<AqCaughtFish[]>({
     queryKey: ["/api/fishing/inventory"],
     staleTime: 30000,
     enabled: !readOnly,
   });
-  const fishInventory = readOnly ? (visitorData?.fish ?? []) : ownFishInventory;
+  const fishInventory = readOnly ? (visitorData?.fish ?? EMPTY_FISH) : ownFishInventory;
 
   const { data: unlocksData } = useQuery<{ unlocks: string[] }>({
     queryKey: ["/api/aquarium/unlocks"],
@@ -288,7 +222,8 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
   const [swimmers, setSwimmers] = useState<SwimmingFish[]>([]);
   const aquariumFishRef = useRef(aquariumFish);
   aquariumFishRef.current = aquariumFish;
-  const swimZoneRef = useRef<Map<string, string | null>>(new Map());
+  const [tankSize, setTankSize] = useState({ width: 1, height: 1 });
+  const tankSizeRef = useRef(tankSize);
 
   const addFishMutation = useMutation({
     mutationFn: async ({ shopItemId, slot }: { shopItemId: string; slot: AquariumSlot }) => {
@@ -365,150 +300,41 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
     },
   });
 
-  useEffect(() => {
-    const itemByShopId = new Map(fishInventory.map(f => [f.shopItemId, f.item]));
-    const newZoneMap = new Map<string, string | null>();
-    itemByShopId.forEach((item, id) => {
-      newZoneMap.set(id, item?.fishSwimZone ?? null);
-    });
-    swimZoneRef.current = newZoneMap;
-    setSwimmers(prev => prev.map(s => {
-      const item = itemByShopId.get(s.shopItemId);
-      if (!item) return s;
-      const zone = item.fishSwimZone ?? s.fishSwimZone ?? null;
-      const isBottom = zone === "bottom";
-      const yMin = isBottom ? BOTTOM_HARD_MIN : 22;
-      const yMax = isBottom ? BOTTOM_HARD_MAX : 71;
-      return { ...s, name: item.name ?? s.name, imageUrl: item.imageUrl ?? s.imageUrl, starRarity: item.starRarity ?? s.starRarity, facingDirection: item.facingDirection ?? s.facingDirection, fishSwimZone: zone, hasParts: item.hasParts ?? s.hasParts, isSeaAnimal: item.isSeaAnimal ?? s.isSeaAnimal, y: Math.max(yMin, Math.min(yMax, s.y)) };
-    }));
-  }, [fishInventory]);
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const measure = () => {
+      const width = Math.max(1, element.clientWidth), height = Math.max(1, element.clientHeight);
+      if (width === tankSizeRef.current.width && height === tankSizeRef.current.height) return;
+      tankSizeRef.current = { width, height };
+      setTankSize(tankSizeRef.current);
+      setSwimmers(prev => prev.map(f => confineAquariumFish(f, width, height)));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setSwimmers(prev => {
-      const existingMap = new Map(prev.map(s => [s.id, s]));
-      const aquariumIds = new Set(aquariumFish.map(f => f.id));
-      const result: SwimmingFish[] = aquariumFish.map(f => {
-        const existing = existingMap.get(f.id);
-        if (!existing) return makeSwimmer(f);
-        const isBottom = (existing.fishSwimZone ?? f.fishSwimZone) === "bottom";
-        const yMin = isBottom ? BOTTOM_HARD_MIN : 22;
-        const yMax = isBottom ? BOTTOM_HARD_MAX : 71;
-        return { ...existing, fishSwimZone: f.fishSwimZone, y: Math.max(yMin, Math.min(yMax, existing.y)) };
+      const existing = new Map(prev.map(f => [f.id, f]));
+      return aquariumFish.map(entry => {
+        const swimmer = existing.get(entry.id);
+        return confineAquariumFish(swimmer ? { ...swimmer, ...entry } : makeSwimmer(entry), tankSizeRef.current.width, tankSizeRef.current.height);
       });
-      return result.filter(s => aquariumIds.has(s.id));
     });
   }, [aquariumFish]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setSwimmers(prev => {
-        const posMap = new Map(prev.map(f => [f.id, { x: f.x, y: f.y }]));
-        let updated = prev.map(f => {
-          let { x, y, vx, targetVx, wobble, wobbleSpeed, facingRight, baseSpeed, state, stateTimer, chaseTargetId } = f;
-          stateTimer = Math.max(0, stateTimer - 1);
-          if (stateTimer === 0) {
-            if (state === "chasing") {
-              facingRight = !facingRight;
-              targetVx = (facingRight ? 1 : -1) * baseSpeed;
-              state = "normal"; chaseTargetId = undefined;
-              stateTimer = 80 + Math.floor(Math.random() * 120);
-            } else if (state === "fleeing") {
-              targetVx = (facingRight ? 1 : -1) * baseSpeed;
-              state = "normal"; chaseTargetId = undefined;
-              stateTimer = 80 + Math.floor(Math.random() * 120);
-            } else if (state === "fast") {
-              state = "normal";
-              targetVx = (facingRight ? 1 : -1) * baseSpeed;
-              stateTimer = 80 + Math.floor(Math.random() * 140);
-            } else {
-              if (Math.random() < 0.20) {
-                state = "fast";
-                targetVx = (facingRight ? 1 : -1) * baseSpeed * 1.8;
-                stateTimer = 20 + Math.floor(Math.random() * 35);
-              } else {
-                stateTimer = 100 + Math.floor(Math.random() * 160);
-              }
-            }
-          }
-          if (state === "chasing" && chaseTargetId) {
-            const target = posMap.get(chaseTargetId);
-            if (target) {
-              const chaseSpeed = baseSpeed * 1.8;
-              const dx = target.x - x;
-              if (dx > 2)       { targetVx = chaseSpeed;  facingRight = true; }
-              else if (dx < -2) { targetVx = -chaseSpeed; facingRight = false; }
-            }
-          }
-          if (state === "fleeing" && chaseTargetId) {
-            const target = posMap.get(chaseTargetId);
-            if (target) {
-              const fleeSpeed = baseSpeed * 3.4;
-              const dx = target.x - x;
-              if (dx > 2)       { targetVx = -fleeSpeed; facingRight = false; }
-              else if (dx < -2) { targetVx = fleeSpeed;  facingRight = true; }
-            }
-          }
-          vx += (targetVx - vx) * 0.08;
-          wobble = (wobble + wobbleSpeed) % (Math.PI * 2);
-          const sineY = Math.sin(wobble) * 0.012;
-          x += vx;
-          const zone = swimZoneRef.current.get(f.shopItemId) ?? f.fishSwimZone ?? null;
-          const isBottom = zone === "bottom";
-          const yMin = isBottom ? BOTTOM_HARD_MIN : 22;
-          const yMax = isBottom ? BOTTOM_HARD_MAX : 71;
-          let { targetY, targetYTimer } = f;
-          if (isBottom) {
-            targetYTimer = (targetYTimer ?? 0) - 1;
-            if (targetY === undefined || targetYTimer <= 0) {
-              const goVisit = Math.random() < 0.15;
-              if (goVisit) {
-                targetY = BOTTOM_VISIT_MIN + Math.random() * (BOTTOM_VISIT_MAX - BOTTOM_VISIT_MIN);
-                targetYTimer = 120 + Math.floor(Math.random() * 180);
-              } else {
-                targetY = BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN);
-                targetYTimer = 300 + Math.floor(Math.random() * 600);
-              }
-            }
-            const dy = (targetY ?? y) - y;
-            y = y + dy * 0.012 + sineY;
-            y = Math.max(yMin, Math.min(yMax, y));
-          } else {
-            y = Math.max(yMin, Math.min(yMax, y + sineY));
-          }
-          if (x < 5)  { x = 5;  vx = Math.abs(vx);  facingRight = true; }
-          if (x > 91) { x = 91; vx = -Math.abs(vx); facingRight = false; }
-          if (x <= 5 || x >= 91) targetVx = vx;
-          return { ...f, x, y, vx, targetVx, wobble, wobbleSpeed, facingRight, baseSpeed, state, stateTimer, chaseTargetId, targetY, targetYTimer };
-        });
-
-        const activeChasers = updated.filter(f => f.state === "chasing").length;
-        if (activeChasers < 1) {
-          for (let i = 0; i < updated.length; i++) {
-            if (updated[i].state !== "normal") continue;
-            const iRarity = updated[i].starRarity ?? 1;
-            if (iRarity < 3) continue;
-            for (let j = 0; j < updated.length; j++) {
-              if (i === j || updated[j].state !== "normal") continue;
-              const jRarity = updated[j].starRarity ?? 1;
-              if (iRarity < jRarity) continue;
-              if (iRarity === jRarity && Math.random() < 0.5) continue;
-              const dx = updated[i].x - updated[j].x;
-              const dy = (updated[i].y - updated[j].y) * 1.5;
-              if (Math.hypot(dx, dy) < 12) {
-                if (Math.random() < 0.002) {
-                  const chaseTimer = 150 + Math.floor(Math.random() * 100);
-                  updated[i] = { ...updated[i], state: "chasing", chaseTargetId: updated[j].id, stateTimer: chaseTimer };
-                  updated[j] = { ...updated[j], state: "fleeing",  chaseTargetId: updated[i].id, stateTimer: chaseTimer };
-                }
-                break;
-              }
-            }
-          }
-        }
-        return updated;
-      });
+    let tick = 0;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const id = window.setInterval(() => {
+      if (motion.matches || document.hidden) return;
+      const nextTick = ++tick;
+      setSwimmers(prev => prev.length ? stepAquariumFish(prev, nextTick, tankSizeRef.current.width, tankSizeRef.current.height) : prev);
     }, 20);
-    return () => clearInterval(id);
+    return () => window.clearInterval(id);
   }, []);
 
   const addFish = useCallback((fish: Omit<AqFishEntry, "id">) => {
@@ -641,29 +467,28 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
 
       {/* Swimming fish */}
       {!isLocked && swimmers.map(f => {
-        const rarity = f.starRarity ?? 1;
-        const fishSize = f.hasParts
-          ? (rarity >= 5 ? 160 : rarity === 4 ? 145 : 130)
-          : (rarity >= 5 ? 78  : rarity === 4 ? 65  : 54);
+        const fishSize = aquariumFishSize(f, tankSize.width, tankSize.height);
+        const flipped = fishArtFacingScale(f.facingDirection, f.facingRight) === -1;
         return (
           <button
             key={f.id}
             onClick={() => { if (!readOnly) setPendingRemove(f); }}
             title="Tap fish"
+            data-aquarium-fish={f.id} data-fish-species={f.shopItemId} data-fish-zone={f.fishSwimZone ?? "full"} data-fish-rarity={f.starRarity ?? 1} data-fish-schooling={String(!!f.schooling)}
             style={{
               position: "absolute",
               left: `${f.x}%`, top: `${f.y}%`,
               width: fishSize, height: fishSize,
-              transform: "translate(-50%,-50%)",
+              transform: isBottomFish(f) ? "translate(-50%,-100%)" : "translate(-50%,-50%)",
               background: "none", border: "none", outline: "none",
               WebkitTapHighlightColor: "transparent",
               cursor: readOnly ? "default" : "pointer", padding: 0, zIndex: 10,
             }}
           >
             {f.hasParts
-              ? <FishPartsView fishItemId={f.shopItemId} size={fishSize} flipped={((f.facingDirection !== "left") !== f.facingRight)} isSeaAnimal={f.isSeaAnimal ?? false} />
+              ? <FishPartsView fishItemId={f.shopItemId} size={fishSize} flipped={flipped} isSeaAnimal={f.isSeaAnimal ?? false} />
               : f.imageUrl
-                ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />
+                ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: flipped ? "scaleX(-1)" : undefined }} draggable={false} />
                 : <img src={fishInvIconPH} alt="" style={{ width: 34, height: 34, objectFit: "contain", opacity: 0.7, pointerEvents: "none", userSelect: "none" }} draggable={false} />}
           </button>
         );

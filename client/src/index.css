@@ -4427,38 +4427,45 @@ img[data-interactive], button img, a img {
   .park-water-shimmer-surface { animation: none; }
 }
 
-/* World fish share the scene camera, with compositor-only movement and no JS
-   animation timers. Each track stays within its authored, clipped swim area. */
+/* World fish share the existing scene camera; two compositor transforms
+   interpolate bounded paths and turn at exactly the matching waypoint. */
 .world-swim-track {
   position: absolute;
   left: 0;
-  transform: translateX(var(--swim-start));
-  animation: world-swim-traverse var(--swim-duration) var(--swim-delay) ease-in-out infinite;
-}
-.world-swim-bob {
-  width: 100%;
-  height: 100%;
-  animation: world-swim-bob 3.6s ease-in-out infinite;
+  top: 0;
+  transform: translate3d(var(--swim-x0),var(--swim-y0),0);
+  animation: world-swim-traverse var(--swim-duration) ease-in-out infinite;
 }
 .world-swim-sprite {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transform: scaleX(var(--swim-facing));
-  animation: world-swim-turn var(--swim-duration) var(--swim-delay) step-end infinite;
+  transform: scaleX(var(--swim-face0));
+  animation: world-swim-turn var(--swim-duration) step-end infinite;
 }
 @keyframes world-swim-traverse {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(var(--swim-travel)); }
+  0% { transform: translate3d(var(--swim-x0),var(--swim-y0),0); }
+  12.5% { transform: translate3d(var(--swim-x1),var(--swim-y1),0); }
+  25% { transform: translate3d(var(--swim-x2),var(--swim-y2),0); }
+  37.5% { transform: translate3d(var(--swim-x3),var(--swim-y3),0); }
+  50% { transform: translate3d(var(--swim-x4),var(--swim-y4),0); }
+  62.5% { transform: translate3d(var(--swim-x5),var(--swim-y5),0); }
+  75% { transform: translate3d(var(--swim-x6),var(--swim-y6),0); }
+  87.5% { transform: translate3d(var(--swim-x7),var(--swim-y7),0); }
+  100% { transform: translate3d(var(--swim-x8),var(--swim-y8),0); }
 }
 @keyframes world-swim-turn {
-  0%, 100% { transform: scaleX(var(--swim-facing)); }
-  50% { transform: scaleX(calc(-1 * var(--swim-facing))); }
-}
-@keyframes world-swim-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(calc(-1 * var(--swim-wobble))); }
+  0% { transform: scaleX(var(--swim-face0)); }
+  12.5% { transform: scaleX(var(--swim-face1)); }
+  25% { transform: scaleX(var(--swim-face2)); }
+  37.5% { transform: scaleX(var(--swim-face3)); }
+  50% { transform: scaleX(var(--swim-face4)); }
+  62.5% { transform: scaleX(var(--swim-face5)); }
+  75% { transform: scaleX(var(--swim-face6)); }
+  87.5% { transform: scaleX(var(--swim-face7)); }
+  100% { transform: scaleX(var(--swim-face0)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .world-swim-track, .world-swim-bob, .world-swim-sprite { animation: none; }
+  .world-swim-track, .world-swim-sprite { animation: none; }
 }
