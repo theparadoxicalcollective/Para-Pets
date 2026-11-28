@@ -33,6 +33,8 @@ import HomePage from "@/pages/HomePage";
 import LoadingScreen from "@/components/LoadingScreen";
 import DesktopComingSoonScreen from "@/components/DesktopComingSoonScreen";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
+import NewWorldLoadingOverlay from "@/components/world/NewWorldLoadingOverlay";
+import { playerWorldSceneQuery } from "@/lib/playerWorldScene";
 import type { WorldScenePublication } from "@shared/worlds/worldScenePublication";
 import { isKnownWorldId } from "@shared/worlds/worldRegistry";
 import { shouldUseLegacyWorld, worldLockedForPlayer } from "@shared/worlds/worldAccess";
@@ -146,7 +148,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
       return res.json();
     },
     staleTime: 2 * 60 * 1000,
-    enabled: isThemed,
+    enabled: isThemed && !newWorldActive,
   });
 
   useEffect(() => {
@@ -162,6 +164,12 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
     });
   }, [worldId, legacyView, locked]);
 
+  useEffect(() => {
+    if (newWorldActive && (staff || (!publicationLoading && !publicationError && !locked))) {
+      void queryClient.prefetchQuery(playerWorldSceneQuery(worldId));
+    }
+  }, [worldId, newWorldActive, staff, publicationLoading, publicationError, locked]);
+
   const dismissHauntedWelcome = () => {
     if (hauntedWelcomeKey) {
       try { localStorage.setItem(hauntedWelcomeKey, "seen"); } catch {}
@@ -176,6 +184,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const worldUser = worldId === "haunted_woods" ? { ...user, isModerator: true } : user;
 
   if (!staff && (publicationLoading || publicationError || locked)) {
+    if (publicationLoading && newWorldActive) return <NewWorldLoadingOverlay worldId={worldId} ready={false} onReady={() => {}} />;
     return <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#10291d] p-6 text-center text-[#f5d77b]">
       <h2 data-testid="world-access-message" className="font-fantasy text-xl">
         {publicationLoading ? "Loading world…" : publicationError ? "Could not load world access" : "🔒 Coming Soon"}
@@ -186,20 +195,19 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
 
   return (
     <>
-      {/* WorldPage keeps rendering/fetching underneath even while hidden, so its
-          data (locations, background image) is fully ready the instant the
-          loading screen fades out. `visibility: hidden` (not z-index alone) is
-          used so WorldPage's own raw content/spinner can never flash through
-          before the themed loading screen paints — same technique as the
-          HomePage base layer above. */}
-      <div style={{ visibility: !isThemed || screenDone ? "visible" : "hidden", width: "100%", height: "100%" }}>
+      {/* New worlds paint their actual scene underneath a translucent overlay.
+          Only explicit legacy views retain the original cinematic loader and
+          hidden-first background. */}
+      <div style={{ visibility: !isThemed || screenDone || newWorldActive ? "visible" : "hidden", width: "100%", height: "100%" }}>
         {(!publicationLoading || staff) && (newWorldActive
-          ? <WorldScenePlayerPage worldId={worldId} onContentReady={() => setWorldReady(true)} />
+          ? <Suspense fallback={null}><WorldScenePlayerPage worldId={worldId} onContentReady={() => setWorldReady(true)} /></Suspense>
           : <WorldPage key={legacyLocationId ?? "original"} user={worldUser} onContentReady={() => setWorldReady(true)} />)}
       </div>
       {!screenDone && (
         <ViewportModalPortal>
-          <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
+          {newWorldActive
+            ? <NewWorldLoadingOverlay worldId={worldId} ready={worldReady} onReady={() => setScreenDone(true)} />
+            : <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />}
         </ViewportModalPortal>
       )}
       {screenDone && canReturnToEditor && (

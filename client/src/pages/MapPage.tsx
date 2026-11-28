@@ -1,3 +1,4 @@
+import { playerWorldSceneQuery } from "@/lib/playerWorldScene";
 import { useState, useRef, useCallback } from "react";
 import { dragScenePercentage } from "@/lib/coordinateContracts";
 import { useLocation } from "wouter";
@@ -364,7 +365,10 @@ export default function MapPage({ user }: MapPageProps) {
     }
     setSelectedWorldId(w.id);
     setNavigatingWorldId(w.id);
-    setTimeout(() => navigate(`/world/${w.id}`), 800);
+    if (isEditableWorldSceneId(w.id)) {
+      void queryClient.prefetchQuery(playerWorldSceneQuery(w.id));
+      navigate(`/world/${w.id}`);
+    } else setTimeout(() => navigate(`/world/${w.id}`), 800);
   };
 
   return (
