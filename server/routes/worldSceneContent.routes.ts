@@ -7,6 +7,7 @@ import { defaultWorldSceneDraft, isEditableWorldSceneId } from "@shared/worlds/w
 import {
   worldArtworkError, worldArtworkRequestFits, WORLD_SCENE_MAX_ASSETS, validPosition, validSize, validLayer, validSceneId,
   validDecorEffects, validEffect, validInteriorEffectColor, validPlacementTransform, validShopIds,
+  validWorldSceneRotation, canRotateWorldSceneKind,
   isWorldTerrainType, WORLD_TERRAIN_BRUSH_SIZES, worldTerrainCell,
 } from "@shared/worlds/worldSceneContent";
 import { parkGroundSize } from "@shared/petParkGround";
@@ -293,6 +294,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       isWaterSource = false, decorSurface = "barrier", isShop = false, legacyLocationId = null, shopItemIds = [], npcId = null } = body;
     if (!["decor", "building", "effect", "npc"].includes(kind) ||
       !validPlacementTransform(body) || !validDecorEffects(decorEffects) ||
+      (!canRotateWorldSceneKind(kind) && (body.rotation ?? 0) !== 0) ||
       typeof isWaterSource !== "boolean" || !isDecorSurface(decorSurface) || typeof isShop !== "boolean" ||
       !validShopIds(shopItemIds)) {
       return res.status(400).json({ message: "Invalid placement details" });
@@ -348,7 +350,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         npcId: kind === "npc" ? npcId : null, effectType,
         effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
-        flipped: body.flipped, layer: body.layer,
+        flipped: body.flipped, rotation: body.rotation ?? 0, layer: body.layer,
         decorEffects, isWaterSource: sameType?.isWaterSource ?? isWaterSource,
         decorSurface: sameType?.decorSurface ?? decorSurface,
         isShop, legacyLocationId, shopItemIds, shopItemPlacements: [],
@@ -379,6 +381,11 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if ("flipped" in body) {
         if (typeof body.flipped !== "boolean") return res.status(400).json({ message: "Invalid flip setting" });
         changes.flipped = body.flipped;
+      }
+      if ("rotation" in body) {
+        if (!canRotateWorldSceneKind(saved.kind) || !validWorldSceneRotation(body.rotation))
+          return res.status(400).json({ message: "Invalid artwork rotation" });
+        changes.rotation = body.rotation;
       }
       if ("layer" in body) {
         if (!validLayer(body.layer)) return res.status(400).json({ message: "Invalid layer" });
@@ -597,7 +604,9 @@ export function registerWorldSceneContentRoutes(app: Express, {
     const body = req.body ?? {};
     if (!validSceneId(body.buildingId) || !["decor", "effect"].includes(body.kind) ||
         !validPosition(body.xPct) || !validPosition(body.yPct) ||
-        !validSize(body.size) || typeof body.flipped !== "boolean") {
+        !validSize(body.size) || typeof body.flipped !== "boolean" ||
+        (body.rotation !== undefined && !validWorldSceneRotation(body.rotation)) ||
+        (body.kind !== "decor" && (body.rotation ?? 0) !== 0)) {
       return res.status(400).json({ message: "Invalid interior item" });
     }
     try {
@@ -623,7 +632,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         assetId: body.kind === "decor" ? body.assetId : null,
         effectType: body.kind === "effect" ? body.effectType : null,
         effectColor: body.effectColor ?? null,
-        xPct: body.xPct, yPct: body.yPct, size: body.size, flipped: body.flipped,
+        xPct: body.xPct, yPct: body.yPct, size: body.size, flipped: body.flipped, rotation: body.rotation ?? 0,
       }).returning();
       return res.status(201).json(created);
     } catch (error) {
@@ -659,6 +668,11 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if ("flipped" in body) {
         if (typeof body.flipped !== "boolean") return res.status(400).json({ message: "Invalid flip" });
         changes.flipped = body.flipped;
+      }
+      if ("rotation" in body) {
+        if (saved.kind !== "decor" || !validWorldSceneRotation(body.rotation))
+          return res.status(400).json({ message: "Invalid interior artwork rotation" });
+        changes.rotation = body.rotation;
       }
       if (!Object.keys(changes).length) return res.status(400).json({ message: "No changes supplied" });
       const [updated] = await db.update(worldSceneInteriorItems).set(changes).where(

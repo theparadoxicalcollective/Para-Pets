@@ -25,6 +25,7 @@ import {
   worldEditorCameraGeometry, worldEditorClampCamera, worldEditorMinZoom, worldEditorZoomAnchorPan,
 } from "@/lib/worldEditorCamera";
 import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/worldScenePublication";
+import { worldSceneRotationCss, worldSceneRotatedSquareExtent } from "@shared/worlds/worldSceneContent";
 import type { WorldSceneAsset, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
 import { resolveWorldSceneAction, resolveWorldSceneInteriorAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
 import WorldSceneArtwork from "@/components/world/WorldSceneArtwork";
@@ -405,7 +406,8 @@ export default function WorldScenePlayerPage({
       const y = cullY + p.yPct * camera.sceneHeight + PLAYER_WORLD_CULL_CELL;
       const size = p.size * camera.scale;
       const height = p.kind === "terrain" ? size * parkTerrainHeightRatio(p.effectType) : size;
-      const { visible, nearby } = playerWorldArtworkVisibility(x, y, size, height, cullViewport);
+      const rotatedExtent = worldSceneRotatedSquareExtent(size, p.rotation);
+      const { visible, nearby } = playerWorldArtworkVisibility(x, y, rotatedExtent, p.rotation ? rotatedExtent : height, cullViewport);
       // Attached glows and effects can extend beyond the artwork square.
       // Keep the original wider effect boundary so they don't pop out at
       // the edges of the viewport, while deferring distant raster art.
@@ -431,7 +433,7 @@ export default function WorldScenePlayerPage({
         className="absolute pointer-events-none"
         style={{
           left: p.xPct * camera.sceneWidth, top: p.yPct * camera.sceneHeight, width: size, height,
-          transform: "translate(-50%,-50%)",
+          transform: `translate(-50%,-50%)${worldSceneRotationCss(p.rotation)}`,
           zIndex: p.kind === "effect" ? 12_000_000 : p.kind === "terrain" ? 1 : decorDrawDepth(p, parkDepthIndex({
             kind: p.kind === "building" ? "building" : "item", yPct: p.yPct,
             worldHeight: camera.worldHeight, size: p.size, contact: .9,
@@ -705,7 +707,7 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
         return <div key={item.id} data-testid={`player-new-world-interior-item-${item.id}`}
           className="absolute pointer-events-none" style={{
             left: item.xPct * width, top: item.yPct * height, width: size, height: size,
-            transform: `translate(-50%,-50%)${item.flipped ? " scaleX(-1)" : ""}`,
+            transform: `translate(-50%,-50%)${worldSceneRotationCss(item.rotation)}${item.flipped ? " scaleX(-1)" : ""}`,
             zIndex: Math.round(item.yPct * 10000),
           }}>
           {size > 0 && asset && (isSoulStone ? <button type="button"
@@ -727,7 +729,7 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
     </div>}
     {soulStone && <Suspense fallback={<div role="status" className="pointer-events-none absolute inset-x-3 bottom-3 rounded-lg border border-[#b99952] bg-[#122a20]/95 p-3 text-center text-amber-100">Opening Soul Exchange…</div>}>
       <WorldSceneSoulExchange key={soulStone.id} stoneRef={soulStoneRef}
-        geometryKey={`${width}:${height}:${pan.x}:${pan.y}:${soulStone.xPct}:${soulStone.yPct}:${soulStone.size}`}
+        geometryKey={`${width}:${height}:${pan.x}:${pan.y}:${soulStone.xPct}:${soulStone.yPct}:${soulStone.size}:${soulStone.rotation ?? 0}`}
         onClose={() => setSoulStoneId(null)} />
     </Suspense>}
   </div>;

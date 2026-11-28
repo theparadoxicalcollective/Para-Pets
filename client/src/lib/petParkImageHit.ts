@@ -9,15 +9,24 @@ const ALPHA_THRESHOLD = 12;
 const cached = new Map<string, Uint8ClampedArray | null>();
 
 export function parkImageHitAt(
-  image: HTMLImageElement, clientX: number, clientY: number, flipped = false,
+  image: HTMLImageElement, clientX: number, clientY: number, flipped = false, rotation = 0,
 ): boolean {
   if (!image.complete || !image.naturalWidth || !image.naturalHeight) return false;
   const rect = image.getBoundingClientRect();
   if (!rect.width || !rect.height) return false;
-  const scale = Math.min(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
+  // World artwork is rotated around its square center, after mirroring.
+  // Unrotate the pointer and recover the unrotated square from its bounding
+  // box before applying object-contain and the existing alpha mask.
+  const radians = rotation * Math.PI / 180;
+  const cos = Math.cos(radians), sin = Math.sin(radians);
+  const extent = Math.abs(cos) + Math.abs(sin);
+  const boxWidth = rect.width / extent, boxHeight = rect.height / extent;
+  const dx = clientX - (rect.left + rect.width / 2);
+  const dy = clientY - (rect.top + rect.height / 2);
+  const scale = Math.min(boxWidth / image.naturalWidth, boxHeight / image.naturalHeight);
   const width = image.naturalWidth * scale, height = image.naturalHeight * scale;
-  let x = (clientX - rect.left - (rect.width - width) / 2) / width;
-  const y = (clientY - rect.top - (rect.height - height) / 2) / height;
+  let x = (dx * cos + dy * sin) / width + 0.5;
+  const y = (-dx * sin + dy * cos) / height + 0.5;
   if (x < 0 || x > 1 || y < 0 || y > 1) return false;
   if (flipped) x = 1 - x;
 

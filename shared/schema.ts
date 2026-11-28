@@ -1715,6 +1715,7 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(100),
   flipped: boolean("flipped").notNull().default(false),
+  rotation: integer("rotation").notNull().default(0),
   layer: integer("layer").notNull().default(0),
   decorEffects: jsonb("decor_effects").$type<ParkDecorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   isWaterSource: boolean("is_water_source").notNull().default(false),
@@ -1739,6 +1740,7 @@ export const worldSceneInteriorItems = pgTable("world_scene_interior_items", {
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(100),
   flipped: boolean("flipped").notNull().default(false),
+  rotation: integer("rotation").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

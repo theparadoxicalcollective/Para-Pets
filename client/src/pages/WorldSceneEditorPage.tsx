@@ -38,6 +38,7 @@ import type { WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import { worldGroundPalette, worldGroundRenderTheme } from "@/lib/worldGroundPalette";
 import type { ParkEffectType } from "@shared/petParkEffects";
 
+import { worldSceneRotationCss } from "@shared/worlds/worldSceneContent";
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
 } from "@shared/worlds/worldSceneContent";
@@ -435,7 +436,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     if (!event.isPrimary || (event.button !== 0 && event.pointerType === "mouse") ||
         busyPlacement || paintMode || objectDrag.current) return false;
     const image = selectedImage === undefined ? event.currentTarget.querySelector("img") : selectedImage;
-    if (image && !parkImageHitAt(image, event.clientX, event.clientY, item.flipped)) return false;
+    if (image && !parkImageHitAt(image, event.clientX, event.clientY, item.flipped, item.rotation)) return false;
     if (kind === "outdoor" && selectedId !== item.id) return false;
     if (kind === "interior") {
       if (!roomArtworkReady || interiorDrag.current) return false;
@@ -774,7 +775,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                   contact: 0.9,
                 }), 2),
                 pointerEvents: p.kind === "terrain" ? "none" : undefined,
-                transform: "translate(-50%, -50%)",
+                transform: `translate(-50%, -50%)${worldSceneRotationCss(p.rotation)}`,
 
               }}
               aria-label={asset?.name ?? npc?.name ?? p.effectType ?? p.kind}
@@ -855,7 +856,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             className="absolute touch-none rounded border border-transparent focus-visible:border-[#f5ce73]"
             style={{
               left: pos.xPct * interiorW, top: pos.yPct * interiorH, width: px, height: px,
-              transform: "translate(-50%, -50%)", zIndex: Math.round(pos.yPct * 10000),
+              transform: `translate(-50%, -50%)${worldSceneRotationCss(item.rotation)}`, zIndex: Math.round(pos.yPct * 10000),
 
             }}
             onPointerDown={event => startObject(event, item, "interior")}
