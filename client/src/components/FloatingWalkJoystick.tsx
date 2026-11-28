@@ -12,14 +12,16 @@ export const FLOATING_WALK_JOYSTICK_SIZE = 72;
 export const FLOATING_WALK_JOYSTICK_EDGE_GAP = 8;
 
 export default function FloatingWalkJoystick({
-  center, offset,
+  center, offset, worldId,
 }: {
+  worldId?: string;
   center: { x: number; y: number };
   offset: { x: number; y: number };
 }) {
   return (
     <div
       data-testid="floating-joystick"
+      data-world-theme={worldId}
       aria-hidden="true"
       className="floating-walk-joystick"
       style={{ left: center.x, top: center.y } as CSSProperties}

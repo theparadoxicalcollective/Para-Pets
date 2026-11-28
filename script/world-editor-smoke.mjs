@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createServer } from "vite";
+import sharp from "sharp";
 import { chromium } from "playwright";
 
 // Exercises the REAL WorldSceneEditorPage with mocked, isolated admin endpoints.
@@ -102,6 +103,7 @@ function makeScene(worldId) {
       terrainKey: "garden_plot:150:0:0", xPct: .5, yPct: .53, size: 150 },
     { ...common, id: ids.spring, kind: "terrain", effectType: "water_path",
       terrainKey: "water_path:150:1:1", xPct: .62, yPct: .5, size: 150 },
+    { ...common, id: "test-water-ripple", kind: "effect", effectType: "water_ripple", xPct: .47, yPct: .60, size: 100 },
     { ...common, id: ids.colored, kind: "effect", effectType: "colored_light",
       effectColor: "#7b5cff", xPct: .50, yPct: .25, size: 80 },
   ];
@@ -327,6 +329,41 @@ try {
       throw error;
     }
     await page.getByRole("button", { name: "+ Building" }).waitFor({ state: "visible" });
+    const placedRipple = page.getByTestId("world-scene-placement-test-water-ripple").locator(".park-water-effect--water_ripple");
+    await placedRipple.waitFor();
+    assert.equal(await placedRipple.evaluate(el => getComputedStyle(el, ":before").borderTopColor), "rgba(190, 197, 239, 0.8)");
+    // The real admin editor is pinned to night in this fixture. Confirm the
+    // shared water surface is still visible and changing under that darkness.
+    const shimmer = page.getByTestId("park-water-shimmer");
+    await shimmer.waitFor({ state: "visible" });
+    const shimmerSurface = shimmer.locator(".park-water-shimmer-surface");
+    await page.waitForFunction(() => {
+      const element = document.querySelector(".park-water-shimmer-surface");
+      return element && element.getAnimations().length === 1 &&
+        getComputedStyle(element).animationPlayState === "running";
+    });
+    const worldArt = await page.locator("[data-world-editor-artwork]").boundingBox();
+    const waterCenter = { x: worldArt.x + .62 * worldArt.width, y: worldArt.y + .5 * worldArt.height };
+    const waterWidth = Math.round(worldArt.width * 150 / 1800 * .48);
+    const waterHeight = Math.round(waterWidth / 2);
+    const clip = { x: Math.round(waterCenter.x - waterWidth/2), y: Math.round(waterCenter.y - waterHeight/2), width: waterWidth, height: waterHeight };
+    const waterPhase = async phase => {
+      await shimmerSurface.evaluate((element, phase) => {
+        const animation = element.getAnimations()[0];
+        animation.pause();
+        animation.currentTime = Number(animation.effect.getTiming().duration) * phase;
+      }, phase);
+      return sharp(await page.screenshot({clip})).removeAlpha().raw().toBuffer();
+    };
+    const beforeRipple = await waterPhase(0);
+    let meanRipple = 0;
+    for (const phase of [.33,.67,1]) {
+      const afterRipple = await waterPhase(phase);
+      meanRipple = Math.max(meanRipple, beforeRipple.reduce((sum, value, i) => sum + Math.abs(value - afterRipple[i]), 0) / beforeRipple.length);
+    }
+    assert.ok(meanRipple > .5, name + ": visible water movement at night, pixel difference " + meanRipple);
+    await shimmerSurface.evaluate(element => element.getAnimations()[0].play());
+
 
     // Mobile software keyboards shrink/shift the visible app stage without
     // necessarily changing layout viewport units. Exercise the real editor

@@ -250,7 +250,10 @@ test("water shimmer reuses rounded geometry and culls offscreen stamps without c
   assert.equal(metadata.hasAlpha,true);
   assert.deepEqual([metadata.width,metadata.height],[384,256]);
   const css=readFileSync("client/src/index.css","utf8");
-  assert.match(css,/animation: park-water-drift 12s/);
+  const { channels } = await sharp(asset).stats();
+  // A real highlight, not just an animation clock on nearly transparent pixels.
+  assert.ok(channels[3].mean >= 20 && channels[3].max >= 120);
+  assert.match(css,/animation: park-water-drift 8s/);
   assert.match(css,/park-water-shimmer\[data-camera-preview="true"\]/);
   assert.match(css,/prefers-reduced-motion: reduce\) \{\s*\.park-water-shimmer/);
 });

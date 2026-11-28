@@ -60,7 +60,10 @@ function ParkWaterfallMist({ reducedMotion }: { reducedMotion: boolean }) {
 
 const WATER_CSS = [
   ".park-water-effect { width:100%; height:100%; position:relative; overflow:hidden; pointer-events:none; isolation:isolate; }",
-  ".park-water-effect--water_ripple:before,.park-water-effect--water_ripple:after { content:\"\"; position:absolute; inset:25% 10%; border:3px solid rgba(232,252,255,.7); border-radius:47% 53% 44% 56% / 54% 45% 55% 46%; box-shadow:0 0 0 1px rgba(21,107,124,.45),0 0 9px rgba(179,247,255,.5),inset 0 0 8px rgba(45,123,139,.3); animation:parkRipple 4.5s ease-out infinite; }",
+  ".park-water-effect--water_ripple:before,.park-water-effect--water_ripple:after { content:\"\"; position:absolute; inset:25% 10%; border:3px solid var(--park-ripple-rim,rgba(232,252,255,.7)); border-radius:47% 53% 44% 56% / 54% 45% 55% 46%; box-shadow:0 0 0 1px var(--park-ripple-edge,rgba(21,107,124,.45)),0 0 9px var(--park-ripple-glow,rgba(179,247,255,.5)),inset 0 0 8px var(--park-ripple-inner,rgba(45,123,139,.3)); animation:parkRipple 4.5s ease-out infinite; }",
+  // Inherit the world palette even for nested artwork and editor previews.
+  '[data-world-water-style="haunted"] .park-water-effect--water_ripple { --park-ripple-rim:rgba(190,197,239,.8); --park-ripple-edge:rgba(65,68,125,.55); --park-ripple-glow:rgba(147,154,232,.65); --park-ripple-inner:rgba(113,119,187,.4); }',
+  '[data-world-water-style="volcanic"] .park-water-effect--water_ripple { --park-ripple-rim:rgba(255,196,95,.8); --park-ripple-edge:rgba(157,43,26,.55); --park-ripple-glow:rgba(255,124,50,.65); --park-ripple-inner:rgba(222,91,33,.4); }',
   ".park-water-effect--water_ripple:after { animation-delay:-2.25s; }",
   "@keyframes parkRipple { 0% { transform:scale(.22); opacity:0; } 25% { opacity:.8; } 100% { transform:scale(1.4); opacity:0; } }",
   // One discreet droplet, no heavy rain or splash. A long idle phase keeps

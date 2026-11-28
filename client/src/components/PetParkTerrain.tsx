@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ParkGroundTheme } from "@shared/petParkGround";
 import { PARK_GROUND_PALETTES, type ParkGroundPalette } from "@/lib/petParkGroundPalette";
 import {
@@ -284,7 +284,10 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     [view.stonePatches, view.worldWidth, view.worldHeight]);
   const waterGeometry = useMemo(() => waterPathGeometry(view.waterPatches ?? [], view.worldWidth, view.worldHeight),
     [view.waterPatches, view.worldWidth, view.worldHeight]);
-  useEffect(() => {
+  // Reproject the existing bitmap in the same commit as the artwork layer.
+  // A passive effect could leave terrain and scenery one displayed frame apart.
+  // New raster generation still uses the existing overscan/idle schedule.
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || view.viewportWidth < 2 || view.viewportHeight < 2) return;
     const marginX = view.viewportWidth * 0.18;

@@ -59,7 +59,10 @@ try {
       const req=route.request(),path=new URL(req.url()).pathname;
       (req.method()==="GET"?reads:writes).push(path);
       if(path==="/api/worlds/haunted_woods/player-scene")return route.fulfill({json:fixtureScene});
-      if(path==="/api/worlds/swamp/player-scene")return route.fulfill({json:{...fixtureScene,assets:fixtureScene.assets.map(a=>({...a,worldId:"swamp"})),placements:fixtureScene.placements.map(p=>({...p,worldId:"swamp"}))}});
+      if(path==="/api/worlds/swamp/player-scene"||path==="/api/worlds/volcanic/player-scene"){
+        const worldId=path.split("/")[3];
+        return route.fulfill({json:{...fixtureScene,assets:fixtureScene.assets.map(a=>({...a,worldId})),placements:fixtureScene.placements.map(p=>({...p,worldId}))}});
+      }
       if(path==="/api/auth/me")return route.fulfill({json:{id:"qa",username:"QA",coins:100,isAdmin:false}});
       if(path==="/api/fishing/leaderboard/haunted_woods")return route.fulfill({json:leaderboard});
       if(path===`/api/location/${wraithwater}`||path===`/api/location/${moonveil}`){
@@ -77,6 +80,8 @@ try {
     const board=object("board"), ripple=object("ripple"), modal=page.getByTestId("world-scene-fishing-dialog");
     const panel=page.getByTestId("fishing-leaderboard-panel"), fishing=page.getByTestId("fishing-page");
     await board.waitFor({state:"visible",timeout:30000});
+    const rippleRim=()=>ripple.locator(".park-water-effect--water_ripple").evaluate(el=>getComputedStyle(el,":before").borderTopColor);
+    assert.equal(await rippleRim(),"rgba(190, 197, 239, 0.8)");
     assert.equal(await object("ordinary").isDisabled(),true);
     assert.equal(await object("shimmer").isDisabled(),true);
     assert.equal(await board.isEnabled(),true,boardName+" must be tappable");
@@ -138,6 +143,10 @@ try {
     await page.goto("http://127.0.0.1:4203/world/swamp",{waitUntil:"commit"});
     await object("board").waitFor();
     for(const id of ["board","ripple","ripple2","shimmer","ordinary"])assert.equal(await object(id).isDisabled(),true);
+    assert.equal(await rippleRim(),"rgba(232, 252, 255, 0.7)");
+    await page.goto("http://127.0.0.1:4203/world/volcanic",{waitUntil:"commit"});
+    await ripple.waitFor();
+    assert.equal(await rippleRim(),"rgba(255, 196, 95, 0.8)");
     assert.deepEqual(writes,[],"opening linked fishing UI never mutates progression");
     assert.deepEqual(errors,[],"no browser errors");
     await context.close();

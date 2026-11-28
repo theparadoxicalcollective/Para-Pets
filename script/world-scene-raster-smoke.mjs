@@ -187,7 +187,10 @@ try{
     const second=await scene.screenshot();
     assert.notEqual(transformBefore,transformAfter,"texture drifts rather than animating the entire map");
     assert.equal(await canvas.evaluate(el=>el.toDataURL()),rasterBefore,"motion does not repaint the terrain");
-    assert.ok((await diff(first,second)).mean>0,"actual water surface pixels move");
+    const rippleBounds={left:70*2,top:88*2,width:60*2,height:24*2};
+    const rippleDiff=await diff(await sharp(first).extract(rippleBounds).png().toBuffer(),
+      await sharp(second).extract(rippleBounds).png().toBuffer());
+    assert.ok(rippleDiff.mean>2,JSON.stringify({mode,style,rippleDiff}));
     assert.deepEqual(await pixelAt(first,100,61),await pixelAt(second,100,61),"rounded shore tip remains still");
     assert.deepEqual(await pixelAt(first,20,40),await pixelAt(second,20,40),"dry ground remains still");
     await page.emulateMedia({reducedMotion:"reduce"});

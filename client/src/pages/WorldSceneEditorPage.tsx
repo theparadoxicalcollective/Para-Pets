@@ -648,7 +648,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     PARK_GROUND_PALETTES[worldGroundRenderTheme(groundTheme)]).base;
   return <div className="relative w-full h-full overflow-hidden text-[#f3e5c5]"
     style={{ backgroundColor: groundBackdrop }}
-    data-testid="world-scene-editor"
+    data-testid="world-scene-editor" data-world-water-style={worldWaterStyle(worldId)}
     onPointerDownCapture={event => {
       roomEntryClickPending.current = false;
       if (event.target instanceof Node && !viewportRef.current?.contains(event.target)) resetPageGesture();

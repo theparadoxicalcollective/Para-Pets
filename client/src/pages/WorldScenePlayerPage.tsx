@@ -1,10 +1,10 @@
 import WorldSwimFish from "@/components/WorldSwimFish";
 import type { WorldSwimScene } from "@shared/worlds/worldSwimAreas";
 import { MiniPetArtwork, SceneCharacterMotionStyles, sceneNpcIdleClass } from "@/components/MiniPetRenderer";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import PetParkTerrain from "@/components/PetParkTerrain";
+import PetParkTerrainComponent from "@/components/PetParkTerrain";
 import { worldWaterStyle } from "@/lib/petParkWaterTexture";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import PetParkGardenMenu, { type GardenOwnedItem } from "@/components/PetParkGardenMenu";
@@ -20,7 +20,7 @@ import type { ParkEffectType } from "@shared/petParkEffects";
 import { chooseNpcMessage, getNpcQuestAssociations, parseNpcMetadata } from "@/lib/npcMetadata";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
-import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
+import { HomeOutdoorAtmosphereLayer as OutdoorAtmosphere, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
 import { worldGroundPalette, worldGroundRenderTheme } from "@/lib/worldGroundPalette";
@@ -37,18 +37,28 @@ import { playerWorldSceneQuery, playerWorldArtworkVisibility, playerWorldCullOri
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
 import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
 
+import FloatingWalkJoystick, { FLOATING_WALK_JOYSTICK_SIZE, FLOATING_WALK_JOYSTICK_EDGE_GAP } from "@/components/FloatingWalkJoystick";
+import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
+import { fetchPlayerAvatar, playerAvatarQueryKey, wardrobeLayers, type PlayerAvatarState } from "@/lib/playerAvatarWardrobe";
+import { usePetWalkController } from "@/hooks/usePetWalkController";
+import { parkSquareArtworkSampler } from "@/lib/petParkImageHit";
+import { WORLD_AVATAR_SIZE, WORLD_WALK_SPAWN, worldWalkBounds, worldWalkCameraPan, worldWalkCollision, worldWalkSpawn, worldWalkStep } from "@/lib/worldSceneWalk";
+
 const WorldSceneSoulExchange = lazy(() => import("@/components/world/WorldSceneSoulExchange"));
 const WorldSceneFishingDialog = lazy(() => import("@/components/world/WorldSceneFishingDialog"));
 
 type Point = { x: number; y: number };
+const WalkingCharacter = memo(PlayerCharacterRenderer);
+const PetParkTerrain = memo(PetParkTerrainComponent);
+const HomeOutdoorAtmosphereLayer = memo(OutdoorAtmosphere);
 
 /** Player runtime, separate from admin editing. Garden actions use private player state.
  * All coordinates and terrain painting use the SAME ground/camera system as
  * World Editor. Legacy game locations retain their original stable IDs.
  */
 export default function WorldScenePlayerPage({
-  worldId, onContentReady,
-}: { worldId: string; onContentReady?: () => void }) {
+  worldId, userId, onContentReady,
+}: { worldId: string; userId?: string; onContentReady?: () => void }) {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -59,13 +69,18 @@ export default function WorldScenePlayerPage({
   const [zoom, setZoom] = useState(PLAYER_WORLD_INITIAL_ZOOM);
   const [pan, setPan] = useState<Point | null>(null);
   const points = useRef(new Map<number, Point>());
-  const drag = useRef<{ id: number; x: number; y: number; pan: Point } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; pan: Point; walk?: boolean } | null>(null);
   const pinch = useRef<{ distance: number; zoom: number; center: Point; pan: Point; scale: number } | null>(null);
   const cameraFrame = useRef<number | null>(null);
   const pendingCamera = useRef<{ pan: Point; zoom: number } | null>(null);
   const latestCamera = useRef<{ pan: Point; zoom: number }>({ pan: {x: 0, y: 0}, zoom: PLAYER_WORLD_INITIAL_ZOOM });
   const gestureRect = useRef<DOMRect | null>(null);
   const moved = useRef(false);
+  const touchTapPending = useRef(false);
+  const walkingPointer = useRef<number | null>(null);
+  const [joystickCenter, setJoystickCenter] = useState<Point>({ x: 0, y: 0 });
+  const [selectedNpc, setSelectedNpc] = useState<{ name: string; message: string } | null>(null);
+  const artworkMasks = useRef(new Map<string, (x: number, y: number) => boolean>());
   const [inside, setInside] = useState<string | null>(null);
   const [selectedGardenPlotId, setSelectedGardenPlotId] = useState<string | null>(null);
   const [wateringGardenPlotId, setWateringGardenPlotId] = useState<string | null>(null);
@@ -85,7 +100,7 @@ export default function WorldScenePlayerPage({
     setSelectedGardenPlotId(null); setWateringGardenPlotId(null); setSelectedWaterSourceId(null);
     if (cameraFrame.current !== null) cancelAnimationFrame(cameraFrame.current);
     cameraFrame.current = null; pendingCamera.current = null; gestureRect.current = null;
-    points.current.clear(); drag.current = null; pinch.current = null; notified.current = false;
+    points.current.clear(); drag.current = null; pinch.current = null; walkingPointer.current = null; notified.current = false;
   }, [worldId]);
   useEffect(() => () => {
     if (cameraFrame.current !== null) cancelAnimationFrame(cameraFrame.current);
@@ -145,6 +160,16 @@ export default function WorldScenePlayerPage({
   const initial = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = worldEditorClampCamera(pan ?? initial, camera, viewport);
   latestCamera.current = pendingCamera.current ?? { pan: actualPan, zoom: safeZoom };
+  const avatarQuery = useQuery<PlayerAvatarState>({
+    queryKey: playerAvatarQueryKey(userId ?? ""),
+    queryFn: ({ signal }) => fetchPlayerAvatar(signal),
+    enabled: !!userId,
+    staleTime: 30_000,
+    refetchOnMount: "always",
+  });
+  const avatar = userId && avatarQuery.data?.created && avatarQuery.data.base?.parts.length === 8
+    ? avatarQuery.data : null;
+  const equippedLayers = useMemo(() => avatar ? wardrobeLayers(avatar) : [], [avatar]);
   const lighting = useHomeOutdoorLighting("auto");
   const sceneContent = scene.data;
   const placements = useMemo(() => sceneContent?.placements ?? [], [sceneContent?.placements]);
@@ -186,6 +211,61 @@ export default function WorldScenePlayerPage({
     stone: placements.filter(p => p.kind === "terrain" && p.effectType === "stone_path"),
     water: placements.filter(p => p.kind === "terrain" && p.effectType === "water_path"),
   }), [placements]);
+  const worldSize = useMemo(() => ({ width: camera.worldWidth, height: camera.worldHeight }),
+    [camera.worldWidth, camera.worldHeight]);
+  const bounds = useMemo(() => worldWalkBounds(worldSize), [worldSize]);
+  const blocked = useMemo(() => worldWalkCollision(placements, worldSize, p => {
+    const url = assetsById.get(p.assetId ?? "")?.imageUrl;
+    return url ? artworkMasks.current.get(url) : undefined;
+  }), [placements, worldSize, assetsById]);
+  const walkEnabled = !!(avatar && sceneContent && viewportReady && !activeBuilding &&
+    !selectedGardenPlotId && !selectedWaterSourceId && !selectedNpc && !fishingAction &&
+    !beauWheel.state && !beauWheel.isOpening);
+  const walk = usePetWalkController({
+    bounds, spawn: WORLD_WALK_SPAWN, speed: 1, enabled: walkEnabled, keyboardEnabled: false,
+    resolveStep: (from, attempted) => worldWalkStep(from, attempted, worldSize, blocked),
+    onPositionChange: position => {
+      const current = latestCamera.current;
+      const geometry = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, current.zoom);
+      const next = worldWalkCameraPan(position, current.pan, geometry, viewport);
+      if (next.x === current.pan.x && next.y === current.pan.y) return;
+      // Same animation tick as the character: don't queue a second camera RAF.
+      latestCamera.current = { pan: next, zoom: current.zoom };
+      setPan(next);
+    },
+  });
+  const resetWalk = useRef(walk.resetPosition);
+  resetWalk.current = walk.resetPosition;
+  // Spawn once per account/world/ground size, not after live scene refetches.
+  const spawnReady = !!(avatar && sceneContent && viewportReady);
+  useEffect(() => {
+    if (!spawnReady) return;
+    const spawn = worldWalkSpawn(worldSize, blocked);
+    resetWalk.current(spawn);
+    const current = latestCamera.current;
+    const geometry = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, current.zoom);
+    setPan(worldWalkCameraPan(spawn, current.pan, geometry, viewport));
+    // The collision callback reads the latest loaded masks, but a live edit
+    // must not teleport a player who is already in the world.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worldId, userId, worldSize, spawnReady]);
+  useEffect(() => {
+    if (!walkEnabled && walkingPointer.current !== null) {
+      walkingPointer.current = null;
+      points.current.clear(); drag.current = null; pinch.current = null; gestureRect.current = null;
+    }
+  }, [walkEnabled]);
+  useEffect(() => {
+    const clear = () => {
+      walkingPointer.current = null; points.current.clear();
+      drag.current = null; pinch.current = null; gestureRect.current = null;
+      moved.current = true;
+    };
+    const visibility = () => { if (document.hidden) clear(); };
+    window.addEventListener("blur", clear);
+    document.addEventListener("visibilitychange", visibility);
+    return () => { window.removeEventListener("blur", clear); document.removeEventListener("visibilitychange", visibility); };
+  }, []);
   // Keep the exact same Pet Park tools and private crop state, scoped by world.
   const gardenPrefix = `/api/worlds/${encodeURIComponent(worldId)}/garden`;
   const gardenKey = [gardenPrefix];
@@ -234,12 +314,13 @@ export default function WorldScenePlayerPage({
     width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale,
   }), [camera.sceneWidth, camera.sceneHeight, camera.scale]);
   // Lamps must cover the overscanned mask, so their list is stable within a
-  // camera cell. Fireflies retain the original actual-viewport selection cap.
+  // camera cell. Fireflies retain the existing cap, sampled at the cell center.
   const lights = useMemo(() => parkOutdoorLightEffects(atmospherePlacements, atmosphereShape,
     { x: -sceneWindow.x, y: -sceneWindow.y }, sceneWindow),
     [atmospherePlacements, atmosphereShape, sceneWindow]);
-  const fireflies = useMemo(() => parkOutdoorFireflyFields(atmospherePlacements, atmosphereShape, actualPan, viewport),
-    [atmospherePlacements, atmosphereShape, actualPan.x, actualPan.y, viewport]);
+  const fireflies = useMemo(() => parkOutdoorFireflyFields(atmospherePlacements, atmosphereShape,
+    { x: cullX + PLAYER_WORLD_CULL_CELL / 2, y: cullY + PLAYER_WORLD_CULL_CELL / 2 }, viewport),
+    [atmospherePlacements, atmosphereShape, cullX, cullY, viewport]);
 
   function queueCamera(nextPan: Point, nextZoom: number) {
     const previous = latestCamera.current;
@@ -278,9 +359,10 @@ export default function WorldScenePlayerPage({
     const active = [...points.current.values()];
     const current = latestCamera.current;
     if (active.length === 1) {
-      drag.current = { id: event.pointerId, x: active[0].x, y: active[0].y, pan: current.pan };
+      drag.current = { id: event.pointerId, x: active[0].x, y: active[0].y, pan: current.pan, walk: !!avatar && event.pointerType !== "mouse" };
       pinch.current = null;
     } else if (active.length === 2) {
+      walk.stopMovement(); walkingPointer.current = null;
       drag.current = null;
       pinch.current = {
         distance: Math.max(1, Math.hypot(active[0].x - active[1].x, active[0].y - active[1].y)),
@@ -315,6 +397,24 @@ export default function WorldScenePlayerPage({
       event.preventDefault();
     } else if (active.length === 1 && drag.current?.id === event.pointerId) {
       const dx = active[0].x - drag.current.x, dy = active[0].y - drag.current.y;
+      if (drag.current.walk) {
+        if (!walkEnabled) { moved.current = true; return; }
+        if (walkingPointer.current !== event.pointerId) {
+          if (Math.hypot(dx, dy) < 6) return; // a tap still activates artwork
+          const rect = gestureRect.current ?? event.currentTarget.getBoundingClientRect();
+          const inset = FLOATING_WALK_JOYSTICK_SIZE / 2 + FLOATING_WALK_JOYSTICK_EDGE_GAP;
+          setJoystickCenter({
+            x: Math.max(inset, Math.min(Math.max(inset, viewport.width - inset), drag.current.x)),
+            y: Math.max(inset, Math.min(Math.max(inset, viewport.height - inset), drag.current.y)),
+          });
+          walk.onJoystickPointerDown(event, { x: rect.left + drag.current.x, y: rect.top + drag.current.y });
+          walkingPointer.current = event.pointerId;
+        }
+        moved.current = true;
+        walk.onJoystickPointerMove(event);
+        event.preventDefault();
+        return;
+      }
       if (Math.hypot(dx, dy) < 6 && !moved.current) return;
       moved.current = true;
       captureGesture(event.currentTarget);
@@ -336,18 +436,44 @@ export default function WorldScenePlayerPage({
     // object, not a cancelled gesture. Only the viewport's own loss ends it.
     if (event.type === "lostpointercapture" && event.target !== event.currentTarget) return;
     if (!points.current.delete(event.pointerId)) return;
+    const tap = !moved.current && event.type === "pointerup" &&
+      event.pointerType !== "mouse" && points.current.size === 0;
+    if (walkingPointer.current === event.pointerId) {
+      walk.onJoystickPointerUp(event); walkingPointer.current = null;
+    }
     if (event.type !== "pointerup") moved.current = true;
     pinch.current = null;
     drag.current = null;
-    if (points.current.size === 1) {
+    if (points.current.size === 1 && !avatar) {
       const [id, position] = [...points.current][0];
       drag.current = { id, x: position.x, y: position.y, pan: latestCamera.current.pan };
     } else gestureRect.current = null;
+    // After a swipe, mobile browser compatibility clicks may be suppressed.
+    // Resolve a real touch tap at pointerup, but never turn a drag/pinch into
+    // a page launch or dispatch a second action from the synthesized click.
+    if (tap && event.target instanceof Element && event.currentTarget.contains(event.target)) {
+      const button = event.target.closest<HTMLButtonElement>("button[data-player-world-placement]");
+      if (button && !button.disabled) {
+        const placement = placements.find(p => p.id === button.dataset.playerWorldPlacement);
+        if (placement) {
+          touchTapPending.current = true;
+          event.preventDefault();
+          activate(placement);
+        }
+      } else if (!event.target.closest("button, a, input, select, textarea, [data-interactive]")) {
+        touchTapPending.current = true;
+        event.preventDefault();
+        hitWaterAt(event.clientX, event.clientY, event.currentTarget);
+      }
+    }
   }
   function onTerrainClick(event: ReactMouseEvent<HTMLDivElement>) {
     if (moved.current) { moved.current = false; return; }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const px = event.clientX - rect.left, py = event.clientY - rect.top;
+    hitWaterAt(event.clientX, event.clientY, event.currentTarget);
+  }
+  function hitWaterAt(clientX: number, clientY: number, target: HTMLDivElement) {
+    const rect = target.getBoundingClientRect();
+    const px = clientX - rect.left, py = clientY - rect.top;
     // Connected water is painted into one canvas. Hit-test its saved diamond
     // tiles on taps rather than mounting hundreds of extra DOM buttons.
     const tile = terrain.water.find(p => {
@@ -395,7 +521,6 @@ export default function WorldScenePlayerPage({
       if (message) setSelectedNpc({ name: npc.name, message });
     }
   }
-  const [selectedNpc, setSelectedNpc] = useState<{ name: string; message: string } | null>(null);
   useEffect(() => setSelectedNpc(null), [worldId]);
 
   // The actual camera moves the single artwork layer every frame. Rebuild
@@ -448,6 +573,7 @@ export default function WorldScenePlayerPage({
         }}>
         <button type="button"
           data-testid={`player-new-world-object-${p.id}`}
+          data-player-world-placement={p.id}
           disabled={!isInteractive}
           onClick={event => { event.stopPropagation(); activateLatest.current(p); }}
           aria-label={isGardenPlot ? "Open Garden Plot" : isWaterSource ? "Water Source" : action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? miniPet?.name ?? p.kind}
@@ -460,6 +586,13 @@ export default function WorldScenePlayerPage({
           {nearby && miniPet && <MiniPetArtwork pet={miniPet} scene placementId={p.id} idleAnimation={p.idleAnimation} animated={visible} />}
           {nearby && art && <WorldSceneArtwork imageUrl={art} cssSize={size} alt=""
             loading="eager" fetchPriority={visible ? "auto" : "low"}
+            data-world-collision-art={p.kind === "building" || p.kind === "decor" ? p.assetId ?? undefined : undefined}
+            onLoad={event => {
+              if (!avatar || (p.kind !== "building" && p.kind !== "decor") || artworkMasks.current.has(art)) return;
+              // Keep masks only; never retain decoded images or read canvas in a frame.
+              if (artworkMasks.current.size >= 300) artworkMasks.current.delete(artworkMasks.current.keys().next().value!);
+              artworkMasks.current.set(art, parkSquareArtworkSampler(event.currentTarget));
+            }}
             className={`absolute inset-0 w-full h-full object-contain ${npc ? sceneNpcIdleClass(p.idleAnimation, visible) : ""}`} draggable={false} />}
           {effectsNearby && (p.kind === "decor" || p.kind === "building") && <WorldDecorEffects effects={p.decorEffects}
             sunlightStrength={lighting.daylightStrength}
@@ -480,8 +613,37 @@ export default function WorldScenePlayerPage({
     });
   }, [renderPlacements, assetsById, npcsById, miniPetsById, sceneActions, legacyMounts, savedPlots,
     cullX, cullY, viewport.width, viewport.height, camera.sceneWidth, camera.sceneHeight,
-    camera.worldHeight, camera.scale, lighting.daylightStrength, lighting.nightStrength,
+    camera.worldHeight, camera.scale, !!avatar, lighting.daylightStrength, lighting.nightStrength,
     lighting.fireflyStrength, lighting.lampStrength, beauWheel.freeSpinAvailable]);
+
+  useEffect(() => {
+    if (!avatar || !viewportRef.current) return;
+    // Images may have loaded before the account's wardrobe query returned.
+    for (const image of viewportRef.current.querySelectorAll<HTMLImageElement>("img[data-world-collision-art]")) {
+      const url = assetsById.get(image.dataset.worldCollisionArt ?? "")?.imageUrl;
+      if (url && image.complete && image.naturalWidth && !artworkMasks.current.has(url)) {
+        if (artworkMasks.current.size >= 300) artworkMasks.current.delete(artworkMasks.current.keys().next().value!);
+        artworkMasks.current.set(url, parkSquareArtworkSampler(image));
+      }
+    }
+  }, [avatar, assetsById]);
+
+  const cropArtwork = useMemo(() => (garden.data?.plots ?? []).map(plot => {
+    if (!["planted", "seedling", "partial", "grown", "picked"].includes(plot.phase)) return null;
+    const crop = gardenCrops.get(plot.cropId ?? "");
+    const phase = plot.phase as "planted" | "seedling" | "partial" | "grown" | "picked";
+    const image = crop?.images[phase];
+    const placement = plotPlacements.get(plot.plotItemId);
+    if (!image || !placement) return null;
+    const size = placement.size * camera.scale;
+    if (!playerWorldArtworkVisibility(cullX + PLAYER_WORLD_CULL_CELL + placement.xPct * camera.sceneWidth,
+      cullY + PLAYER_WORLD_CULL_CELL + placement.yPct * camera.sceneHeight, size * 2, size * 2, sceneWindow).nearby) return null;
+    return <PetParkCropArtwork key={plot.plotItemId + ":" + plot.phase}
+      image={image} xPct={placement.xPct} yPct={placement.yPct} size={placement.size} scale={camera.scale}
+      zIndex={parkDepthIndex({ yPct: placement.yPct, worldHeight: camera.worldHeight, size: placement.size, kind: "item" })}
+      placement={crop?.stagePlacements?.[phase]} progress={gardenCropProgress(plot, crop)}
+      showWaterProgress={wateringGardenPlotId === plot.plotItemId} />;
+  }), [garden.data?.plots, gardenCrops, plotPlacements, cullX, cullY, sceneWindow, camera.sceneWidth, camera.sceneHeight, camera.scale, camera.worldHeight, wateringGardenPlotId]);
 
   if (scene.isError && !scene.data) return <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#101b17] text-[#f5d78f] px-6 text-center"
     data-testid="player-new-world-error" role="alert">
@@ -489,14 +651,27 @@ export default function WorldScenePlayerPage({
     <button onClick={() => navigate("/map")} className="border border-amber-600 rounded-lg px-4 py-2">Back to Map</button>
   </div>;
 
-  return <div data-testid="player-new-world" data-has-haunted-spin={hasHauntedSpin ? "true" : undefined} className="relative w-full h-full overflow-hidden bg-[#08140d]">
+  return <div data-testid="player-new-world" data-world-water-style={worldWaterStyle(worldId)} data-has-haunted-spin={hasHauntedSpin ? "true" : undefined} className="relative w-full h-full overflow-hidden bg-[#08140d]"
+    onPointerDownCapture={() => { touchTapPending.current = false; }}
+    onKeyDownCapture={() => { touchTapPending.current = false; }}
+    onMouseDownCapture={event => {
+      // The original tap may have opened a room beneath the same screen
+      // coordinate. Don't deliver its compatibility mouse event to that room.
+      if (touchTapPending.current) { event.preventDefault(); event.stopPropagation(); }
+    }}
+    onClickCapture={event => {
+      if (touchTapPending.current && event.detail !== 0) {
+        touchTapPending.current = false;
+        event.preventDefault(); event.stopPropagation();
+      }
+    }}>
     <SceneCharacterMotionStyles />
     <div ref={viewportRef} data-testid="player-new-world-viewport" data-quest-guide-pan-surface
       className="absolute inset-0 z-0 isolate overflow-hidden touch-none"
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onEnd}
       onPointerCancel={onEnd} onLostPointerCapture={onEnd} onClick={onTerrainClick}
       onWheel={event => {
-        if (inside) return;
+        if (inside || walk.isJoystickActive) return;
         event.preventDefault();
         const rect = event.currentTarget.getBoundingClientRect();
         changeZoom(latestCamera.current.zoom + (event.deltaY < 0 ? PLAYER_WORLD_ZOOM_STEP : -PLAYER_WORLD_ZOOM_STEP),
@@ -517,22 +692,19 @@ export default function WorldScenePlayerPage({
           width={camera.sceneWidth} height={camera.sceneHeight} scale={camera.scale} panX={actualPan.x} panY={actualPan.y}
           viewportWidth={viewport.width} viewportHeight={viewport.height} />
         {placementArtwork}
-        {(garden.data?.plots ?? []).map(plot => {
-          if (!["planted", "seedling", "partial", "grown", "picked"].includes(plot.phase)) return null;
-          const crop = gardenCrops.get(plot.cropId ?? "");
-          const phase = plot.phase as "planted" | "seedling" | "partial" | "grown" | "picked";
-          const image = crop?.images[phase];
-          const placement = plotPlacements.get(plot.plotItemId);
-          if (!image || !placement) return null;
-          const size = placement.size * camera.scale;
-          if (!playerWorldArtworkVisibility(actualPan.x + placement.xPct * camera.sceneWidth,
-            actualPan.y + placement.yPct * camera.sceneHeight, size * 2, size * 2, viewport).nearby) return null;
-          return <PetParkCropArtwork key={plot.plotItemId + ":" + plot.phase}
-            image={image} xPct={placement.xPct} yPct={placement.yPct} size={placement.size} scale={camera.scale}
-            zIndex={parkDepthIndex({ yPct: placement.yPct, worldHeight: camera.worldHeight, size: placement.size, kind: "item" })}
-            placement={crop?.stagePlacements?.[phase]} progress={gardenCropProgress(plot, crop)}
-            showWaterProgress={wateringGardenPlotId === plot.plotItemId} />;
-        })}
+        {avatar?.base && <div data-testid="player-world-avatar" className="absolute pointer-events-none"
+          style={{ left: 0, top: 0,
+            width: WORLD_AVATAR_SIZE * camera.scale, height: WORLD_AVATAR_SIZE * camera.scale,
+            transform: `translate3d(${walk.petPos.x * camera.sceneWidth}px,${walk.petPos.y * camera.sceneHeight}px,0) translate(-50%, -94%)`, zIndex: parkDepthIndex({
+              yPct: walk.petPos.y, worldHeight: camera.worldHeight, kind: "pet", size: 0,
+            }) }}>
+          <div className="relative w-full h-full" style={{ transform: `scaleX(${walk.facingLeft ? -1 : 1})` }}>
+            <WalkingCharacter parts={avatar.base.parts} clothingLayers={equippedLayers}
+              skinTone={avatar.skinTone} topTucked={avatar.topTucked}
+              motion={walk.isMoving ? "walk" : "idle"} ariaLabel="Your player character" />
+          </div>
+        </div>}
+        {cropArtwork}
         </div>
         <div className="absolute inset-0 z-[14] pointer-events-none" data-testid="player-new-world-atmosphere">
           <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(lighting.nightStrength)}
@@ -544,6 +716,9 @@ export default function WorldScenePlayerPage({
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
             transitionMs={lighting.transitionMs} zIndex={2} />
         </div>
+        {walkEnabled && walk.isJoystickActive && Math.hypot(walk.joystickOffset.x, walk.joystickOffset.y) > 2 &&
+          <div className="absolute inset-0 z-20 pointer-events-none"><FloatingWalkJoystick
+            worldId={worldId} center={joystickCenter} offset={walk.joystickOffset} /></div>}
       </>}
     </div>
     <div className="absolute z-30 flex gap-2 items-center" style={{ left: "max(12px, env(safe-area-inset-left))", top: "max(16px, calc(env(safe-area-inset-top) + 8px))" }}>

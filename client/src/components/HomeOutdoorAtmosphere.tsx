@@ -300,51 +300,9 @@ export function HomeOutdoorAtmosphereLayer({
     </g>;
   });
 
-  return (
-    <>
-      <div
-        data-testid="home-outdoor-night-tint"
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          zIndex: zIndex - 1,
-          opacity: safeNight * .30,
-          background: "radial-gradient(circle at 52% 12%, rgba(43,69,120,.38), transparent 42%), linear-gradient(180deg, rgba(7,18,45,.5), rgba(1,5,15,.78))",
-          transition: `opacity ${transitionMs}ms linear`,
-          contain: "paint",
-        }}
-      />
-
-      <svg
-        aria-hidden="true"
-        colorInterpolation="sRGB"
-        data-testid="home-outdoor-darkness-layer"
-        viewBox={`${windowX} ${windowY} ${windowWidth} ${windowHeight}`}
-        preserveAspectRatio="none"
-        style={{
-          position: "absolute",
-          ...(hasSceneBox && sceneWindow ? {
-            left: 0,
-            top: 0,
-            width: windowWidth,
-            height: windowHeight,
-            transform: `translate3d(${panX + windowX}px,${panY + windowY}px,0)`,
-          } : hasSceneBox ? {
-            left: panX,
-            top: panY,
-            width: imgWidth,
-            height: sceneHeight,
-          } : {
-            inset: 0,
-            width: "100%",
-            height: "100%",
-          }),
-          zIndex,
-          pointerEvents: "none",
-          overflow: "visible",
-          contain: "paint",
-        }}
-      >
+  // Panning only changes the SVG's CSS translation. Keep the mask/particle
+  // elements stable until the visible cell, lights or clock actually changes.
+  const maskContents = useMemo(() => <>
         <defs>
           {activeFireflies.length > 0 && <>
             <radialGradient id={fireflyMaskId}>
@@ -452,6 +410,56 @@ export function HomeOutdoorAtmosphereLayer({
           style={{ transition: `opacity ${transitionMs}ms linear` }}>
           {renderFireflies("visible")}
         </g>}
+    </>, [effects, fireflies, fireflyStrength, safeNight, safeLamp, safeDarkness,
+    maskId, maskWidth, maskHeight, windowX, windowY, windowWidth, windowHeight,
+    hasSceneBox, parkLampFalloff, reducedMotion, transitionMs]);
+
+  return (
+    <>
+      <div
+        data-testid="home-outdoor-night-tint"
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          zIndex: zIndex - 1,
+          opacity: safeNight * .30,
+          background: "radial-gradient(circle at 52% 12%, rgba(43,69,120,.38), transparent 42%), linear-gradient(180deg, rgba(7,18,45,.5), rgba(1,5,15,.78))",
+          transition: `opacity ${transitionMs}ms linear`,
+          contain: "paint",
+        }}
+      />
+
+      <svg
+        aria-hidden="true"
+        colorInterpolation="sRGB"
+        data-testid="home-outdoor-darkness-layer"
+        viewBox={`${windowX} ${windowY} ${windowWidth} ${windowHeight}`}
+        preserveAspectRatio="none"
+        style={{
+          position: "absolute",
+          ...(hasSceneBox && sceneWindow ? {
+            left: 0,
+            top: 0,
+            width: windowWidth,
+            height: windowHeight,
+            transform: `translate3d(${panX + windowX}px,${panY + windowY}px,0)`,
+          } : hasSceneBox ? {
+            left: panX,
+            top: panY,
+            width: imgWidth,
+            height: sceneHeight,
+          } : {
+            inset: 0,
+            width: "100%",
+            height: "100%",
+          }),
+          zIndex,
+          pointerEvents: "none",
+          overflow: "visible",
+          contain: "paint",
+        }}
+      >
+        {maskContents}
       </svg>
     </>
   );

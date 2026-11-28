@@ -29,7 +29,7 @@ const shimmer = Buffer.alloc(384 * 256 * 4);
 for (let i = 0, j = 0; i < highlight.length; i += 3, j += 4) {
   const tone = .7 * highlight[i + 1] + .3 * highlight[i + 2];
   shimmer[j] = 222; shimmer[j + 1] = 238; shimmer[j + 2] = 255;
-  shimmer[j + 3] = Math.round(Math.max(0, Math.min(1, (tone - 65) / 115)) ** 1.5 * 46);
+  shimmer[j + 3] = Math.round(Math.max(0, Math.min(1, (tone - 56) / 115)) ** 1.25 * 36) * 4;
 }
 await sharp(shimmer, { raw: { width: 384, height: 256, channels: 4 } })
   .webp({ quality: 85, effort: 6 }).toFile("client/public/park-water-shimmer.webp");
