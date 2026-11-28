@@ -13,6 +13,8 @@ const HAUNTED_FISH_LEADERBOARD_NAMES = new Set([
   HAUNTED_FISH_LEADERBOARD_DECOR_NAME.toLowerCase(),
   "fishing leaderboard",
   "haunted fishing leaderboard",
+  "haunted forest fishing leaderboard",
+  "haunted woods fishing leaderboard",
 ]);
 
 /** Connections are world-scoped and apply only to outdoor placements. Match

@@ -800,7 +800,22 @@ try {
     // A real interior stays dark across a slider change and subsequent reload.
     // The existing fixture includes an interior lamp, so the SVG mask is live.
     await page.getByRole("button", { name: "Deselect world object" }).click();
-    await page.getByTestId("world-scene-placement-" + ids.building).click();
+    const cabin = page.getByTestId("world-scene-placement-" + ids.building);
+    // After the preceding camera drags the cabin can sit behind the bottom
+    // toolbar. Pan the scene as an admin would before clicking its artwork;
+    // do not force a click through an overlay or move the saved placement.
+    if (await cabin.evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      return !node.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })) {
+      const writesBefore = apiWrites.length;
+      await page.mouse.move(26, height * .56);
+      await page.mouse.down();
+      await page.mouse.move(26, height * .30, { steps: 7 });
+      await page.mouse.up();
+      assert.equal(apiWrites.length, writesBefore, name + ": panning cabin out from behind controls does not save changes");
+    }
+    await cabin.click();
     await rotate("right",5);
     assert.match(await page.getByTestId("world-scene-placement-"+ids.building).evaluate(el=>el.style.transform),/rotate\(5deg\)/);
     const exteriorBeforeRoom = await page.getByTestId("world-scene-placement-" + ids.building).boundingBox();

@@ -53,7 +53,7 @@ try {
     const reads=[],writes=[],errors=[];
     page.on("pageerror",e=>errors.push(e.message));
     let primaryStatus=200, fallbackStatus=200;
-    const boardName=name==="phone"?"Fishing Leaderboard":"Haunted Fishing Leaderboard";
+    const boardName=name==="phone"?"Fishing Leaderboard":"Haunted Forest Fishing Leaderboard";
     const fixtureScene={...scene,assets:scene.assets.map(a=>a.id==="board-art"?{...a,name:boardName}:a)};
     await page.route("**/api/**",route=>{
       const req=route.request(),path=new URL(req.url()).pathname;
