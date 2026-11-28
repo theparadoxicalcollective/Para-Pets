@@ -22,12 +22,19 @@ const paths=[[],[],[]];
 for(let row=0;row<32;row++) for(let col=0;col<20;col++){
   paths[Math.floor(col/7)].push({xPct:(col*100+900+(row%2)*50)/worldWidth,yPct:(row*25+1200)/worldHeight,size:100});
 }
+// One isolated diamond and a pair sharing an entire edge, at fixed world
+// coordinates that are visible on both phone and tablet viewports.
+const shore=[{xPct:100/worldWidth,yPct:100/worldHeight,size:160},
+ {xPct:150/worldWidth,yPct:300/worldHeight,size:160},
+ {xPct:230/worldWidth,yPct:340/worldHeight,size:160}];
+const empty=[];
 const lamps=[{id:"a",type:"lamp_light",x:(720+width/2)/3240,y:(900+height/2)/4860,size:5},
   {id:"b",type:"lamp_light",x:(720+width+35)/3240,y:(900+height/2)/4860,size:5}];
 function Fixture(){
- const [state,setState]=useState({mode:"direct",panX:-720,panY:-900,scale:.6,revision:0});
+ const [state,setState]=useState({mode:"direct",panX:-720,panY:-900,scale:.6,revision:0,waterStyle:"teal"});
  window.setRasterState=patch=>setState(s=>({...s,...patch}));
- const {mode,panX,panY,scale,revision}=state;
+ const {mode,panX,panY,scale,revision,waterStyle}=state;
+ const shoreMode=mode.startsWith("shore");
  const cell=96, x=-Math.floor(panX/cell)*cell-cell,y=-Math.floor(panY/cell)*cell-cell;
  return <div data-testid="raster-fixture" data-mode={mode} data-pan={panX} data-revision={revision}
  style={{position:"absolute",inset:0,overflow:"hidden",background:"#91be9d"}}>
@@ -43,8 +50,8 @@ function Fixture(){
    sceneWindow={mode==="mask-window"?{x,y,width:width+2*cell,height:height+2*cell}:undefined}
    transitionMs={0} zIndex={2}/> :
  <PetParkTerrain viewportWidth={width} viewportHeight={height} worldWidth={worldWidth} worldHeight={worldHeight}
-   scale={scale} panX={panX} panY={panY} groundTheme={revision?"swamp":"grass"} cacheRasterTiles={mode==="cached"}
-   dirtPatches={paths[0]} stonePatches={paths[1]} waterPatches={paths[2]}/>}
+   scale={scale} panX={panX} panY={panY} groundTheme={revision?"swamp":"grass"} cacheRasterTiles={mode==="cached"||mode==="shore-cached"} waterStyle={waterStyle}
+   dirtPatches={shoreMode?empty:paths[0]} stonePatches={shoreMode?empty:paths[1]} waterPatches={shoreMode?shore:paths[2]}/>}
  </div>
 }
 createRoot(document.getElementById("root")).render(<Fixture/>);
@@ -61,7 +68,9 @@ const server=await createServer({server:{host:"127.0.0.1",port:4291,strictPort:t
 }]});
 await server.listen();
 const engine=process.env.SCENE_LIGHT_BROWSER==="webkit"?webkit:chromium;
-const browser=await engine.launch({headless:true});
+const browser=await engine.launch({headless:true,
+ ... (engine===chromium && process.env.CHROMIUM_EXECUTABLE_PATH
+   ? {executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:["--no-sandbox","--disable-dev-shm-usage"]} : {})});
 async function diff(a,b){
  const [aPixels,bPixels]=await Promise.all([a,b].map(p=>sharp(p).removeAlpha().raw().toBuffer()));
  assert.equal(aPixels.length,bPixels.length);
@@ -127,8 +136,38 @@ try{
   await set({mode:"cached"});
   const waterDiff=await diff(waterDirect,await snapshot());
   assert.ok(waterDiff.mean<3&&waterDiff.large<.025,JSON.stringify(waterDiff));
+  // Inspect actual rendered pixels, including the original sharp corner
+  // (now ground) and the full shared-edge midpoint (still water).
+  const pixelAt=async(buffer,x,y)=>{
+   const {data,info}=await sharp(buffer).removeAlpha().raw().toBuffer({resolveWithObject:true});
+   const i=(Math.floor(y*info.height/height)*info.width+Math.floor(x*info.width/width))*info.channels;
+   return [data[i],data[i+1],data[i+2]];
+  };
+  const teal=([r,g,b])=>g>r+15&&b>r+15;
+  await set({mode:"shore-direct",panX:0,panY:0,scale:1,waterStyle:"teal"});
+  const shoreDirect=await snapshot();
+  assert.ok(!teal(await pixelAt(shoreDirect,100,61)),"isolated tip curves back to ground");
+  assert.ok(teal(await pixelAt(shoreDirect,100,100)),"isolated tile interior stays water");
+  assert.ok(teal(await pixelAt(shoreDirect,190,320)),"shared edge stays opaque water");
+  // Change the theme on the same mounted canvas. Each cached raster must
+  // invalidate even when only the water style changes.
+  await set({mode:"shore-cached"});
+  assert.ok((await diff(shoreDirect,await snapshot())).mean<3);
+  for(const style of ["haunted","volcanic"]){
+   await set({waterStyle:style});
+   await page.waitForFunction(()=>document.querySelector("canvas")?.dataset.parkWaterTexture==="ready");
+   const themed=await snapshot();
+   for(const [x,y] of [[100,100],[190,320]]){
+    const [r,g,b]=await pixelAt(themed,x,y);
+    assert.ok(style==="haunted"?b>g+10&&r>g+5:r>g+20&&r>b+20,JSON.stringify({style,r,g,b,x,y}));
+   }
+   assert.equal(await canvas.getAttribute("data-park-terrain-tile-hits"),"0");
+   await set({mode:"shore-direct"});
+   assert.ok((await diff(themed,await snapshot())).mean<3);
+   await set({mode:"shore-cached"});
+  }
   // Restore the original lighting camera for the existing mask regressions.
-  await set({mode:"mask-full",panX:-720,panY:-900});
+  await set({mode:"mask-full",panX:-720,panY:-900,scale:.6,waterStyle:"teal"});
   const fullMask=await snapshot();
   await set({mode:"mask-window"});
   const mask=page.getByTestId("home-outdoor-darkness-layer");

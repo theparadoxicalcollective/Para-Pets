@@ -7,7 +7,7 @@ import {
   parkTerrainRasterTileWindow, PARK_TERRAIN_TILE_PIXELS, PARK_TERRAIN_TILE_GUTTER, PARK_TERRAIN_TILE_LIMIT,
 } from "@/lib/petParkTerrain";
 
-import { PARK_WATER_BASE, parkWaterImage } from "@/lib/petParkWaterTexture";
+import { PARK_WATER_APPEARANCE, parkWaterImage, type ParkWaterStyle } from "@/lib/petParkWaterTexture";
 
 export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
 
@@ -27,6 +27,24 @@ export type DirtExposedEdge = {
   inwardX: number; inwardY: number;
 };
 
+const WATER_CORNER_FRACTION = .30;
+const pointKey = (x: number, y: number) => Math.round(x * 1000) + ":" + Math.round(y * 1000);
+type WaterGeometry = { edges: DirtExposedEdge[]; roundedCorners: Set<string> };
+type Point = readonly [number, number];
+const towards = (from: Point, to: Point, t: number): Point =>
+  [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+const diamondPoints = (cx: number, cy: number, halfW: number, halfH: number): Point[] =>
+  [[cx, cy - halfH], [cx + halfW, cy], [cx, cy + halfH], [cx - halfW, cy]];
+
+/** Calculate rounded water corners and exposed banks in the same spatial pass.
+ * A corner is rounded only if its entire cutaway is clear of other stamps.
+ * Shared sides, point contacts and legacy overlapping stamps remain intact. */
+export function waterPathGeometry(stamps: readonly ParkDirtPatch[], width: number, height: number): WaterGeometry {
+  const roundedCorners = new Set<string>();
+  const edges = exposedDirtEdges(stamps, width, height, undefined, roundedCorners);
+  return { edges, roundedCorners };
+}
+
 /** A shared diamond side has two owners and must never fade. Calculate in
  * world space so zoom/pan, newly painted strokes and existing stamps agree.
  * Offscreen neighbors count too, preventing seams at the viewport boundary.
@@ -36,9 +54,11 @@ export function exposedDirtEdges(
   worldWidth: number,
   worldHeight: number,
   visible?: { left: number; top: number; right: number; bottom: number },
+  roundedCorners?: Set<string>,
 ): DirtExposedEdge[] {
   const edges = new Map<string, { edge: DirtExposedEdge; count: number }>();
   const tilesByCell = new Map<string, Array<{ cx: number; cy: number; halfW: number; halfH: number }>>();
+  const waterTiles: Array<{ cx: number; cy: number; halfW: number; halfH: number }> = [];
   const cellSize = 200;
   const cellKey = (x: number, y: number) => x + ":" + y;
   const seen = new Set<string>();
@@ -53,6 +73,7 @@ export function exposedDirtEdges(
     if (seen.has(tileKey)) continue;
     seen.add(tileKey);
     const tile = { cx, cy, halfW, halfH };
+    if (roundedCorners) waterTiles.push(tile);
     // A sparse world-space lookup keeps exposed-edge tests local even after
     // administrators paint hundreds of strokes across expanded park ground.
     for (let cellY = Math.floor((cy - halfH) / cellSize); cellY <= Math.floor((cy + halfH) / cellSize); cellY++) {
@@ -62,10 +83,7 @@ export function exposedDirtEdges(
         if (bin) bin.push(tile); else tilesByCell.set(key, [tile]);
       }
     }
-    const points = [
-      [cx, cy - halfH], [cx + halfW, cy],
-      [cx, cy + halfH], [cx - halfW, cy],
-    ];
+    const points = diamondPoints(cx, cy, halfW, halfH);
     for (let i = 0; i < 4; i++) {
       const [ax, ay] = points[i], [bx, by] = points[(i + 1) % 4];
       const a = quantize(ax) + ":" + quantize(ay);
@@ -119,7 +137,56 @@ export function exposedDirtEdges(
       }
     }
   }
-  return exposed;
+  if (!roundedCorners) return exposed;
+
+  const curved: DirtExposedEdge[] = [];
+  for (const tile of waterTiles) {
+    const { cx, cy, halfW, halfH } = tile;
+    const points = diamondPoints(cx, cy, halfW, halfH);
+    const rx = halfW * WATER_CORNER_FRACTION + .002;
+    const ry = halfH * WATER_CORNER_FRACTION + .002;
+    for (let i = 0; i < 4; i++) {
+      const vertex = points[i];
+      const [vx, vy] = vertex;
+      let joined = false;
+      // Test intersection with the entire possible cutaway, conservatively
+      // including close or differently sized neighboring diamonds.
+      for (let y = Math.floor((vy - ry) / cellSize); !joined && y <= Math.floor((vy + ry) / cellSize); y++) {
+        for (let x = Math.floor((vx - rx) / cellSize); !joined && x <= Math.floor((vx + rx) / cellSize); x++) {
+          joined = (tilesByCell.get(cellKey(x, y)) ?? []).some(other => other !== tile &&
+            Math.max(0, Math.abs(vx - other.cx) - rx) / other.halfW +
+            Math.max(0, Math.abs(vy - other.cy) - ry) / other.halfH <= 1 + 1e-5);
+        }
+      }
+      if (joined) continue;
+      roundedCorners.add(pointKey(vx, vy));
+      const start = towards(vertex, points[(i + 3) % 4], WATER_CORNER_FRACTION);
+      const end = towards(vertex, points[(i + 1) % 4], WATER_CORNER_FRACTION);
+      // Follow the same quadratic curve with short feathering spans.
+      let a = start;
+      for (let j = 1; j <= 4; j++) {
+        const t = j / 4;
+        const b = towards(towards(start, vertex, t), towards(vertex, end, t), t);
+        const nx = cx - (a[0] + b[0]) / 2, ny = cy - (a[1] + b[1]) / 2;
+        const length = Math.hypot(nx, ny) || 1;
+        curved.push({ ax: a[0], ay: a[1], bx: b[0], by: b[1], cx, cy, size: halfW * 2,
+          inwardX: nx / length, inwardY: ny / length });
+        a = b;
+      }
+    }
+  }
+  for (const edge of exposed) {
+    const a: Point = [edge.ax, edge.ay], b: Point = [edge.bx, edge.by];
+    const length = Math.hypot(edge.bx - edge.ax, edge.by - edge.ay);
+    const trim = edge.size * Math.sqrt(5) / 4 * WATER_CORNER_FRACTION;
+    const start = roundedCorners.has(pointKey(...a)) ? trim : 0;
+    const end = roundedCorners.has(pointKey(...b)) ? trim : 0;
+    if (length <= start + end) continue;
+    const [ax, ay] = towards(a, b, start / length);
+    const [bx, by] = towards(b, a, end / length);
+    curved.push({ ...edge, ax, ay, bx, by });
+  }
+  return curved;
 }
 
 /**
@@ -135,21 +202,24 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   dirtPatches?: readonly ParkDirtPatch[];
   stonePatches?: readonly ParkDirtPatch[];
   waterPatches?: readonly ParkDirtPatch[];
+  waterStyle?: ParkWaterStyle;
   /** Published worlds reuse static ground rasters. Editors keep the direct
    * paint path so live brush strokes are never cached. */
   cacheRasterTiles?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hasWater = !!view.waterPatches?.length;
-  const [waterTexture, setWaterTexture] = useState<HTMLImageElement>();
+  const waterStyle = view.waterStyle ?? "teal";
+  const [loadedWater, setLoadedWater] = useState<{ style: ParkWaterStyle; image: HTMLImageElement }>();
+  const waterTexture = loadedWater?.style === waterStyle ? loadedWater.image : undefined;
   useEffect(() => {
     if (!hasWater) return;
-    const image = parkWaterImage();
-    const ready = () => setWaterTexture(image);
+    const image = parkWaterImage(waterStyle);
+    const ready = () => setLoadedWater({ style: waterStyle, image });
     if (image.complete && image.naturalWidth) { ready(); return; }
     image.addEventListener("load", ready);
     return () => image.removeEventListener("load", ready);
-  }, [hasWater]);
+  }, [hasWater, waterStyle]);
   const rasterCache = useRef({ scale: 0, ratio: 0, tiles: new Map<string, HTMLCanvasElement>() });
   const clearRasterCache = () => {
     // Explicitly release backing stores instead of leaving WebKit to retain
@@ -165,7 +235,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   const painted = useRef<null | {
     view: ParkTerrainViewport & { groundTheme?: ParkGroundTheme; groundPalette?: ParkGroundPalette;
       dirtPatches?: readonly ParkDirtPatch[]; stonePatches?: readonly ParkDirtPatch[];
-      waterPatches?: readonly ParkDirtPatch[]; cacheRasterTiles?: boolean };
+      waterPatches?: readonly ParkDirtPatch[]; waterStyle?: ParkWaterStyle; cacheRasterTiles?: boolean };
     marginX: number; marginY: number; waterTexture?: HTMLImageElement;
   }>(null);
   // The exposed path edges depend only on saved stamps and world geometry.
@@ -175,7 +245,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     [view.dirtPatches, view.worldWidth, view.worldHeight]);
   const stoneEdges = useMemo(() => exposedDirtEdges(view.stonePatches ?? [], view.worldWidth, view.worldHeight),
     [view.stonePatches, view.worldWidth, view.worldHeight]);
-  const waterEdges = useMemo(() => exposedDirtEdges(view.waterPatches ?? [], view.worldWidth, view.worldHeight),
+  const waterGeometry = useMemo(() => waterPathGeometry(view.waterPatches ?? [], view.worldWidth, view.worldHeight),
     [view.waterPatches, view.worldWidth, view.worldHeight]);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -197,7 +267,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       const theme = view.groundTheme ?? "grass";
       if (view.dirtPatches?.length) paintConnectedPaths(ctx, rasterView, view.dirtPatches, "dirt_path", theme, view.groundPalette, dirtEdges);
       if (view.stonePatches?.length) paintConnectedPaths(ctx, rasterView, view.stonePatches, "stone_path", theme, view.groundPalette, stoneEdges);
-      if (view.waterPatches?.length) paintConnectedPaths(ctx, rasterView, view.waterPatches, "water_path", theme, view.groundPalette, waterEdges, waterTexture);
+      if (view.waterPatches?.length) paintConnectedPaths(ctx, rasterView, view.waterPatches, "water_path", theme, view.groundPalette, waterGeometry.edges, waterTexture, waterStyle, waterGeometry);
     };
     const paint = () => {
       const ctx = canvas.getContext("2d", { alpha: false });
@@ -303,6 +373,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       previous.view.worldHeight !== view.worldHeight ||
       previous.view.groundTheme !== view.groundTheme ||
       previous.view.groundPalette !== view.groundPalette ||
+      previous.view.waterStyle !== view.waterStyle ||
       previous.view.dirtPatches !== view.dirtPatches ||
       previous.view.stonePatches !== view.stonePatches ||
       previous.view.waterPatches !== view.waterPatches ||
@@ -340,7 +411,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     };
   }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight,
       view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches,
-      view.waterPatches, view.groundTheme, view.groundPalette, view.cacheRasterTiles, dirtEdges, stoneEdges, waterEdges, waterTexture]);
+      view.waterPatches, view.groundTheme, view.groundPalette, view.cacheRasterTiles, dirtEdges, stoneEdges, waterGeometry, waterTexture, waterStyle]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
     className="pointer-events-none absolute" style={{ backgroundColor: (view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"]).base }} />;
@@ -461,7 +532,12 @@ export type ParkConnectedPathKind = "dirt_path" | "stone_path" | "water_path";
  * translucent DOM tiles or an additional map interaction layer. */
 export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport,
   stamps: readonly ParkDirtPatch[], kind: ParkConnectedPathKind, groundTheme: ParkGroundTheme = "grass", groundPalette?: ParkGroundPalette,
-  cachedEdges?: readonly DirtExposedEdge[], waterTexture?: HTMLImageElement) {
+  cachedEdges?: readonly DirtExposedEdge[], waterTexture?: HTMLImageElement,
+  waterStyle: ParkWaterStyle = "teal", cachedWaterGeometry?: WaterGeometry) {
+  const waterGeometry = kind === "water_path"
+    ? cachedWaterGeometry ?? waterPathGeometry(stamps, view.worldWidth, view.worldHeight)
+    : undefined;
+  const waterAppearance = PARK_WATER_APPEARANCE[waterStyle];
   const visible = parkVisibleTerrainBounds(view);
   if (visible.left >= visible.right || visible.top >= visible.bottom) return;
 
@@ -480,10 +556,21 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
     const rect = dirtPatchWorldRect(patch, view.worldWidth, view.worldHeight);
     if (rect.x > visible.right || rect.x + rect.width < visible.left ||
         rect.y > visible.bottom || rect.y + rect.height < visible.top) continue;
-    ctx.moveTo(rect.x + rect.width / 2, rect.y);
-    ctx.lineTo(rect.x + rect.width, rect.y + rect.height / 2);
-    ctx.lineTo(rect.x + rect.width / 2, rect.y + rect.height);
-    ctx.lineTo(rect.x, rect.y + rect.height / 2);
+    if (waterGeometry) {
+      const points = diamondPoints(patch.xPct * view.worldWidth, patch.yPct * view.worldHeight, patch.size / 2, patch.size / 4);
+      for (let i = 0; i < 4; i++) {
+        const vertex = points[i];
+        const rounded = waterGeometry.roundedCorners.has(pointKey(...vertex));
+        const incoming = rounded ? towards(vertex, points[(i + 3) % 4], WATER_CORNER_FRACTION) : vertex;
+        if (i === 0) ctx.moveTo(...incoming); else ctx.lineTo(...incoming);
+        if (rounded) ctx.quadraticCurveTo(...vertex, ...towards(vertex, points[(i + 1) % 4], WATER_CORNER_FRACTION));
+      }
+    } else {
+      ctx.moveTo(rect.x + rect.width / 2, rect.y);
+      ctx.lineTo(rect.x + rect.width, rect.y + rect.height / 2);
+      ctx.lineTo(rect.x + rect.width / 2, rect.y + rect.height);
+      ctx.lineTo(rect.x, rect.y + rect.height / 2);
+    }
     ctx.closePath();
     left = Math.min(left, rect.x);
     top = Math.min(top, rect.y);
@@ -495,8 +582,8 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
 
   // One opaque, softly shadowed fill means overlapping tiles are seamless.
   // Adjacent stamps can overlap freely without dark or bright rings.
-  ctx.fillStyle = kind === "dirt_path" ? "#624832" : kind === "stone_path" ? "#747671" : PARK_WATER_BASE;
-  ctx.shadowColor = kind === "water_path" ? "rgba(5,33,38,.46)" : "rgba(32, 36, 21, .33)";
+  ctx.fillStyle = kind === "dirt_path" ? "#624832" : kind === "stone_path" ? "#747671" : waterAppearance.base;
+  ctx.shadowColor = kind === "water_path" ? waterAppearance.shadow : "rgba(32, 36, 21, .33)";
   ctx.shadowBlur = 6;
   ctx.fill();
   ctx.shadowBlur = 0;
@@ -564,7 +651,7 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
   // per-tile alpha (which would create seams at adjoining diamonds).
   // All randomness is world-anchored: dragging or zooming never reshuffles it.
   const ground = groundPalette ?? PARK_GROUND_PALETTES[groundTheme];
-  for (const edge of cachedEdges ?? exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
+  for (const edge of waterGeometry?.edges ?? cachedEdges ?? exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
     if (Math.max(edge.ax, edge.bx) < visible.left - 16 || Math.min(edge.ax, edge.bx) > visible.right + 16 ||
         Math.max(edge.ay, edge.by) < visible.top - 16 || Math.min(edge.ay, edge.by) > visible.bottom + 16) continue;
     const dx = edge.bx - edge.ax, dy = edge.by - edge.ay;

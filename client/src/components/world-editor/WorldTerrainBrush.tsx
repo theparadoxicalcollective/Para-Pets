@@ -3,6 +3,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
+import { worldWaterStyle } from "@/lib/petParkWaterTexture";
 import { PARK_TERRAIN_DETAIL_OPTIONS, isParkConnectedPath, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import { parkBrushWorldPoint, parkExtendBrushStroke, parkExtendPathStroke, PARK_BRUSH_MAX_STAMPS, type ParkBrushPoint } from "@/lib/petParkTerrainBrush";
@@ -128,7 +129,7 @@ export default function WorldTerrainBrush(props: Props) {
         width: size * props.scale, height: size * props.scale * parkTerrainHeightRatio(type),
         transform: "translate(-50%, -50%)",
         filter: erasing ? "hue-rotate(155deg) saturate(2)" : undefined,
-      }}><PetParkTerrainDetail type={type} /></div>)}
+      }}><PetParkTerrainDetail type={type} waterStyle={worldWaterStyle(props.worldId)} /></div>)}
     {/* Keep the painting canvas visible: a small edge toolbar stays compact
         until the admin explicitly opens tool/ground settings. This does not
         change the full-screen brush's world-coordinate hit surface. */}

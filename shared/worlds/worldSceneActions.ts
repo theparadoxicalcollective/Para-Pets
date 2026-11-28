@@ -7,6 +7,13 @@ export type WorldSceneFishingAction = "fishing-leaderboard" | "fishing-spot";
 export type WorldSceneAction = "beau-prize-wheel" | WorldSceneFishingAction;
 export const HAUNTED_SPIN_DECOR_NAME = "Haunted Spin";
 export const HAUNTED_FISH_LEADERBOARD_DECOR_NAME = "Fish Leaderboard";
+// The asset can be renamed by an admin; recognize the original name and
+// the exact fishing leaderboard labels used by the editor, not arbitrary signs.
+const HAUNTED_FISH_LEADERBOARD_NAMES = new Set([
+  HAUNTED_FISH_LEADERBOARD_DECOR_NAME.toLowerCase(),
+  "fishing leaderboard",
+  "haunted fishing leaderboard",
+]);
 
 /** Connections are world-scoped and apply only to outdoor placements. Match
  * exact decoration names (or the existing Spin artwork), and standalone water
@@ -19,7 +26,7 @@ export function resolveWorldSceneAction(
   if (worldId === HAUNTED_WOODS_WORLD_ID) {
     if (placementKind === "effect" && effectType === "water_ripple") return "fishing-spot";
     if (placementKind === "decor" && asset?.worldId === worldId && asset.kind === "decor" &&
-        asset.name.trim().toLowerCase() === HAUNTED_FISH_LEADERBOARD_DECOR_NAME.toLowerCase()) {
+        HAUNTED_FISH_LEADERBOARD_NAMES.has(asset.name.trim().toLowerCase())) {
       return "fishing-leaderboard";
     }
   }

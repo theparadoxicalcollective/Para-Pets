@@ -48,7 +48,7 @@ export const PET_PARK_GROUND_THEMES = [
   { type: "grass", label: "Grass", swatch: "#2c4934" },
   { type: "snow", label: "Snow", swatch: "#c9d6d3" },
   { type: "haunted", label: "Haunted", swatch: "#343e3b" },
-  { type: "swamp", label: "Swamp", swatch: "#394b38" },
+  { type: "swamp", label: "Swamp", swatch: "#263a2a" },
   { type: "volcanic", label: "Volcanic", swatch: "#332d31" },
 ] as const;
 export type ParkGroundTheme = typeof PET_PARK_GROUND_THEMES[number]["type"];

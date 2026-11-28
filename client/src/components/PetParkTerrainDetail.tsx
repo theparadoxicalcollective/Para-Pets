@@ -1,11 +1,11 @@
 import type { ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
-import { PARK_WATER_BASE, PARK_WATER_TEXTURE_URL } from "@/lib/petParkWaterTexture";
+import { PARK_WATER_APPEARANCE, type ParkWaterStyle } from "@/lib/petParkWaterTexture";
 
 /**
  * A soft-edged terrain preview stamp in the existing 2.5D park scene.
  * The parent owns normalized placement, scaling, editing and stacking.
  */
-export default function PetParkTerrainDetail({ type, tilled = false }: { type: ParkTerrainDetailType; tilled?: boolean }) {
+export default function PetParkTerrainDetail({ type, tilled = false, waterStyle = "teal" }: { type: ParkTerrainDetailType; tilled?: boolean; waterStyle?: ParkWaterStyle }) {
   const base = "pointer-events-none absolute inset-0 overflow-hidden rounded-[50%]";
   // The brush preview shows an opaque isometric dirt tile. Once saved,
   // adjoining tiles merge into one textured path in PetParkTerrain's canvas.
@@ -69,7 +69,7 @@ export default function PetParkTerrainDetail({ type, tilled = false }: { type: P
   if (type === "water_path") return <div aria-hidden="true"
     className="pointer-events-none absolute inset-0 overflow-hidden"
     style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-      backgroundColor: PARK_WATER_BASE, backgroundImage: `url(${PARK_WATER_TEXTURE_URL})`,
+      backgroundColor: PARK_WATER_APPEARANCE[waterStyle].base, backgroundImage: `url(${PARK_WATER_APPEARANCE[waterStyle].textureUrl})`,
       backgroundSize: "512% auto", backgroundPosition: "20% 45%" }} />;
   if (type === "stone_patch") return <div aria-hidden="true" className={base}>
     <div className="absolute inset-[6%] rounded-[50%]" style={{ background: "radial-gradient(ellipse,rgba(74,96,61,.22),transparent 70%)" }} />
