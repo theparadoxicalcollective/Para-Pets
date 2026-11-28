@@ -194,7 +194,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           hidden-first background. */}
       <div style={{ visibility: !isThemed || screenDone || newWorldActive ? "visible" : "hidden", width: "100%", height: "100%" }}>
         {(!publicationLoading || admin) && (newWorldActive
-          ? <Suspense fallback={null}><WorldScenePlayerPage worldId={worldId} onContentReady={() => setWorldReady(true)} /></Suspense>
+          ? <Suspense fallback={null}><WorldScenePlayerPage worldId={worldId} userId={user?.id} onContentReady={() => setWorldReady(true)} /></Suspense>
           : <WorldPage key={legacyLocationId ?? "original"} user={user} onContentReady={() => setWorldReady(true)} />)}
       </div>
       {!screenDone && (

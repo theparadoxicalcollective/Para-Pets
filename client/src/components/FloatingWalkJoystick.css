@@ -15,7 +15,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(16, 46, 31, .28);
+  background: var(--walk-joystick-base, rgba(16, 46, 31, .28));
   border: 1px solid rgba(226, 192, 111, .52);
   box-shadow: inset 0 0 0 2px rgba(5, 27, 16, .10), 0 0 6px rgba(0, 0, 0, .15);
 }
@@ -27,7 +27,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: rgba(143, 181, 133, .72);
+  background: var(--walk-joystick-thumb, rgba(143, 181, 133, .72));
   border: 1px solid rgba(236, 211, 145, .72);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
   /* No transition: follows the controlling finger without lag. */
@@ -53,4 +53,29 @@
     animation: none;
     filter: drop-shadow(0 0 6px rgba(253, 224, 71, .74));
   }
+}
+
+
+/* The gold rim stays consistent with the game; each world's thumb and
+   translucent backing borrow colors from its scenery. */
+.floating-walk-joystick[data-world-theme="haunted_woods"] {
+  --walk-joystick-base: rgba(45, 24, 66, .6);
+  --walk-joystick-thumb: rgba(157, 120, 210, .82);
+}
+.floating-walk-joystick[data-world-theme="volcanic"] {
+  --walk-joystick-base: rgba(69, 26, 24, .6);
+  --walk-joystick-thumb: rgba(224, 111, 72, .82);
+}
+.floating-walk-joystick[data-world-theme="snowy_mountain"],
+.floating-walk-joystick[data-world-theme="sky_realm"] {
+  --walk-joystick-base: rgba(39, 66, 92, .6);
+  --walk-joystick-thumb: rgba(166, 215, 236, .82);
+}
+.floating-walk-joystick[data-world-theme="desert"] {
+  --walk-joystick-base: rgba(82, 52, 28, .6);
+  --walk-joystick-thumb: rgba(218, 178, 100, .82);
+}
+.floating-walk-joystick[data-world-theme="island"] {
+  --walk-joystick-base: rgba(14, 59, 54, .6);
+  --walk-joystick-thumb: rgba(93, 192, 171, .82);
 }

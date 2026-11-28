@@ -27,6 +27,10 @@ interface Options {
   speed?: number;
   /** Temporarily suspend and clear all movement input. */
   enabled?: boolean;
+  /** Published worlds use authored world units and transparent barrier masks. */
+  resolveStep?: (from: PetWalkPos, attempted: PetWalkPos) => PetWalkPos;
+  onPositionChange?: (position: PetWalkPos) => void;
+  keyboardEnabled?: boolean;
 }
 
 export interface PetWalkController {
@@ -44,7 +48,8 @@ export interface PetWalkController {
   /** Call with normalised scene coords (0–1) for click-to-move. */
   onSceneClick: (normX: number, normY: number) => void;
   /** Return the pet to the configured safe spawn and clear current movement input. */
-  resetPosition: () => void;
+  resetPosition: (position?: PetWalkPos) => void;
+  stopMovement: () => void;
 }
 
 const MAX_JOY_RADIUS = 26; // px — compact 72px popup, thumb never outgrows the base
@@ -57,7 +62,7 @@ function clamp(pos: PetWalkPos, b: WalkableBounds): PetWalkPos {
   };
 }
 
-export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = true }: Options): PetWalkController {
+export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = true, resolveStep, onPositionChange, keyboardEnabled = true }: Options): PetWalkController {
   const [petPos, setPetPos]             = useState<PetWalkPos>(() => clamp(spawn, bounds));
   const [facingLeft, setFacingLeft]     = useState(false);
   const [aimDirection, setAimDirection] = useState({ dx: 1, dy: 0 });
@@ -82,6 +87,8 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
   const facingLeftRef   = useRef(false);
   const keysRef         = useRef<Set<string>>(new Set());
   const enabledRef      = useRef(enabled);
+  const stepRef = useRef({ resolveStep, onPositionChange });
+  stepRef.current = { resolveStep, onPositionChange };
 
   useEffect(() => {
     enabledRef.current = enabled;
@@ -100,6 +107,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
 
   // ── Keyboard input ────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!keyboardEnabled) return;
     const MOVE_KEYS = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","s","a","d","W","S","A","D"]);
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -126,10 +134,12 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, []);
+  }, [keyboardEnabled]);
 
   // ── RAF movement loop ─────────────────────────────────────────────────────
   useEffect(() => {
+    if (!enabled) return;
+    lastTRef.current = null;
     const tick = (t: number) => {
       const dt = lastTRef.current !== null ? Math.min((t - lastTRef.current) / 1000, 0.05) : 0;
       lastTRef.current = t;
@@ -191,10 +201,18 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
       }
 
       if (moved) {
-        const clamped = clamp({ x: nx, y: ny }, bounds);
-        posRef.current = clamped;
-        setPetPos({ ...clamped });
-        if (!movingRef.current) { movingRef.current = true; setIsMoving(true); }
+        const previous = posRef.current;
+        const attempted = { x: nx, y: ny };
+        const clamped = clamp(stepRef.current.resolveStep?.(previous, attempted) ?? attempted, bounds);
+        const changed = previous.x !== clamped.x || previous.y !== clamped.y;
+        if (changed) {
+          posRef.current = clamped;
+          setPetPos(clamped);
+          stepRef.current.onPositionChange?.(clamped);
+        }
+        // Legacy scenes keep their established movement animation semantics.
+        const walking = !stepRef.current.resolveStep || changed;
+        if (movingRef.current !== walking) { movingRef.current = walking; setIsMoving(walking); }
       } else {
         if (movingRef.current) { movingRef.current = false; setIsMoving(false); }
       }
@@ -207,7 +225,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed, updateAim]);
+  }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed, updateAim, enabled]);
 
   // ── Joystick handlers ─────────────────────────────────────────────────────
   const stopMovement = useCallback(() => {
@@ -260,10 +278,10 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
     targetRef.current = clamp({ x: normX, y: normY }, bounds);
   }, [bounds]);
 
-  const resetPosition = useCallback(() => {
-    const safe = clamp(spawn, bounds);
+  const resetPosition = useCallback((position?: PetWalkPos) => {
+    const safe = clamp(position ?? spawn, bounds);
     posRef.current = safe; targetRef.current = null; dirRef.current = { dx: 0, dy: 0 };
-    keysRef.current.clear(); joyActiveRef.current = false; setIsJoystickActive(false); setPetPos({ ...safe });
+    keysRef.current.clear(); stopMovement(); setPetPos({ ...safe });
   }, [bounds, spawn, stopMovement]);
 
   return {
@@ -278,5 +296,6 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
     onJoystickPointerUp,
     onSceneClick,
     resetPosition,
+    stopMovement,
   };
 }

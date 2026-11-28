@@ -4412,12 +4412,12 @@ img[data-interactive], button img, a img {
    never move or repaint on the animation clock. Pause during camera gestures. */
 .park-water-shimmer-surface {
   inset: -18px;
-  opacity: .64;
-  animation: park-water-drift 12s ease-in-out infinite alternate;
+  opacity: .92;
+  animation: park-water-drift 8s ease-in-out infinite alternate;
 }
 @keyframes park-water-drift {
-  from { transform: translate3d(-7px,-3px,0); }
-  to { transform: translate3d(7px,3px,0); }
+  from { transform: translate3d(-13px,-6px,0); }
+  to { transform: translate3d(13px,6px,0); }
 }
 .park-water-shimmer[data-camera-preview="true"] .park-water-shimmer-surface {
   animation-play-state: paused;

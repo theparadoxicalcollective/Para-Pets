@@ -1,7 +1,8 @@
 import { getAlphaBoundsSync, type AlphaBounds } from "./alphaBounds";
 
 /** Low-resolution alpha sampling is cached per artwork URL. This is only used
- * for admin pointer-down hit testing, never in animation or rendering loops.
+ * for admin pointer-down hit testing and player barrier masks prepared on
+ * artwork load. Never read back a canvas in the walking animation frame.
  * If canvas readback is blocked, use existing visible alpha bounds instead.
  */
 const MASK_SIZE = 96;
@@ -30,6 +31,23 @@ export function parkImageHitAt(
   if (x < 0 || x > 1 || y < 0 || y > 1) return false;
   if (flipped) x = 1 - x;
 
+  return parkImageAlphaSampler(image)(x, y);
+}
+
+/** Sample the object-contain square without reading DOM geometry. The mask is
+ * prepared on artwork load, never by the walking frame. */
+export function parkSquareArtworkSampler(image: HTMLImageElement): (x: number, y: number) => boolean {
+  const fit = Math.max(1, image.naturalWidth, image.naturalHeight);
+  const width = image.naturalWidth / fit, height = image.naturalHeight / fit;
+  if (!width || !height) return () => true;
+  const sample = parkImageAlphaSampler(image);
+  return (x, y) => {
+    const u = (x - .5) / width + .5, v = (y - .5) / height + .5;
+    return u >= 0 && u <= 1 && v >= 0 && v <= 1 && sample(u, v);
+  };
+}
+
+function parkImageAlphaSampler(image: HTMLImageElement): (x: number, y: number) => boolean {
   const url = image.currentSrc || image.src;
   if (!cached.has(url)) {
     let alpha: Uint8ClampedArray | null = null;
@@ -50,12 +68,14 @@ export function parkImageHitAt(
   }
   const mask = cached.get(url);
   if (mask) {
-    const pixelX = Math.min(MASK_SIZE - 1, Math.floor(x * MASK_SIZE));
-    const pixelY = Math.min(MASK_SIZE - 1, Math.floor(y * MASK_SIZE));
-    return mask[pixelY * MASK_SIZE + pixelX] > ALPHA_THRESHOLD;
+    return (x, y) => {
+      const pixelX = Math.min(MASK_SIZE - 1, Math.floor(x * MASK_SIZE));
+      const pixelY = Math.min(MASK_SIZE - 1, Math.floor(y * MASK_SIZE));
+      return mask[pixelY * MASK_SIZE + pixelX] > ALPHA_THRESHOLD;
+    };
   }
   const bounds = getAlphaBoundsSync(url);
-  return !bounds || (x >= bounds.left && y >= bounds.top &&
+  return (x, y) => !bounds || (x >= bounds.left && y >= bounds.top &&
     x <= bounds.left + bounds.width && y <= bounds.top + bounds.height);
 }
 
