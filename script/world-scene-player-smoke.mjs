@@ -72,17 +72,34 @@ try{
       placements:[{...base,id:"shop",kind:"building",assetId:"building-art",xPct:.54,yPct:.55,isShop:true,legacyLocationId:"old-shop"},
         {...base,id:"distant-building",kind:"building",assetId:"distant-art",xPct:.01,yPct:.01,legacyLocationId:"old-distant"},
         {...base,id:"janson",kind:"npc",npcId:npc.id,xPct:.38,yPct:.43},
+        {...base,id:"garden",kind:"terrain",effectType:"garden_plot",xPct:.46,yPct:.60,size:150},
+        {...base,id:"spring",kind:"terrain",effectType:"water_path",xPct:.35,yPct:.57,size:150},
         {...base,id:"effect",kind:"effect",effectType:"sparkles",xPct:.5,yPct:.15,size:300}],
       interiorItems:[{id:"room-decor",worldId:"swamp",buildingId:"shop",kind:"decor",assetId:"decor-art",effectType:null,xPct:.55,yPct:.6,size:130,flipped:false},
         {id:"room-lamp",worldId:"swamp",buildingId:"shop",kind:"effect",assetId:null,effectType:"lamp_light",effectColor:"#7b5cff",xPct:.3,yPct:.3,size:70,flipped:false}],
       linkedPages:[oldShop,oldJanson,{id:"old-distant",worldId:"swamp",name:"Distant Building",type:"building",bgUrl:null}],npcs:[npc]};
     let state={quests:[quest,{...quest,questKey:"sell_fish",title:"Sell Fish",status:"locked"}],dailyQuest:{...quest,questKey:"daily_catch_fish",status:"locked"},marketUnlocked:false};
+    let plot={plotItemId:"garden",xPct:.46,yPct:.60,size:150,phase:"empty",cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null};
+    const gardenInventory=[{inventoryId:"hoe",shopItemId:"hoe-item",name:"Hoe",type:"garden_tool",specialType:"hoe",quantity:1},
+      {inventoryId:"pail",shopItemId:"pail-item",name:"Watering Pail",type:"garden_tool",specialType:"watering_pail",quantity:1,isRefillable:true,gardenWaterLeft:50}];
     await page.route("**/api/**",route=>{
       const req=route.request(),path=new URL(req.url()).pathname;
       if(req.method()!=="GET")writes.push(path);
       if(path.startsWith(visibleMedia)||path.startsWith(distantMedia)){
         mediaReads.push(path);
         return route.fulfill({body:artBody,contentType:"image/svg+xml"});
+      }
+      if(path==="/api/worlds/swamp/garden")return route.fulfill({json:{serverNow:new Date().toISOString(),plots:[plot],crops:[]}});
+      if(path==="/api/inventory")return route.fulfill({json:gardenInventory});
+      if(path==="/api/worlds/swamp/garden/plots/garden/hoe"){
+        assert.equal(req.postDataJSON().inventoryId,"hoe");
+        plot={...plot,phase:"tilled"};
+        return route.fulfill({json:{plot,replayed:false}});
+      }
+      if(path==="/api/worlds/swamp/water-sources/spring/refill"){
+        assert.equal(req.postDataJSON().inventoryId,"pail");
+        gardenInventory[1].gardenWaterLeft=100;
+        return route.fulfill({json:{itemName:"Watering Pail",waterLeft:100,capacity:100}});
       }
       if(path==="/api/worlds/swamp/player-scene")return route.fulfill({json:scene});
       if(path==="/api/auth/me")return route.fulfill({json:{id:"qa",username:"QA",isAdmin:false}});
@@ -112,6 +129,39 @@ try{
     assert.equal(await page.getByTestId("world-npc-art-old-janson").count(),0,"do not duplicate legacy NPC artwork");
     assert.equal(await page.getByTestId("player-world-zoom-in").count(),0,"zoom buttons are hidden");
     assert.equal(await page.getByTestId("player-world-zoom-out").count(),0);
+    // A real multi-step finger swipe beginning on an interactive building
+    // must continue after touch capture transfers to the camera.
+    const swipe=await context.newCDPSession(page);
+    const start=await shop.boundingBox();
+    const x=Math.round(start.x+start.width/2), y=Math.round(start.y+start.height/2);
+    await swipe.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x,y,id:1}]});
+    for(const dx of [-12,-36,-60,-84,-108]){
+      await swipe.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:x+dx,y,id:1}]});
+    }
+    await swipe.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+    await page.waitForFunction(before=>document.querySelector('[data-testid="player-new-world-object-shop"]').getBoundingClientRect().x<before-95,start.x);
+    assert.equal(await page.getByTestId("player-new-world-building").count(),0,"swipe is not a building tap");
+    await swipe.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:x-108,y,id:1}]});
+    for(const dx of [12,36,60,84,108]){
+      await swipe.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:x-108+dx,y,id:1}]});
+    }
+    await swipe.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+    await page.waitForFunction(before=>Math.abs(document.querySelector('[data-testid="player-new-world-object-shop"]').getBoundingClientRect().x-before)<6,start.x);
+    await swipe.detach();
+    const gardenPlot=page.getByRole("button",{name:"Open Garden Plot"});
+    await gardenPlot.tap();
+    await page.getByTestId("pet-park-garden-menu").waitFor({state:"visible"});
+    const hoe=page.getByTestId("pet-park-garden-action-hoe");
+    await Promise.all([page.waitForResponse(response=>response.url().includes("/garden/plots/garden/hoe")&&response.ok()),hoe.tap()]);
+    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-garden-action-hoe"]')?.disabled===true);
+    assert.ok(writes.includes("/api/worlds/swamp/garden/plots/garden/hoe"));
+    // Water is a canvas tile without a sprite button. Tap the saved diamond.
+    const artBounds=await page.getByTestId("player-new-world-art").boundingBox();
+    await page.touchscreen.tap(artBounds.x+artBounds.width*.35,artBounds.y+artBounds.height*.57);
+    await page.getByTestId("pet-park-refill-popup").waitFor({state:"visible"});
+    // One eligible pail refills automatically, exactly as in Pet Park.
+    await page.getByTestId("pet-park-refill-complete").waitFor({state:"visible"});
+    await page.getByTestId("pet-park-refill-popup").waitFor({state:"hidden"});
     const beforePinch=(await shop.boundingBox()).width;
     const cdp=await context.newCDPSession(page);
     const touchPoints=spread=>[{x:Math.round(width/2-spread),y:Math.round(height/2),id:1},{x:Math.round(width/2+spread),y:Math.round(height/2),id:2}];
@@ -154,9 +204,9 @@ try{
     // Use the original quest start button, not a copied quest transaction.
     await page.getByTestId("button-start-janson-catch_fish").tap();
     await page.waitForURL(/fishHint=1/);
-    assert.deepEqual(writes,["/api/quests/janson/catch_fish/start"]);
+    assert.deepEqual(writes,["/api/worlds/swamp/garden/plots/garden/hoe","/api/worlds/swamp/water-sources/spring/refill","/api/quests/janson/catch_fish/start"]);
     assert.deepEqual(errors,[]);
-    console.log("PASS "+name+": read-only world, live room edits, linked retired entry, recovery, original Janson quest handoff");
+    console.log("PASS "+name+": full finger swipe, pinch, Pet Park garden and refill, live room edits, linked retired entry, recovery, original Janson quest handoff");
     await context.close();
   }
 }finally{await browser.close();await server.close();}

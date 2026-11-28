@@ -107,3 +107,30 @@ test("player prefetch shares the live query cache and loading uses the actual ne
   assert.match(player, /onPointerMove=\{onMove\}/);
   assert.doesNotMatch(overlay, /WorldLoadingScreen|<img|MIN_MS|bgUrl/);
 });
+
+test("player camera retains touch capture through a child capture transfer and coalesces camera work", () => {
+  const source = readFileSync("client/src/pages/WorldScenePlayerPage.tsx", "utf8");
+  assert.match(source, /event.type === "lostpointercapture" && event.target !== event.currentTarget/);
+  assert.match(source, /cameraFrame.current = requestAnimationFrame/);
+  assert.match(source, /drag.current.pan.x \+ dx/);
+  assert.match(source, /pinch.current.center.x - pinch.current.pan.x/);
+  assert.match(source, /translate3d/);
+});
+
+test("player plots reuse Pet Park actions with world-scoped state and protected player routes", () => {
+  const page = readFileSync("client/src/pages/WorldScenePlayerPage.tsx", "utf8");
+  const garden = readFileSync("server/routes/worldGarden.routes.ts", "utf8");
+  const refill = readFileSync("server/routes/worldGardenRefill.routes.ts", "utf8");
+  const access = readFileSync("server/worldGardenAccess.ts", "utf8");
+  assert.match(page, /<PetParkGardenMenu/);
+  assert.match(page, /<PetParkCropArtwork/);
+  assert.match(page, /<PetParkWaterRefillPopup/);
+  assert.match(page, /actionUrlPrefix=\{gardenPrefix\}/);
+  assert.match(page, /isInteractive = [^;]*isGardenPlot/);
+  for (const routes of [garden, refill]) {
+    assert.match(routes, /"preview", "player"/);
+    assert.match(routes, /worldGardenAccess\(tx, userId, worldId, mode,/);
+  }
+  assert.match(access, /effectiveWorldLocked\(worldId, saved\?\.value\)/);
+  assert.match(access, /mode === "preview"/);
+});

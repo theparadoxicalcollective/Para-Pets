@@ -26,7 +26,9 @@ test("World garden: same inventory across worlds, scoped plots and water sources
   });
   try {
     await pool.query(`
-      CREATE TABLE users (id varchar PRIMARY KEY, is_admin boolean NOT NULL DEFAULT false);
+      CREATE TABLE users (id varchar PRIMARY KEY, is_admin boolean NOT NULL DEFAULT false,
+        is_moderator boolean NOT NULL DEFAULT false);
+      CREATE TABLE game_settings (key varchar PRIMARY KEY, value text NOT NULL);
       CREATE TABLE world_scene_placements (
         id varchar PRIMARY KEY, world_id text NOT NULL, kind text NOT NULL,
         effect_type text, x_pct real NOT NULL DEFAULT .5,
@@ -91,7 +93,10 @@ test("World garden: same inventory across worlds, scoped plots and water sources
         ('owner-scythe','admin','scythe',1,null,false),
         ('owner-pail','admin','pail',1,100,false),
         ('owner-seeds','admin','seed',2,null,false),
-        ('visitor-hoe','visitor','hoe',1,null,false);
+        ('visitor-hoe','visitor','hoe',1,null,false),
+        ('visitor-pail','visitor','pail',1,0,false),
+        ('visitor-seeds','visitor','seed',1,null,false),
+        ('visitor-scythe','visitor','scythe',1,null,false);
       INSERT INTO garden_crops(id,seed_item_id,fruit_item_id,planted_image_url,seedling_image_url,
         partial_image_url,grown_image_url,picked_image_url,planted_drops,seedling_drops,partial_drops,grown_drops)
       VALUES ('crop','seed','fruit','/planted.png','/seedling.png','/partial.png',
@@ -113,6 +118,7 @@ test("World garden: same inventory across worlds, scoped plots and water sources
       assert.ok(handler, endpoint);
       const response = {
         statusCode: 200, payload: null as any,
+        setHeader() { return this; },
         status(code: number) { this.statusCode = code; return this; },
         json(payload: any) { this.payload = payload; return this; },
       };
@@ -130,6 +136,37 @@ test("World garden: same inventory across worlds, scoped plots and water sources
     const seedsLeft = async () => Number((await pool.query(
       "SELECT COALESCE(SUM(quantity),0)::int AS total FROM user_inventory WHERE user_id='admin' AND shop_item_id='seed'")).rows[0]?.total);
 
+    const publicBase = "/api/worlds/:worldId";
+    assert.equal((await request("GET", publicBase + "/garden", "haunted_woods", {}, {}, "visitor")).statusCode, 200);
+    assert.equal((await request("GET", publicBase + "/garden", "snowy_mountain", {}, {}, "visitor")).statusCode, 403);
+    await pool.query("INSERT INTO game_settings(key,value) VALUES ('world-locked:haunted_woods','true')");
+    assert.equal((await request("GET", publicBase + "/garden", "haunted_woods", {}, {}, "visitor")).statusCode, 403);
+    assert.equal((await request("POST", publicBase + "/garden/plots/:plotId/hoe", "haunted_woods",
+      { plotId: "woods-plot" }, { inventoryId: "visitor-hoe", requestId: randomUUID() }, "visitor")).statusCode, 403);
+    assert.equal((await request("POST", publicBase + "/water-sources/:sourceId/refill", "haunted_woods",
+      { sourceId: "woods-spring" }, { inventoryId: "owner-pail" }, "visitor")).statusCode, 403);
+    await pool.query("UPDATE game_settings SET value='false' WHERE key='world-locked:haunted_woods'");
+    assert.equal((await request("POST", publicBase + "/garden/plots/:plotId/hoe", "haunted_woods",
+      { plotId: "swamp-plot" }, { inventoryId: "visitor-hoe", requestId: randomUUID() }, "visitor")).statusCode, 404);
+    assert.equal((await request("POST", publicBase + "/garden/plots/:plotId/hoe", "haunted_woods",
+      { plotId: "woods-plot" }, { inventoryId: "visitor-hoe", requestId: randomUUID() }, "visitor")).statusCode, 200);
+    assert.equal((await request("GET", publicBase + "/garden", "haunted_woods", {}, {}, "visitor")).payload.plots[0].phase, "tilled");
+    assert.equal((await request("GET", publicBase + "/garden", "haunted_woods")).payload.plots[0].phase, "empty",
+      "another player's tilled plot never changes the admin's private state");
+    assert.equal((await request("POST", publicBase + "/water-sources/:sourceId/refill", "haunted_woods",
+      { sourceId: "woods-spring" }, { inventoryId: "owner-pail" }, "visitor")).statusCode, 422);
+    assert.equal((await request("POST", publicBase + "/water-sources/:sourceId/refill", "haunted_woods",
+      { sourceId: "woods-spring" }, { inventoryId: "visitor-pail" }, "visitor")).statusCode, 200);
+    const visitorAction = (type: string, inventoryId: string) =>
+      request("POST", publicBase + "/garden/plots/:plotId/" + type, "haunted_woods",
+        { plotId: "woods-plot" }, { inventoryId, requestId: randomUUID() }, "visitor");
+    assert.equal((await visitorAction("plant", "visitor-seeds")).statusCode, 200);
+    for (let i = 0; i < 4; i++) assert.equal((await visitorAction("water", "visitor-pail")).statusCode, 200);
+    const visitorHarvest = await visitorAction("harvest", "visitor-scythe");
+    assert.equal(visitorHarvest.statusCode, 200);
+    assert.deepEqual(visitorHarvest.payload.reward, { fruitItemId: "fruit", quantity: 2 });
+    assert.equal((await pool.query("SELECT garden_water_left FROM user_inventory WHERE id='visitor-pail'")).rows[0].garden_water_left, 92);
+    assert.equal((await pool.query("SELECT SUM(quantity)::int AS total FROM user_inventory WHERE user_id='visitor' AND shop_item_id='fruit'")).rows[0].total, 2);
     const denied = await request("GET", base + "/garden", "swamp", {}, {}, "visitor");
     assert.equal(denied.statusCode, 403, "unpublished worlds remain private");
     assert.equal((await request("GET", base + "/garden", "not_a_world")).statusCode, 404);

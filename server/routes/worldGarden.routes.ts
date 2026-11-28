@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import {
   worldGardenActionReceipts, gardenCrops, worldGardenPlayerPlots, worldScenePlacements,
-  shopItems, userInventory, users,
+  shopItems, userInventory,
 } from "@shared/schema";
 import {
   GARDEN_PICKED_COOLDOWN_MS, GARDEN_WATER_CAPACITY,
@@ -11,6 +11,7 @@ import {
 } from "@shared/garden";
 import { tryConsumeOneFromInventory } from "../inventoryConsumption";
 import { db } from "../db";
+import { worldGardenAccess } from "../worldGardenAccess";
 import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
 
 type GardenTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -68,15 +69,6 @@ function cropArt(crop: SavedCrop, seed?: CatalogItem, fruit?: CatalogItem) {
       isCompleteGardenCrop({ images, drops: Object.values(drops) }),
   };
 }
-async function requireWorldPreviewAccess(tx: GardenTx, userId: string, lock: boolean) {
-  // Lock the same users row as Pet Park before consuming shared inventory.
-  // Private draft worlds are not publicly accessible until a later release.
-  const query = tx.select({ id: users.id, isAdmin: users.isAdmin })
-    .from(users).where(eq(users.id, userId));
-  const [player] = lock ? await query.for("update") : await query;
-  requireAction(player, 404, "Player not found");
-  requireAction(player.isAdmin, 403, "Unpublished worlds are admin-only");
-}
 async function ownedEquipment(tx: GardenTx, userId: string, inventoryId: string) {
   // Marketplace escrows the WHOLE listed row; neither tools nor seeds may use it.
   const [inventory] = await tx.select({
@@ -107,7 +99,7 @@ async function savePlot(tx: GardenTx, userId: string, worldId: string, plotId: s
   return saved;
 }
 
-/** The independent private-world garden route uses the SAME shared catalog,
+/** The independent world garden route uses the SAME shared catalog,
  * inventory consumption, water capacity, growth and harvest rules as Pet Park.
  * It writes only world-specific plot/receipt tables; world drafts remain admin-only.
  * A receipt and all state/inventory writes commit together or not at all.
@@ -118,14 +110,17 @@ export function registerWorldGardenRoutes(
   random: () => number = Math.random,
   clock: () => Date = () => new Date(),
 ): void {
-  app.get("/api/admin/world-editor/:worldId/garden", isAuthenticated, async (req, res) => {
+  for (const mode of ["preview", "player"] as const) {
+  const prefix = mode === "preview" ? "/api/admin/world-editor/:worldId" : "/api/worlds/:worldId";
+  app.get(prefix + "/garden", isAuthenticated, async (req, res) => {
     const worldId = req.params.worldId;
     if (typeof worldId !== "string" || !isEditableWorldSceneId(worldId))
       return res.status(404).json({ message: "Unknown world" });
     const userId = (req.user as { id: string }).id;
     try {
       const data = await database.transaction(async tx => {
-        await requireWorldPreviewAccess(tx, userId, false);
+        const denial = await worldGardenAccess(tx, userId, worldId, mode, false);
+        if (denial) throw new GardenActionError(denial.status, denial.message);
         const [plots, ownStates, crops] = await Promise.all([
           tx.select({ id: worldScenePlacements.id, xPct: worldScenePlacements.xPct,
             yPct: worldScenePlacements.yPct, size: worldScenePlacements.size })
@@ -159,6 +154,7 @@ export function registerWorldGardenRoutes(
             .filter(crop => crop.ready),
         };
       });
+      res.setHeader("Cache-Control", "private, no-store");
       return res.json(data);
     } catch (error) {
       if (error instanceof GardenActionError)
@@ -169,7 +165,7 @@ export function registerWorldGardenRoutes(
   });
 
   for (const action of ["hoe", "plant", "water", "harvest"] as const) {
-    app.post(`/api/admin/world-editor/:worldId/garden/plots/:plotId/${action}`, isAuthenticated, async (req, res) => {
+    app.post(`${prefix}/garden/plots/:plotId/${action}`, isAuthenticated, async (req, res) => {
       const worldId = req.params.worldId;
       if (typeof worldId !== "string" || !isEditableWorldSceneId(worldId))
         return res.status(404).json({ message: "Unknown world" });
@@ -183,7 +179,8 @@ export function registerWorldGardenRoutes(
       const userId = (req.user as { id: string }).id;
       try {
         const response = await database.transaction(async tx => {
-          await requireWorldPreviewAccess(tx, userId, true);
+          const denial = await worldGardenAccess(tx, userId, worldId, mode, true);
+          if (denial) throw new GardenActionError(denial.status, denial.message);
           const [receipt] = await tx.select().from(worldGardenActionReceipts)
             .where(and(eq(worldGardenActionReceipts.userId, userId),
               eq(worldGardenActionReceipts.requestId, requestId)));
@@ -328,5 +325,6 @@ export function registerWorldGardenRoutes(
         return res.status(500).json({ message: "Garden action could not be completed" });
       }
     });
+  }
   }
 }

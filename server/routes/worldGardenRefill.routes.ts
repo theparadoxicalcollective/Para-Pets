@@ -1,10 +1,11 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, or, sql } from "drizzle-orm";
 import {
-  worldScenePlacements, shopItems, userInventory, users,
+  worldScenePlacements, shopItems, userInventory,
 } from "@shared/schema";
 import { GARDEN_WATER_CAPACITY, gardenItemNeedsRefill } from "@shared/garden";
 import { db } from "../db";
+import { worldGardenAccess } from "../worldGardenAccess";
 import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
 
 /**
@@ -14,7 +15,9 @@ import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
  * cannot race a future garden watering transaction on the same item.
  */
 export function registerWorldGardenRefillRoutes(app: Express, isAuthenticated: RequestHandler, database: typeof db = db): void {
-  app.post("/api/admin/world-editor/:worldId/water-sources/:sourceId/refill", isAuthenticated, async (req, res) => {
+  for (const mode of ["preview", "player"] as const) {
+  const prefix = mode === "preview" ? "/api/admin/world-editor/:worldId" : "/api/worlds/:worldId";
+  app.post(prefix + "/water-sources/:sourceId/refill", isAuthenticated, async (req, res) => {
     const worldId = req.params.worldId;
     if (typeof worldId !== "string" || !isEditableWorldSceneId(worldId))
       return res.status(404).json({ message: "Unknown world" });
@@ -27,10 +30,8 @@ export function registerWorldGardenRefillRoutes(app: Express, isAuthenticated: R
     const userId = (req.user as { id: string }).id;
     try {
       const result = await database.transaction(async tx => {
-        const [player] = await tx.select({ isAdmin: users.isAdmin }).from(users)
-          .where(eq(users.id, userId));
-        if (!player) return { status: 404 as const, message: "Player not found" };
-        if (!player.isAdmin) return { status: 403 as const, message: "World drafts are admin-only" };
+        const denial = await worldGardenAccess(tx, userId, worldId, mode, true);
+        if (denial) return denial;
 
         const [source] = await tx.select({
           id: worldScenePlacements.id,
@@ -84,4 +85,5 @@ export function registerWorldGardenRefillRoutes(app: Express, isAuthenticated: R
       return res.status(500).json({ message: "Unable to refill this item" });
     }
   });
+  }
 }
