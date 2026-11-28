@@ -4407,25 +4407,7 @@ img[data-interactive], button img, a img {
 }
 
 
-/* One visual surface for all connected water, shared by the Park and worlds.
-   Only its small texture transform animates; the cached terrain and shoreline
-   never move or repaint on the animation clock. Pause during camera gestures. */
-.park-water-shimmer-surface {
-  inset: -18px;
-  opacity: .92;
-  animation: park-water-drift 8s ease-in-out infinite alternate;
-}
-@keyframes park-water-drift {
-  from { transform: translate3d(-13px,-6px,0); }
-  to { transform: translate3d(13px,6px,0); }
-}
-.park-water-shimmer[data-camera-preview="true"] .park-water-shimmer-surface {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
-  .park-water-shimmer { display: none !important; }
-  .park-water-shimmer-surface { animation: none; }
-}
+/* Water terrain uses its original static raster. Placed effects are separate. */
 
 /* World fish share the scene camera, with compositor-only movement and no JS
    animation timers. Each track stays within its authored, clipped swim area. */

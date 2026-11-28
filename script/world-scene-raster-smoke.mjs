@@ -166,40 +166,22 @@ try{
    assert.ok((await diff(themed,await snapshot())).mean<3);
    await set({mode:"shore-cached"});
   }
-  // Exercise one shared animated surface in both renderer modes and themes.
-  // Its clock changes only the shimmer transform, not the static terrain.
-  const shimmer=page.getByTestId("park-water-shimmer"), surface=shimmer.locator(".park-water-shimmer-surface");
+  // Keep the actual rendered water still across a real time interval with
+  // animations enabled. No second texture should blur the approved caustics.
   for (const [mode,style] of [["shore-direct","teal"],["shore-cached","haunted"],["shore-cached","volcanic"]]) {
     await set({mode,waterStyle:style});
-    await shimmer.waitFor({state:"visible"});
-    assert.equal(await shimmer.count(),1);
-    assert.equal(await shimmer.evaluate(el=>getComputedStyle(el).pointerEvents),"none");
-    assert.match(await shimmer.evaluate(el=>el.style.clipPath),/^path/);
-    const rasterBefore=await canvas.evaluate(el=>el.toDataURL());
-    const phase=async fraction=>surface.evaluate((el,f)=>{
-      const animation=el.getAnimations()[0];
-      animation.pause(); animation.currentTime=Number(animation.effect.getTiming().duration)*f;
-      return getComputedStyle(el).transform;
-    },fraction);
-    const transformBefore=await phase(0);
+    await page.waitForFunction(()=>document.querySelector("canvas")?.dataset.parkWaterTexture==="ready");
+    assert.equal(await page.getByTestId("park-water-shimmer").count(),0);
+    assert.equal(await canvas.evaluate(el=>el.getAnimations({subtree:true}).length),0);
     const first=await scene.screenshot();
-    const transformAfter=await phase(1);
+    await page.waitForTimeout(600);
     const second=await scene.screenshot();
-    assert.notEqual(transformBefore,transformAfter,"texture drifts rather than animating the entire map");
-    assert.equal(await canvas.evaluate(el=>el.toDataURL()),rasterBefore,"motion does not repaint the terrain");
-    const rippleBounds={left:70*2,top:88*2,width:60*2,height:24*2};
-    const rippleDiff=await diff(await sharp(first).extract(rippleBounds).png().toBuffer(),
-      await sharp(second).extract(rippleBounds).png().toBuffer());
-    assert.ok(rippleDiff.mean>2,JSON.stringify({mode,style,rippleDiff}));
+    assert.equal((await diff(first,second)).mean,0,mode+" "+style+" water must remain crisp and stable");
     assert.deepEqual(await pixelAt(first,100,61),await pixelAt(second,100,61),"rounded shore tip remains still");
     assert.deepEqual(await pixelAt(first,20,40),await pixelAt(second,20,40),"dry ground remains still");
-    await page.emulateMedia({reducedMotion:"reduce"});
-    await shimmer.waitFor({state:"hidden"});
-    await page.emulateMedia({reducedMotion:"no-preference"});
   }
-  // Moving away from all water suppresses the overlay; no offscreen animation.
   await set({panX:-1000,panY:-1000});
-  await shimmer.waitFor({state:"hidden"});
+  assert.equal(await page.getByTestId("park-water-shimmer").count(),0);
   // Restore the original lighting camera for the existing mask regressions.
   await set({mode:"mask-full",panX:-720,panY:-900,scale:.6,waterStyle:"teal"});
   const fullMask=await snapshot();

@@ -21,15 +21,3 @@ for (const [style, colors] of Object.entries(palettes)) {
   await sharp(output, { raw: { width: info.width, height: info.height, channels: 3 } })
     .webp({ quality: 93, effort: 6 }).toFile(`client/public/park-water-${style}.webp`);
 }
-
-// A single transparent caustic highlight layer, not another water surface.
-// World-sized repeats use the same original caustics at half resolution.
-const highlight = await sharp(source).resize(384, 256).removeAlpha().raw().toBuffer();
-const shimmer = Buffer.alloc(384 * 256 * 4);
-for (let i = 0, j = 0; i < highlight.length; i += 3, j += 4) {
-  const tone = .7 * highlight[i + 1] + .3 * highlight[i + 2];
-  shimmer[j] = 222; shimmer[j + 1] = 238; shimmer[j + 2] = 255;
-  shimmer[j + 3] = Math.round(Math.max(0, Math.min(1, (tone - 56) / 115)) ** 1.25 * 36) * 4;
-}
-await sharp(shimmer, { raw: { width: 384, height: 256, channels: 4 } })
-  .webp({ quality: 85, effort: 6 }).toFile("client/public/park-water-shimmer.webp");

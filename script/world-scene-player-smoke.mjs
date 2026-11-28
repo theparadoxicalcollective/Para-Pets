@@ -9,6 +9,8 @@ const moduleId = "/__world-scene-player-fixture.tsx";
 const fixture = `
 import React, {useState} from "react";
 import {createRoot} from "react-dom/client";
+import {createPortal} from "react-dom";
+import {useNavHidden} from "@/lib/navVisibility";
 import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
 import {useLocation,useSearch} from "wouter";
 import {getQueryFn} from "@/lib/queryClient";
@@ -20,6 +22,11 @@ import "@/index.css";
 const client=new QueryClient({defaultOptions:{queries:{queryFn:getQueryFn({on401:"returnNull"}),retry:false}}});
 window.refreshScene=()=>client.invalidateQueries({queryKey:["/api/worlds","swamp","player-scene"]});
 const oldLocations=[{id:"old-shop",worldId:"swamp",name:"Original Shop",type:"shop",isShop:true,posX:35,posY:35,iconSize:100}];
+// Render the same global HUD visibility subscription that FloatingNav uses.
+function HudProbe(){
+ const hidden=useNavHidden();
+ return hidden?null:createPortal(<button data-testid="fixture-main-nav" style={{position:"absolute",right:12,bottom:16,pointerEvents:"auto"}}>Main navigation</button>,document.getElementById("game-viewport-hud"));
+}
 function Fixture(){
  const [,navigate]=useLocation(), search=useSearch(), params=new URLSearchParams(search);
  const [opened,setOpened]=useState("");
@@ -34,7 +41,7 @@ function Fixture(){
    <button data-testid="restore-visibility" className="absolute bottom-20 z-50" onClick={()=>navigate("/world/swamp?legacyView=1&showRetired=1")}>Show all</button>
    <button data-testid="return" className="absolute bottom-0 z-50" onClick={()=>navigate("/world/swamp")}>New World</button>
  </div>:<WorldScenePlayerPage worldId="swamp"/>}
- <JansonQuestOverlay/><WorldNpcPlacementOverlay/></>;
+ <JansonQuestOverlay/><WorldNpcPlacementOverlay/><HudProbe/></>;
 }
 createRoot(document.getElementById("root")).render(<QueryClientProvider client={client}><Fixture/></QueryClientProvider>);
 `;
@@ -120,6 +127,7 @@ try{
     });
     await page.goto("http://127.0.0.1:4198/world/swamp");
     const shop=page.getByTestId("player-new-world-object-shop");
+    const mainNav=page.getByTestId("fixture-main-nav");
     await shop.waitFor({state:"visible"});
     await page.waitForFunction(()=>document.querySelector('[data-testid="player-new-world-object-shop"] img')?.naturalWidth > 0);
     assert.ok(mediaReads.some(path=>path.startsWith(visibleMedia+"/world-v1/")),"visible art requests a size-matched copy");
@@ -205,6 +213,8 @@ try{
     await page.getByTestId("home-interior-darkness-layer").waitFor({state:"visible"});
     await page.getByTestId("player-new-world-interior-night").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("player-new-world-object-effect").count(),0,"outdoor sprites are not mounted over rooms");
+    await mainNav.waitFor({state:"detached"});
+    assert.equal(await page.getByTestId("player-new-world-building").getAttribute("aria-modal"),"true");
     const child=await page.getByTestId("player-new-world-interior-item-room-decor").boundingBox(), bg=await interior.boundingBox();
     assert.ok(Math.abs(child.width/bg.width-130/850)<.02,"room decor uses the authored image scale");
     assert.ok(bg.width >= width-1 && bg.height >= height-1, "room covers viewport, not letterboxed");
@@ -235,17 +245,46 @@ try{
     const closeBounds=await closeRoom.boundingBox();
     assert.ok(closeBounds.y>=8 && closeBounds.y+closeBounds.height<=height && closeBounds.width>=44 && closeBounds.height>=44,
       "close button is reachable with a touch-sized target");
-    // Swipe a room; artwork and its saved decoration must move together.
+    // Swipe the fixed room viewport, not a draggable image; this includes
+    // immediate pointer capture, motion in both directions and reversing at
+    // a clamped edge without having to retrace discarded swipe distance.
+    const roomViewport=page.getByTestId("player-new-world-room-viewport");
+    assert.equal(await roomViewport.evaluate(el=>getComputedStyle(el).touchAction),"none");
+    await page.evaluate(()=>{
+      window.roomCaptured=false;
+      window.addEventListener("pointerdown",event=>{
+        const room=document.querySelector('[data-testid="player-new-world-room-viewport"]');
+        if(room?.contains(event.target)) window.roomCaptured=room.hasPointerCapture(event.pointerId);
+      },{once:true});
+    });
     const roomTouch=await context.newCDPSession(page);
-    await roomTouch.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:width/2,y:height*.34,id:1}]});
-    for (const dx of [12,24,36,48,60]) await roomTouch.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:width/2+dx,y:height*.34,id:1}]});
-    await roomTouch.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
-    await roomTouch.detach();
+    const startX=width/2, startY=height*.34;
+    const roomSwipe=async(offsets,checkCapture=false)=>{
+      await roomTouch.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:startX,y:startY,id:1}]});
+      if(checkCapture) assert.equal(await page.evaluate(()=>window.roomCaptured),true,"room owns the pointer immediately");
+      for(const dx of offsets) await roomTouch.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:startX+dx,y:startY,id:1}]});
+      await roomTouch.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+    };
+    await roomSwipe([12,24,36,48,60],true);
     await page.waitForFunction(before=>document.querySelector('[data-testid="player-new-world-interior"]').getBoundingClientRect().x>before+10,bg.x);
     const movedBg=await interior.boundingBox(),movedChild=await page.getByTestId("player-new-world-interior-item-room-decor").boundingBox();
     assert.ok(Math.abs((movedChild.x-child.x)-(movedBg.x-bg.x))<2,"room pan moves saved decoration with its artwork");
+    await roomSwipe([-12,-24,-36,-48,-60,-72]);
+    await page.waitForFunction(before=>document.querySelector('[data-testid="player-new-world-interior"]').getBoundingClientRect().x<before-10,movedBg.x);
+    // Reach the right edge in one or more swipes, then reverse while the
+    // finger is still down. The camera should move immediately in reverse.
+    for(let i=0;i<3;i++) await roomSwipe([20,40,60,80,100,120]);
+    const edge=await interior.boundingBox();
+    assert.ok(Math.abs(edge.x)<2,"room reaches left edge without blank space");
+    await roomSwipe([12,24,36,48,60,48,36,24]);
+    const reversed=await interior.boundingBox();
+    assert.ok(reversed.x<edge.x-10,"reversing at the edge pans immediately");
+    const lastChild=await page.getByTestId("player-new-world-interior-item-room-decor").boundingBox();
+    assert.ok(Math.abs((lastChild.x-child.x)-(reversed.x-bg.x))<2);
+    await roomTouch.detach();
     await closeRoom.tap();
     await page.getByTestId("player-new-world-building").waitFor({state:"hidden"});
+    await mainNav.waitFor({state:"visible"});
     await shop.tap();
     await interior.waitFor({state:"visible"});
     scene.interiorItems[0].xPct=.25;
@@ -276,7 +315,7 @@ try{
     await page.waitForURL(/fishHint=1/);
     assert.deepEqual(writes,["/api/worlds/swamp/garden/plots/garden/hoe","/api/worlds/swamp/water-sources/spring/refill","/api/quests/janson/catch_fish/start"]);
     assert.deepEqual(errors,[]);
-    console.log("PASS "+name+": full finger swipe, pinch, Pet Park garden and refill, live room edits, linked retired entry, recovery, original Janson quest handoff");
+    console.log("PASS "+name+": full finger swipe, pinch, room touch capture, left/right pan and edge reversal, HUD hide/restore, Pet Park garden and refill, live room edits, linked retired entry, recovery, original Janson quest handoff");
     await context.close();
   }
 }finally{await browser.close();await server.close();}

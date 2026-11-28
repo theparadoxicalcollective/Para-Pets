@@ -33,6 +33,7 @@ import { worldSceneRotationCss, worldSceneRotatedSquareExtent } from "@shared/wo
 import type { WorldSceneAsset, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
 import { resolveWorldSceneAction, resolveWorldSceneInteriorAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
 import WorldSceneArtwork from "@/components/world/WorldSceneArtwork";
+import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { playerWorldSceneQuery, playerWorldArtworkVisibility, playerWorldCullOrigin, PLAYER_WORLD_CULL_CELL, PLAYER_WORLD_INITIAL_ZOOM, playerWorldRoomCamera, type PlayerScene } from "@/lib/playerWorldScene";
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
 import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
@@ -727,7 +728,8 @@ export default function WorldScenePlayerPage({
         className="touch-manipulation min-h-11 px-3 py-2 rounded-full border border-[#b99952] bg-[#081911e8] text-[#f5dc9e] text-sm">← Map</button>
     </div>
     {activeBuilding && <div className="absolute inset-0 z-40 flex flex-col bg-[#0b1714] text-[#f1d899]"
-      data-testid="player-new-world-building">
+      data-testid="player-new-world-building" role="dialog" aria-modal="true"
+      aria-label={activeAsset?.name ?? linkedPage?.name ?? "Building"}>
       <div className="absolute inset-x-0 top-0 z-40 flex justify-between items-center gap-3 bg-[#122a20]/95 px-4 pb-2"
         style={{ paddingTop: "max(12px, calc(env(safe-area-inset-top) + 8px))",
           paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
@@ -827,8 +829,11 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
     const node = ref.current;
     if (!node) return;
     const measure = () => {
-      const rect = node.getBoundingClientRect();
-      setViewport({ width: rect.width, height: rect.height });
+      // Measure the room's own coordinate plane, as in Pet Park and Home.
+      // Pointer travel is converted into these local CSS dimensions.
+      const width = node.clientWidth, height = node.clientHeight;
+      if (width < 1 || height < 1) return;
+      setViewport(old => old.width === width && old.height === height ? old : { width, height });
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -840,22 +845,34 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
   useEffect(() => { roomDrag.current = null; }, [viewport.width, viewport.height, ratio]);
   const endRoomDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.type === "lostpointercapture" && event.target !== event.currentTarget) return;
-    if (roomDrag.current?.id === event.pointerId) roomDrag.current = null;
+    if (roomDrag.current?.id === event.pointerId) {
+      roomDrag.current = null;
+      if (event.type !== "pointerup") roomMoved.current = true;
+    }
   };
   const lights = worldInteriorLights(items, width, height);
-  return <div ref={ref} className="absolute inset-0 overflow-hidden touch-none"
+  return <div ref={ref} data-testid="player-new-world-room-viewport"
+    className="absolute inset-0 overflow-hidden" style={HOME_TOUCH_SURFACE_STYLE}
     onPointerDown={event => {
       if (!ready || soulStone || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
       roomMoved.current = false;
       roomDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, pan };
+      // Match Pet Park: background gestures belong to the fixed room camera
+      // from touch-down, not to a draggable image or a moving child.
+      // Leave a genuine tap on an interactive room object alone.
+      if (!(event.target instanceof Element && event.target.closest("button, a, input, select, textarea, [data-interactive]"))) {
+        safeSetPointerCapture(event.currentTarget, event.pointerId);
+      }
     }}
     onPointerMove={event => {
       const drag = roomDrag.current;
       if (drag?.id !== event.pointerId) return;
-      const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
-      if (!roomMoved.current && Math.hypot(dx, dy) < 6) return;
+      const clientX = event.clientX - drag.x, clientY = event.clientY - drag.y;
+      if (!roomMoved.current && Math.hypot(clientX, clientY) < 6) return;
       roomMoved.current = true;
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) safeSetPointerCapture(event.currentTarget, event.pointerId);
+      event.preventDefault();
+      const { x: dx, y: dy } = homeCameraPointerDelta(clientX, clientY, event.currentTarget);
       const next = playerWorldRoomCamera(viewport, ratio ?? 4 / 3, {
         x: (viewport.width / 2 - drag.pan.x - dx) / width,
         y: (viewport.height / 2 - drag.pan.y - dy) / height,
@@ -866,12 +883,12 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
     }}
     onPointerUp={endRoomDrag} onPointerCancel={endRoomDrag} onLostPointerCapture={endRoomDrag}
     onClickCapture={event => {
-      if (roomMoved.current) { roomMoved.current = false; event.stopPropagation(); }
+      if (roomMoved.current) { roomMoved.current = false; event.preventDefault(); event.stopPropagation(); }
     }}>
     <div data-testid="player-new-world-interior" className="absolute left-0 top-0 overflow-hidden isolate"
       style={{ width, height, transform: `translate3d(${pan.x}px,${pan.y}px,0)`, visibility: ready ? "visible" : "hidden" }}>
       {viewport.width > 0 && viewport.height > 0 && <WorldSceneArtwork imageUrl={imageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="Building interior" draggable={false}
-        className="absolute inset-0 w-full h-full object-fill"
+        className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
         onArtworkError={() => setArtError(true)}
         onLoad={event => {
           setArtError(false);
@@ -879,7 +896,7 @@ function PlayerRoom({ worldId, imageUrl, nightImageUrl, building, items, assets,
           if (image.naturalWidth && image.naturalHeight) setRatio(image.naturalWidth / image.naturalHeight);
         }} />}
       {ready && nightImageUrl && lighting.nightInteriorArtworkActive && <WorldSceneArtwork imageUrl={nightImageUrl} cssSize={Math.max(viewport.width, viewport.height)} alt="" aria-hidden="true"
-        data-testid="player-new-world-interior-night" className="absolute inset-0 h-full w-full object-fill" />}
+        data-testid="player-new-world-interior-night" draggable={false} className="absolute inset-0 h-full w-full object-fill pointer-events-none select-none" />}
       {ready && <WorldSwimFish areas={swimAreas} fish={swimFish} buildingId={building.id} groundLevel={1}
         width={width} height={height} scale={width / 850} panX={pan.x} panY={pan.y}
         viewportWidth={viewport.width} viewportHeight={viewport.height} />}
