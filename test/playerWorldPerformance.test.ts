@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
 import { WORLD_ARTWORK_SIZES, worldArtworkSize, worldArtworkUrl } from "../shared/worlds/worldArtworkSize";
-import { PLAYER_WORLD_CULL_CELL, playerWorldCullOrigin, playerWorldRoomCamera, playerWorldArtworkVisibility, playerWorldSceneQuery } from "../client/src/lib/playerWorldScene";
+import { worldEditorCameraGeometry, worldEditorMinZoom } from "../client/src/lib/worldEditorCamera";
+import { clampPlayerWorldZoom } from "../shared/worlds/worldScenePublication";
+import { parkTerrainRasterTileWindow, PARK_TERRAIN_TILE_PIXELS } from "../client/src/lib/petParkTerrain";
+import { PLAYER_WORLD_INITIAL_ZOOM, PLAYER_WORLD_CULL_CELL, playerWorldCullOrigin, playerWorldRoomCamera, playerWorldArtworkVisibility, playerWorldSceneQuery } from "../client/src/lib/playerWorldScene";
 import { createWorldArtworkService, encodeWorldArtwork, WorldArtworkBusyError } from "../server/routes/worldArtworkMedia.routes";
 
 const id = "12345678-1234-1234-1234-123456789abc";
@@ -166,5 +169,31 @@ test("rooms fill phone and tablet viewports at their natural aspect and clamp bo
       assert.ok(Math.abs(end.pan.x - (viewport.width - room.width)) < 1e-8);
       assert.ok(Math.abs(end.pan.y - (viewport.height - room.height)) < 1e-8);
     }
+  }
+});
+
+test("the player default camera is slightly wider without exposing beyond the world", () => {
+  for (const viewport of [{ width:390,height:844 }, { width:834,height:1194 }, {width:1194,height:834}]) {
+    for (const level of [0,1,2,3,4]) {
+      const {width,height}=viewport;
+      const minimum=worldEditorMinZoom(width,height,level);
+      const previous=worldEditorCameraGeometry(width,height,level,clampPlayerWorldZoom(1,minimum));
+      const next=worldEditorCameraGeometry(width,height,level,clampPlayerWorldZoom(PLAYER_WORLD_INITIAL_ZOOM,minimum));
+      assert.ok(next.sceneWidth>=width-1e-6 && next.sceneHeight>=height-1e-6);
+      assert.ok(next.scale<=previous.scale+1e-8 && next.scale>=previous.scale*.9-1e-8);
+      if (minimum<=PLAYER_WORLD_INITIAL_ZOOM) assert.ok(Math.abs(next.scale/previous.scale-.9)<1e-8);
+    }
+  }
+});
+
+test("the terrain tile window covers both edges of any backing-pixel raster", () => {
+  for (const [x,y,width,height] of [[-100,-200,800,1700],[513,1025,512,512],[0,0,512,512],[723,593,1700,2436]]) {
+    const tiles=parkTerrainRasterTileWindow(x,y,width,height);
+    const tileSize=PARK_TERRAIN_TILE_PIXELS;
+    assert.equal(new Set(tiles.map(tile=>tile.x+":"+tile.y)).size,tiles.length);
+    for (const px of [x,x+width-1]) for (const py of [y,y+height-1]) {
+      assert.equal(tiles.filter(t=>px>=t.x&&px<t.x+tileSize&&py>=t.y&&py<t.y+tileSize).length,1);
+    }
+    for(const t of tiles) assert.ok(t.x%tileSize===0&&t.y%tileSize===0);
   }
 });

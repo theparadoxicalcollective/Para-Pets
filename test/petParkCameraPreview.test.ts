@@ -34,7 +34,7 @@ test("rapid zoom reuses only its previous raster and repaints on settling", () =
   assert.match(terrain,/\}, 110\)/);
   assert.match(terrain,/window\.clearTimeout\(timer\)/);
   assert.match(terrain,/window\.cancelAnimationFrame\(frame\)/);
-  assert.match(terrain,/paintTerrain\(ctx, expanded\)/);
+  assert.match(terrain,/paintTerrain\(ctx, rasterView\)/);
   assert.match(page,/cameraFrame\.current = window\.requestAnimationFrame/);
   assert.match(page,/parkZoomAnchorPan\(/);
   assert.match(page,/isParkPetNearViewport\(/);

@@ -4,6 +4,7 @@ import { PARK_GROUND_PALETTES, type ParkGroundPalette } from "@/lib/petParkGroun
 import {
   parkTerrainCellWindow, parkTerrainNoise, parkVisibleTerrainBounds,
   parkTerrainPreviewCoversViewport, parkTerrainPreviewTransform, type ParkTerrainViewport,
+  parkTerrainRasterTileWindow, PARK_TERRAIN_TILE_PIXELS, PARK_TERRAIN_TILE_GUTTER, PARK_TERRAIN_TILE_LIMIT,
 } from "@/lib/petParkTerrain";
 
 export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
@@ -132,8 +133,19 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   dirtPatches?: readonly ParkDirtPatch[];
   stonePatches?: readonly ParkDirtPatch[];
   waterPatches?: readonly ParkDirtPatch[];
+  /** Published worlds reuse static ground rasters. Editors keep the direct
+   * paint path so live brush strokes are never cached. */
+  cacheRasterTiles?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rasterCache = useRef({ scale: 0, ratio: 0, tiles: new Map<string, HTMLCanvasElement>() });
+  const clearRasterCache = () => {
+    // Explicitly release backing stores instead of leaving WebKit to retain
+    // abandoned large canvases until an unpredictable garbage collection.
+    for (const tile of rasterCache.current.tiles.values()) tile.width = tile.height = 1;
+    rasterCache.current.tiles.clear();
+  };
+  useEffect(() => () => clearRasterCache(), []);
   // Camera movement used to re-run all watercolor and connected-path loops
   // on *every pinch frame*. Keep the last raster and reproject it with a cheap
   // GPU transform during gestures; repaint at full resolution once the camera
@@ -141,7 +153,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   const painted = useRef<null | {
     view: ParkTerrainViewport & { groundTheme?: ParkGroundTheme; groundPalette?: ParkGroundPalette;
       dirtPatches?: readonly ParkDirtPatch[]; stonePatches?: readonly ParkDirtPatch[];
-      waterPatches?: readonly ParkDirtPatch[] };
+      waterPatches?: readonly ParkDirtPatch[]; cacheRasterTiles?: boolean };
     marginX: number; marginY: number;
   }>(null);
   // The exposed path edges depend only on saved stamps and world geometry.
@@ -167,6 +179,14 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     };
     let frame: number | undefined;
     let timer: number | undefined;
+    const drawRaster = (ctx: CanvasRenderingContext2D, rasterView: typeof view, ratio: number) => {
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      paintTerrain(ctx, rasterView);
+      const theme = view.groundTheme ?? "grass";
+      if (view.dirtPatches?.length) paintConnectedPaths(ctx, rasterView, view.dirtPatches, "dirt_path", theme, view.groundPalette, dirtEdges);
+      if (view.stonePatches?.length) paintConnectedPaths(ctx, rasterView, view.stonePatches, "stone_path", theme, view.groundPalette, stoneEdges);
+      if (view.waterPatches?.length) paintConnectedPaths(ctx, rasterView, view.waterPatches, "water_path", theme, view.groundPalette, waterEdges);
+    };
     const paint = () => {
       const ctx = canvas.getContext("2d", { alpha: false });
       if (!ctx) return;
@@ -182,13 +202,84 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       canvas.style.height = expanded.viewportHeight + "px";
       canvas.style.transform = "";
       canvas.dataset.parkCameraPreview = "false";
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      paintTerrain(ctx, expanded);
-      const theme = view.groundTheme ?? "grass";
-      if (view.dirtPatches?.length) paintConnectedPaths(ctx, expanded, view.dirtPatches, "dirt_path", theme, view.groundPalette, dirtEdges);
-      if (view.stonePatches?.length) paintConnectedPaths(ctx, expanded, view.stonePatches, "stone_path", theme, view.groundPalette, stoneEdges);
-      if (view.waterPatches?.length) paintConnectedPaths(ctx, expanded, view.waterPatches, "water_path", theme, view.groundPalette, waterEdges);
-      painted.current = { view, marginX, marginY };
+      const cache = rasterCache.current;
+      if (staticChanged || cache.scale !== view.scale || cache.ratio !== ratio || !view.cacheRasterTiles) {
+        clearRasterCache();
+        cache.scale = view.scale;
+        cache.ratio = ratio;
+      }
+      // A pinch changes the scale continuously. Keep the existing direct
+      // raster/preview path until scale stabilizes instead of filling a cache
+      // with short-lived zoom variants.
+      const originX = Math.round(-expanded.panX * ratio);
+      const originY = Math.round(-expanded.panY * ratio);
+      const tiles = view.cacheRasterTiles ? parkTerrainRasterTileWindow(originX, originY, width, height) : [];
+      const useTiles = view.cacheRasterTiles && tiles.length <= PARK_TERRAIN_TILE_LIMIT &&
+        (!previous || previous.view.scale === view.scale);
+      if (!useTiles) {
+        clearRasterCache();
+        drawRaster(ctx, expanded, ratio);
+        painted.current = { view, marginX, marginY };
+        delete canvas.dataset.parkTerrainTileHits;
+        delete canvas.dataset.parkTerrainTileMisses;
+        return;
+      }
+
+      const tileSize = PARK_TERRAIN_TILE_PIXELS, gutter = PARK_TERRAIN_TILE_GUTTER;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const visibleKeys = new Set(tiles.map(position => position.x + ":" + position.y));
+      let hits = 0, misses = 0;
+      for (const position of tiles) {
+        const key = position.x + ":" + position.y;
+        let tile = cache.tiles.get(key);
+        if (tile) {
+          hits++;
+          // Refresh the LRU order without replacing the raster.
+          cache.tiles.delete(key);
+        } else {
+          misses++;
+          tile = document.createElement("canvas");
+          tile.width = tile.height = tileSize + 2 * gutter;
+          const tileContext = tile.getContext("2d", { alpha: false });
+          if (!tileContext) {
+            // A constrained browser may refuse another canvas. Fall back to
+            // the original renderer rather than exposing an incomplete map.
+            clearRasterCache();
+            tile.width = tile.height = 1;
+            delete canvas.dataset.parkTerrainTileHits;
+            delete canvas.dataset.parkTerrainTileMisses;
+            drawRaster(ctx, expanded, ratio);
+            painted.current = { view, marginX, marginY };
+            return;
+          }
+          // Paint a gutter around the tile before cropping it. Adjacent
+          // path shadows and grass washes are sampled in the same world
+          // coordinates as a full viewport repaint, including at seams.
+          drawRaster(tileContext, {
+            ...view, viewportWidth: tile.width / ratio, viewportHeight: tile.height / ratio,
+            panX: -(position.x - gutter) / ratio, panY: -(position.y - gutter) / ratio,
+          }, ratio);
+        }
+        cache.tiles.set(key, tile);
+        ctx.drawImage(tile, gutter, gutter, tileSize, tileSize,
+          position.x - originX, position.y - originY, tileSize, tileSize);
+        if (cache.tiles.size > PARK_TERRAIN_TILE_LIMIT) {
+          const oldest = [...cache.tiles.keys()].find(key => !visibleKeys.has(key));
+          if (oldest !== undefined) {
+            const discarded = cache.tiles.get(oldest)!;
+            discarded.width = discarded.height = 1;
+            cache.tiles.delete(oldest);
+          }
+        }
+      }
+      // The backing-pixel origin is snapped only for raster copying. Apply
+      // the subpixel remainder to the canvas, never to authored coordinates.
+      const rasterView = { ...view, panX: -originX / ratio - marginX, panY: -originY / ratio - marginY };
+      canvas.style.transformOrigin = "0 0";
+      canvas.style.transform = `translate(${view.panX - rasterView.panX}px, ${view.panY - rasterView.panY}px)`;
+      canvas.dataset.parkTerrainTileHits = String(hits);
+      canvas.dataset.parkTerrainTileMisses = String(misses);
+      painted.current = { view: rasterView, marginX, marginY };
     };
     const previous = painted.current;
     const staticChanged = !previous ||
@@ -200,7 +291,8 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       previous.view.groundPalette !== view.groundPalette ||
       previous.view.dirtPatches !== view.dirtPatches ||
       previous.view.stonePatches !== view.stonePatches ||
-      previous.view.waterPatches !== view.waterPatches;
+      previous.view.waterPatches !== view.waterPatches ||
+      previous.view.cacheRasterTiles !== view.cacheRasterTiles;
     if (staticChanged) {
       // Persisted art / map geometry changes always draw immediately.
       frame = window.requestAnimationFrame(paint);
@@ -215,7 +307,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
         // for the 110ms idle debounce, which is continuously reset by drag.
         paint();
       } else if (Math.abs(dx) < .1 && Math.abs(dy) < .1 && Math.abs(ratio - 1) < .0001) {
-        canvas.style.transform = "";
+        canvas.style.transform = `translate(${dx}px, ${dy}px)`;
         canvas.dataset.parkCameraPreview = "false";
       } else {
         canvas.style.transformOrigin = "0 0";
@@ -234,7 +326,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     };
   }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight,
       view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches,
-      view.waterPatches, view.groundTheme, view.groundPalette, dirtEdges, stoneEdges, waterEdges]);
+      view.waterPatches, view.groundTheme, view.groundPalette, view.cacheRasterTiles, dirtEdges, stoneEdges, waterEdges]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
     className="pointer-events-none absolute" style={{ backgroundColor: (view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"]).base }} />;

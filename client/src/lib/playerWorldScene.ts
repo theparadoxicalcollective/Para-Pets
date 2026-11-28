@@ -24,6 +24,10 @@ export function playerWorldSceneQuery(worldId: string) {
   };
 }
 
+/** Start slightly wider for players; the editor and Pet Park keep their own
+ * camera defaults. The existing cover floor can still override this value. */
+export const PLAYER_WORLD_INITIAL_ZOOM = 0.9;
+
 /** Small overscan starts adjacent images before panning reveals them.
  * Keep legacy quest mounts separate from raster/effect visibility. */
 export function playerWorldArtworkVisibility(
