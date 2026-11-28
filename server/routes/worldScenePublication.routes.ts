@@ -11,7 +11,7 @@ import {
 import type { db as database } from "../db";
 import { referencedWorldAssetFilter } from "../worldSceneAssetUsage";
 import { WORLD_SCENE_MAX_ASSETS } from "@shared/worlds/worldSceneContent";
-import { effectiveWorldLocked, worldLockKey } from "@shared/worlds/worldAccess";
+import { canPreviewLockedWorld, effectiveWorldLocked, worldLockKey } from "@shared/worlds/worldAccess";
 import { defaultWorldSceneDraft } from "@shared/worlds/worldSceneDraft";
 import { auditWorldActivation, resolveLegacyNpcLocation, retiredLocationKey, effectiveRetiredLocations } from "@shared/worlds/worldScenePublication";
 
@@ -166,7 +166,7 @@ export function registerWorldScenePublicationRoutes(app: Express, {
       return res.status(404).json({ message: "Unknown world" });
     const viewer = req.user as { isAdmin?: boolean; isModerator?: boolean } | undefined;
     try {
-      if (!viewer?.isAdmin && !viewer?.isModerator) {
+      if (!canPreviewLockedWorld(viewer)) {
         const [lock] = await db.select().from(gameSettings).where(eq(gameSettings.key, worldLockKey(worldId))).limit(1);
         if (effectiveWorldLocked(worldId, lock?.value))
           return res.status(403).json({ message: "Coming Soon" });

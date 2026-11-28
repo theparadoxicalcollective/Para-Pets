@@ -4,10 +4,11 @@ import { WORLD_IDS } from "@shared/worlds/worldRegistry";
  * offline, so live camera movement never runs a filter or per-stamp effect. */
 export const PARK_WATER_BASE = "#074653";
 export const PARK_WATER_TEXTURE_URL = "/park-water-surface.webp";
+export const PARK_WATER_SHIMMER_URL = "/park-water-shimmer.webp";
 export type ParkWaterStyle = "teal" | "haunted" | "volcanic";
 export const PARK_WATER_APPEARANCE: Record<ParkWaterStyle, { base: string; shadow: string; textureUrl: string }> = {
   teal: { base: PARK_WATER_BASE, shadow: "rgba(5,33,38,.46)", textureUrl: PARK_WATER_TEXTURE_URL },
-  haunted: { base: "#39254e", shadow: "rgba(25,13,39,.46)", textureUrl: "/park-water-haunted.webp" },
+  haunted: { base: "#292b50", shadow: "rgba(16,19,43,.46)", textureUrl: "/park-water-haunted.webp" },
   volcanic: { base: "#641c1d", shadow: "rgba(44,12,17,.46)", textureUrl: "/park-water-volcanic.webp" },
 };
 

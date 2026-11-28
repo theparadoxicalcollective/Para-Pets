@@ -62,5 +62,5 @@ test("terrain is visual-only behind the existing interactive world and keeps ori
   assert.doesNotMatch(page, /cacheRasterTiles/);
   assert.match(painter, /view\.cacheRasterTiles && tiles\.length <= PARK_TERRAIN_TILE_LIMIT/);
   assert.match(painter, /cache\.tiles\.size > PARK_TERRAIN_TILE_LIMIT/);
-  assert.equal((painter.match(/return <canvas/g) ?? []).length, 1);
+  assert.equal((painter.match(/<canvas\b/g) ?? []).length, 1);
 });

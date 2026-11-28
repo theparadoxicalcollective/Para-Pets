@@ -14,8 +14,9 @@ import {TooltipProvider} from "@/components/ui/tooltip";
 import MapPage from "@/pages/MapPage";
 import WorldAccessPanel from "@/components/admin/WorldAccessPanel";
 import "@/index.css";
-const admin = new URLSearchParams(location.search).get("role")==="admin";
-const user={id:"qa",username:"QA",email:"qa@example.invalid",profileImage:null,coins:0,isAdmin:admin,isModerator:false,activePetId:null,lastUsernameChange:null,lastProfilePicChange:null};
+const role = new URLSearchParams(location.search).get("role");
+const admin = role==="admin";
+const user={id:"qa",username:"QA",email:"qa@example.invalid",profileImage:null,coins:0,isAdmin:admin,isModerator:role==="moderator",activePetId:null,lastUsernameChange:null,lastProfilePicChange:null};
 const client=new QueryClient({defaultOptions:{queries:{queryFn:getQueryFn({on401:"returnNull"}),retry:false,refetchOnWindowFocus:false}}});
 window.refreshAccess=()=>client.invalidateQueries({queryKey:["/api/world-scene-publications"]});
 function Fixture(){
@@ -42,15 +43,15 @@ const worlds=[
   {id:"swamp",name:"Bayou",posX:55,posY:10},
 ].map(w=>({...w,iconUrl:art,bgUrl:null,iconSize:24,glowColor:"#ffd700",isDefault:true}));
 await server.listen();
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:["--no-sandbox","--disable-dev-shm-usage"]}:{})});
 try{
   for(const [name,width,height] of [["phone",390,844],["tablet",834,1194]]){
     const locks=Object.fromEntries(ids.map(id=>[id,!["swamp","volcanic","haunted_woods"].includes(id)]));
     const writes=[];
     const errors=[];
     const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true});
-    const admin=await context.newPage(),player=await context.newPage();
-    for(const [page,isAdmin] of [[admin,true],[player,false]]){
+    const admin=await context.newPage(),player=await context.newPage(),moderator=await context.newPage();
+    for(const [page,isAdmin] of [[admin,true],[player,false],[moderator,false]]){
       page.on("pageerror",e=>errors.push(e.message));
       await page.route("**/api/**",route=>{
         const req=route.request(),path=new URL(req.url()).pathname;
@@ -69,29 +70,38 @@ try{
         return route.fulfill({json:{}});
       });
     }
-    await player.goto("http://127.0.0.1:4196/map?role=player");
-    await player.getByTestId("world-locked-snowy_mountain").waitFor();
-    await player.getByTestId("button-location-snowy_mountain").tap({force:true});
-    await player.getByTestId("modal-world-coming-soon").waitFor();
-    assert.match(await player.getByTestId("modal-world-coming-soon").innerText(),/Coming Soon/);
-    await player.getByRole("button",{name:"Close",exact:true}).tap();
-    await player.getByTestId("modal-world-coming-soon").waitFor({state:"hidden"});
+    for (const [page,role] of [[player,"player"],[moderator,"moderator"]]) {
+      await page.goto("http://127.0.0.1:4196/map?role="+role);
+      await page.getByTestId("world-locked-snowy_mountain").waitFor();
+      await page.getByTestId("button-location-snowy_mountain").tap({force:true});
+      await page.getByTestId("modal-world-coming-soon").waitFor();
+      assert.match(await page.getByTestId("modal-world-coming-soon").innerText(),/Coming Soon/);
+      assert.equal(await page.getByTestId("destination").count(),0);
+      await page.getByRole("button",{name:"Close",exact:true}).tap();
+      await page.getByTestId("modal-world-coming-soon").waitFor({state:"hidden"});
+    }
     await admin.goto("http://127.0.0.1:4196/admin-worlds?role=admin");
     await admin.getByTestId("admin-world-access").waitFor();
     assert.equal(await admin.getByRole("switch").count(),8);
     assert.equal(await admin.getByRole("button",{name:"Open original map (admin)"}).count(),3);
     await admin.getByTestId("toggle-world-lock-snowy_mountain").tap();
     await admin.waitForFunction(()=>document.querySelector('[data-testid="toggle-world-lock-snowy_mountain"]')?.getAttribute("aria-checked")==="true");
-    await player.evaluate(()=>window.refreshAccess());
-    await player.getByTestId("world-locked-snowy_mountain").waitFor({state:"hidden"});
-    await player.getByTestId("button-location-snowy_mountain").tap({force:true});
-    await player.getByTestId("destination").waitFor();
-    assert.equal(await player.getByTestId("destination").innerText(),"/world/snowy_mountain");
+    for (const page of [player,moderator]) {
+      await page.evaluate(()=>window.refreshAccess());
+      await page.getByTestId("world-locked-snowy_mountain").waitFor({state:"hidden"});
+      await page.getByTestId("button-location-snowy_mountain").tap({force:true});
+      await page.getByTestId("destination").waitFor();
+      assert.equal(await page.getByTestId("destination").innerText(),"/world/snowy_mountain");
+    }
     // Lock an already-public world and ensure admin can still edit it from map.
     await admin.getByTestId("toggle-world-lock-swamp").tap();
     await admin.waitForFunction(()=>document.querySelector('[data-testid="toggle-world-lock-swamp"]')?.getAttribute("aria-checked")==="false");
     await player.goto("http://127.0.0.1:4196/map?role=player");
     await player.getByTestId("world-locked-swamp").waitFor();
+    await moderator.goto("http://127.0.0.1:4196/map?role=moderator");
+    await moderator.getByTestId("world-locked-swamp").waitFor();
+    await moderator.getByTestId("button-location-swamp").tap({force:true});
+    await moderator.getByTestId("modal-world-coming-soon").waitFor();
     await admin.getByTestId("map").tap();
     await admin.getByTestId("button-location-swamp").waitFor();
     assert.equal(await admin.getByTestId("world-locked-swamp").count(),0);
@@ -101,7 +111,7 @@ try{
     assert.equal(await admin.getByTestId("destination").innerText(),"/world-editor/swamp");
     assert.deepEqual(writes,[["snowy_mountain",false],["swamp",true]]);
     assert.deepEqual(errors,[]);
-    console.log("PASS "+name+": map locks, Coming Soon, independent admin toggles and direct editor entry");
+    console.log("PASS "+name+": player/moderator map locks, Coming Soon, independent admin toggles and direct editor entry");
     await context.close();
   }
 } finally {await browser.close();await server.close();}

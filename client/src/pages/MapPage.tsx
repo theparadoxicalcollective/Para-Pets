@@ -20,7 +20,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
-import { worldLockedForPlayer } from "@shared/worlds/worldAccess";
+import { canPreviewLockedWorld, worldLockedForPlayer } from "@shared/worlds/worldAccess";
 import type { WorldScenePublication } from "@shared/worlds/worldScenePublication";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
@@ -351,7 +351,7 @@ export default function MapPage({ user }: MapPageProps) {
   const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
 
   const isWorldLocked = (w: WorldData) =>
-    !currentUser.isAdmin && !currentUser.isModerator && worldLockedForPlayer(w.id, worldPublications);
+    !canPreviewLockedWorld(currentUser) && worldLockedForPlayer(w.id, worldPublications);
 
   const handleWorldClick = (w: WorldData) => {
     if (didDrag.current || navigatingWorldId) return;
@@ -602,7 +602,7 @@ export default function MapPage({ user }: MapPageProps) {
                             <div
                               className="font-fantasy text-center leading-tight px-1.5 py-0.5"
                               style={{
-                                background: "rgba(8,4,18,0.92)",
+                                background: "rgba(16,41,29,0.95)",
                                 border: "1px solid rgba(160,130,60,0.6)",
                                 borderRadius: "4px",
                                 color: "#e0c060",

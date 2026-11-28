@@ -57,5 +57,5 @@ test("terrain reuses the same camera, repaints uncovered raster immediately, and
   // Offscreen tiles never add another stage or change the park's painter.
   assert.doesNotMatch(page, /cacheRasterTiles/);
   assert.match(painter, /view\.cacheRasterTiles && tiles\.length <= PARK_TERRAIN_TILE_LIMIT/);
-  assert.equal((painter.match(/return <canvas/g) ?? []).length, 1);
+  assert.equal((painter.match(/<canvas\b/g) ?? []).length, 1);
 });

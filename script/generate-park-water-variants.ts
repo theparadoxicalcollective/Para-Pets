@@ -5,7 +5,7 @@ import sharp from "sharp";
 const source = "client/public/park-water-surface.webp";
 const { data, info } = await sharp(source).removeAlpha().raw().toBuffer({ resolveWithObject: true });
 const palettes = {
-  haunted: [[24, 14, 42], [48, 30, 71], [86, 49, 117], [143, 87, 181], [211, 178, 239]],
+  haunted: [[21, 22, 45], [39, 41, 76], [65, 68, 125], [113, 119, 187], [190, 197, 239]],
   volcanic: [[40, 9, 17], [92, 20, 24], [157, 43, 26], [222, 91, 33], [255, 196, 95]],
 } as const;
 for (const [style, colors] of Object.entries(palettes)) {
@@ -21,3 +21,15 @@ for (const [style, colors] of Object.entries(palettes)) {
   await sharp(output, { raw: { width: info.width, height: info.height, channels: 3 } })
     .webp({ quality: 93, effort: 6 }).toFile(`client/public/park-water-${style}.webp`);
 }
+
+// A single transparent caustic highlight layer, not another water surface.
+// World-sized repeats use the same original caustics at half resolution.
+const highlight = await sharp(source).resize(384, 256).removeAlpha().raw().toBuffer();
+const shimmer = Buffer.alloc(384 * 256 * 4);
+for (let i = 0, j = 0; i < highlight.length; i += 3, j += 4) {
+  const tone = .7 * highlight[i + 1] + .3 * highlight[i + 2];
+  shimmer[j] = 222; shimmer[j + 1] = 238; shimmer[j + 2] = 255;
+  shimmer[j + 3] = Math.round(Math.max(0, Math.min(1, (tone - 65) / 115)) ** 1.5 * 46);
+}
+await sharp(shimmer, { raw: { width: 384, height: 256, channels: 4 } })
+  .webp({ quality: 85, effort: 6 }).toFile("client/public/park-water-shimmer.webp");
