@@ -1,8 +1,13 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PetParkTerrain from "@/components/PetParkTerrain";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
+import PetParkGardenMenu, { type GardenOwnedItem } from "@/components/PetParkGardenMenu";
+import PetParkCropArtwork from "@/components/PetParkCropArtwork";
+import PetParkWaterRefillPopup from "@/components/PetParkWaterRefillPopup";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
+import { gardenCropProgress, gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { decorDrawDepth } from "@shared/decorSurface";
@@ -32,7 +37,7 @@ const WorldSceneFishingDialog = lazy(() => import("@/components/world/WorldScene
 
 type Point = { x: number; y: number };
 
-/** An intentionally read-only player runtime, separate from admin editing.
+/** Player runtime, separate from admin editing. Garden actions use private player state.
  * All coordinates and terrain painting use the SAME ground/camera system as
  * World Editor. Legacy game locations retain their original stable IDs.
  */
@@ -40,6 +45,7 @@ export default function WorldScenePlayerPage({
   worldId, onContentReady,
 }: { worldId: string; onContentReady?: () => void }) {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const viewportRef = useRef<HTMLDivElement>(null);
   const notified = useRef(false);
   // Start unmeasured instead of flashing a legacy phone-sized scene on
@@ -49,9 +55,16 @@ export default function WorldScenePlayerPage({
   const [pan, setPan] = useState<Point | null>(null);
   const points = useRef(new Map<number, Point>());
   const drag = useRef<{ id: number; x: number; y: number; pan: Point } | null>(null);
-  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  const pinch = useRef<{ distance: number; zoom: number; center: Point; pan: Point; scale: number } | null>(null);
+  const cameraFrame = useRef<number | null>(null);
+  const pendingCamera = useRef<{ pan: Point; zoom: number } | null>(null);
+  const latestCamera = useRef<{ pan: Point; zoom: number }>({ pan: {x: 0, y: 0}, zoom: 1 });
+  const gestureRect = useRef<DOMRect | null>(null);
   const moved = useRef(false);
   const [inside, setInside] = useState<string | null>(null);
+  const [selectedGardenPlotId, setSelectedGardenPlotId] = useState<string | null>(null);
+  const [wateringGardenPlotId, setWateringGardenPlotId] = useState<string | null>(null);
+  const [selectedWaterSourceId, setSelectedWaterSourceId] = useState<string | null>(null);
   const [fishingAction, setFishingAction] = useState<WorldSceneFishingAction | null>(null);
 
   const scene = useQuery<PlayerScene>({
@@ -64,8 +77,14 @@ export default function WorldScenePlayerPage({
 
   useEffect(() => {
     setZoom(1); setPan(null); setInside(null);
+    setSelectedGardenPlotId(null); setWateringGardenPlotId(null); setSelectedWaterSourceId(null);
+    if (cameraFrame.current !== null) cancelAnimationFrame(cameraFrame.current);
+    cameraFrame.current = null; pendingCamera.current = null; gestureRect.current = null;
     points.current.clear(); drag.current = null; pinch.current = null; notified.current = false;
   }, [worldId]);
+  useEffect(() => () => {
+    if (cameraFrame.current !== null) cancelAnimationFrame(cameraFrame.current);
+  }, []);
   useEffect(() => {
     const target = viewportRef.current;
     if (!target) return;
@@ -120,6 +139,7 @@ export default function WorldScenePlayerPage({
   const camera = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, safeZoom);
   const initial = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = worldEditorClampCamera(pan ?? initial, camera, viewport);
+  latestCamera.current = pendingCamera.current ?? { pan: actualPan, zoom: safeZoom };
   const lighting = useHomeOutdoorLighting("auto");
   const sceneContent = scene.data;
   const placements = sceneContent?.placements ?? [];
@@ -160,6 +180,41 @@ export default function WorldScenePlayerPage({
     stone: placements.filter(p => p.kind === "terrain" && p.effectType === "stone_path"),
     water: placements.filter(p => p.kind === "terrain" && p.effectType === "water_path"),
   }), [placements]);
+  // Keep the exact same Pet Park tools and private crop state, scoped by world.
+  const gardenPrefix = `/api/worlds/${encodeURIComponent(worldId)}/garden`;
+  const gardenKey = [gardenPrefix];
+  const plotPlacements = useMemo(() => new Map(placements.filter(p =>
+    p.kind === "terrain" && p.effectType === "garden_plot").map(p => [p.id, p])), [placements]);
+  const hasGardenPlots = plotPlacements.size > 0;
+  const garden = useQuery<GardenPlayerState>({
+    queryKey: gardenKey, enabled: hasGardenPlots && !activeBuilding, staleTime: 5000,
+    refetchOnMount: true, refetchOnWindowFocus: true,
+    refetchInterval: selectedGardenPlotId ? 5000 : 30_000,
+    refetchIntervalInBackground: false,
+  });
+  const inventory = useQuery<Array<GardenOwnedItem & { isRefillable?: boolean | null }>>({
+    queryKey: ["/api/inventory"], enabled: !!(selectedGardenPlotId || selectedWaterSourceId),
+  });
+  const savedPlots = useMemo(() => new Map((garden.data?.plots ?? []).map(plot => [plot.plotItemId, plot])), [garden.data?.plots]);
+  const gardenCrops = useMemo(() => new Map((garden.data?.crops ?? []).map(crop => [crop.id, crop])), [garden.data?.crops]);
+  const chosenPlot = selectedGardenPlotId && plotPlacements.has(selectedGardenPlotId)
+    ? savedPlots.get(selectedGardenPlotId) : undefined;
+  // Position the shared garden arc in viewport pixels, not scene coordinates.
+  const gardenAnchor = chosenPlot ? (() => {
+    const placement = plotPlacements.get(chosenPlot.plotItemId)!;
+    const plotX = actualPan.x + placement.xPct * camera.sceneWidth;
+    const plotY = actualPan.y + placement.yPct * camera.sceneHeight;
+    const side: "right" | "left" = plotX + 158 <= viewport.width ? "right" : "left";
+    return { plotX, plotY, side,
+      x: Math.max(6, Math.min(Math.max(6, viewport.width - 131), side === "right" ? plotX + 42 : plotX - 167)),
+      y: Math.max(48, Math.min(Math.max(48, viewport.height - 224), plotY - 97)) };
+  })() : null;
+  const inventoryItems = inventory.data ?? [];
+  const pails = inventoryItems.filter(item => item.type === "garden_tool" && item.specialType === "watering_pail");
+  const invalidateGarden = () => {
+    void queryClient.invalidateQueries({ queryKey: gardenKey });
+    void queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+  };
   const atmosphere = useMemo(() => {
     const shape = { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale };
     return {
@@ -169,27 +224,57 @@ export default function WorldScenePlayerPage({
   }, [renderPlacements, camera.sceneWidth, camera.sceneHeight, camera.scale,
     actualPan.x, actualPan.y, viewport.width, viewport.height]);
 
+  function queueCamera(nextPan: Point, nextZoom: number) {
+    const next = { pan: nextPan, zoom: nextZoom };
+    latestCamera.current = next;
+    pendingCamera.current = next;
+    if (cameraFrame.current !== null) return;
+    cameraFrame.current = requestAnimationFrame(() => {
+      cameraFrame.current = null;
+      const value = pendingCamera.current;
+      pendingCamera.current = null;
+      if (!value) return;
+      setPan(value.pan);
+      setZoom(value.zoom);
+    });
+  }
   function changeZoom(next: number, anchor: Point) {
+    const current = latestCamera.current;
+    const oldCamera = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, current.zoom);
     const newZoom = clampPlayerWorldZoom(next, minimum);
     const nextCamera = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, newZoom);
-    setPan(worldEditorZoomAnchorPan(actualPan, camera.scale, nextCamera.scale, anchor, nextCamera, viewport));
-    setZoom(newZoom);
+    queueCamera(worldEditorZoomAnchorPan(current.pan, oldCamera.scale, nextCamera.scale, anchor, nextCamera, viewport), newZoom);
   }
   const local = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = gestureRect.current ?? event.currentTarget.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
   function onDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    moved.current = false;
+    if ((event.pointerType === "mouse" && event.button !== 0) || points.current.size >= 2) return;
+    if (!points.current.size) {
+      moved.current = false;
+      gestureRect.current = event.currentTarget.getBoundingClientRect();
+    }
     points.current.set(event.pointerId, local(event));
     const active = [...points.current.values()];
+    const current = latestCamera.current;
     if (active.length === 1) {
-      drag.current = { id: event.pointerId, x: active[0].x, y: active[0].y, pan: actualPan };
+      drag.current = { id: event.pointerId, x: active[0].x, y: active[0].y, pan: current.pan };
       pinch.current = null;
     } else if (active.length === 2) {
       drag.current = null;
-      pinch.current = { distance: Math.max(1, Math.hypot(active[0].x - active[1].x, active[0].y - active[1].y)), zoom: safeZoom };
+      pinch.current = {
+        distance: Math.max(1, Math.hypot(active[0].x - active[1].x, active[0].y - active[1].y)),
+        zoom: current.zoom, pan: current.pan,
+        scale: worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, current.zoom).scale,
+        center: { x: (active[0].x + active[1].x) / 2, y: (active[0].y + active[1].y) / 2 },
+      };
+      moved.current = true;
+    }
+  }
+  function captureGesture(target: HTMLDivElement) {
+    for (const id of points.current.keys()) {
+      try { if (!target.hasPointerCapture(id)) target.setPointerCapture(id); } catch {}
     }
   }
   function onMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -199,31 +284,69 @@ export default function WorldScenePlayerPage({
     if (active.length === 2 && pinch.current) {
       const distance = Math.hypot(active[0].x - active[1].x, active[0].y - active[1].y);
       const center = { x: (active[0].x + active[1].x) / 2, y: (active[0].y + active[1].y) / 2 };
+      const newZoom = clampPlayerWorldZoom(pinch.current.zoom * distance / pinch.current.distance, minimum);
+      const nextCamera = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, newZoom);
+      const ratio = nextCamera.scale / pinch.current.scale;
       moved.current = true;
-      changeZoom(pinch.current.zoom * distance / pinch.current.distance, center);
+      captureGesture(event.currentTarget);
+      queueCamera(worldEditorClampCamera({
+        x: center.x - (pinch.current.center.x - pinch.current.pan.x) * ratio,
+        y: center.y - (pinch.current.center.y - pinch.current.pan.y) * ratio,
+      }, nextCamera, viewport), newZoom);
       event.preventDefault();
     } else if (active.length === 1 && drag.current?.id === event.pointerId) {
       const dx = active[0].x - drag.current.x, dy = active[0].y - drag.current.y;
       if (Math.hypot(dx, dy) < 6 && !moved.current) return;
       moved.current = true;
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
-      setPan(worldEditorClampCamera({
+      captureGesture(event.currentTarget);
+      const current = latestCamera.current;
+      const geometry = worldEditorCameraGeometry(viewport.width, viewport.height, groundLevel, current.zoom);
+      queueCamera(worldEditorClampCamera({
         x: drag.current.pan.x + dx, y: drag.current.pan.y + dy,
-      }, camera, viewport));
+      }, geometry, viewport), current.zoom);
       event.preventDefault();
     }
   }
   function onEnd(event: ReactPointerEvent<HTMLDivElement>) {
-    points.current.delete(event.pointerId);
+    // Touch pointers initially belong to the object being touched. Transferring
+    // capture to the viewport emits a bubbling lostpointercapture FROM that
+    // object, not a cancelled gesture. Only the viewport's own loss ends it.
+    if (event.type === "lostpointercapture" && event.target !== event.currentTarget) return;
+    if (!points.current.delete(event.pointerId)) return;
+    if (event.type !== "pointerup") moved.current = true;
     pinch.current = null;
     drag.current = null;
     if (points.current.size === 1) {
       const [id, position] = [...points.current][0];
-      drag.current = { id, x: position.x, y: position.y, pan: actualPan };
-    }
+      drag.current = { id, x: position.x, y: position.y, pan: latestCamera.current.pan };
+    } else gestureRect.current = null;
+  }
+  function onTerrainClick(event: ReactMouseEvent<HTMLDivElement>) {
+    if (moved.current) { moved.current = false; return; }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const px = event.clientX - rect.left, py = event.clientY - rect.top;
+    // Connected water is painted into one canvas. Hit-test its saved diamond
+    // tiles on taps rather than mounting hundreds of extra DOM buttons.
+    const tile = terrain.water.find(p => {
+      const size = p.size * camera.scale;
+      return Math.abs(px - actualPan.x - p.xPct * camera.sceneWidth) / (size / 2) +
+        Math.abs(py - actualPan.y - p.yPct * camera.sceneHeight) / (size / 4) <= 1;
+    });
+    if (tile) { setSelectedGardenPlotId(null); setSelectedWaterSourceId(tile.id); }
   }
   function activate(item: WorldScenePlacement) {
     if (moved.current) { moved.current = false; return; }
+    if (item.kind === "terrain" && item.effectType === "garden_plot") {
+      setSelectedWaterSourceId(null);
+      setSelectedGardenPlotId(item.id);
+      return;
+    }
+    if (item.kind === "decor" && item.isWaterSource) {
+      setSelectedGardenPlotId(null);
+      setSelectedWaterSourceId(item.id);
+      return;
+    }
+    setSelectedGardenPlotId(null);
     const action = sceneActions.get(item.id);
     if (action === "beau-prize-wheel") {
       void beauWheel.open();
@@ -262,12 +385,12 @@ export default function WorldScenePlayerPage({
     <div ref={viewportRef} data-testid="player-new-world-viewport" data-quest-guide-pan-surface
       className="absolute inset-0 z-0 isolate overflow-hidden touch-none"
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onEnd}
-      onPointerCancel={onEnd} onLostPointerCapture={onEnd}
+      onPointerCancel={onEnd} onLostPointerCapture={onEnd} onClick={onTerrainClick}
       onWheel={event => {
         if (inside) return;
         event.preventDefault();
         const rect = event.currentTarget.getBoundingClientRect();
-        changeZoom(safeZoom + (event.deltaY < 0 ? PLAYER_WORLD_ZOOM_STEP : -PLAYER_WORLD_ZOOM_STEP),
+        changeZoom(latestCamera.current.zoom + (event.deltaY < 0 ? PLAYER_WORLD_ZOOM_STEP : -PLAYER_WORLD_ZOOM_STEP),
           { x: event.clientX - rect.left, y: event.clientY - rect.top });
       }}>
       {sceneContent && viewportReady && !activeBuilding && <>
@@ -278,7 +401,8 @@ export default function WorldScenePlayerPage({
           worldWidth={camera.worldWidth} worldHeight={camera.worldHeight}
           scale={camera.scale} panX={actualPan.x} panY={actualPan.y}
           dirtPatches={terrain.dirt} stonePatches={terrain.stone} waterPatches={terrain.water} />
-        <div data-testid="player-new-world-art" className="pointer-events-none absolute inset-0 z-0">
+        <div data-testid="player-new-world-art" className="pointer-events-none absolute left-0 top-0 z-0"
+          style={{ width: camera.sceneWidth, height: camera.sceneHeight, transform: `translate3d(${actualPan.x}px,${actualPan.y}px,0)` }}>
         {renderPlacements.map(p => {
           const x = actualPan.x + p.xPct * camera.sceneWidth;
           const y = actualPan.y + p.yPct * camera.sceneHeight;
@@ -295,7 +419,10 @@ export default function WorldScenePlayerPage({
           const npc = p.npcId ? npcsById.get(p.npcId) : null;
           const art = asset?.imageUrl ?? npc?.imageUrl ?? null;
           const action = sceneActions.get(p.id);
-          const isInteractive = p.kind === "building" || p.kind === "npc" || !!action;
+          const isGardenPlot = p.kind === "terrain" && p.effectType === "garden_plot";
+          const savedPlot = isGardenPlot ? savedPlots.get(p.id) : undefined;
+          const isWaterSource = p.kind === "decor" && p.isWaterSource;
+          const isInteractive = p.kind === "building" || p.kind === "npc" || !!action || isGardenPlot || isWaterSource;
           const legacyId = p.kind === "npc" ? npc?.legacyLocationId : p.legacyLocationId;
           // Portal mounts are the stable original location IDs used by Ginny,
           // Lonelle, Janson and their guide arrows. Keep only one mount per ID.
@@ -306,7 +433,7 @@ export default function WorldScenePlayerPage({
             data-world-scene-action={action}
             className="absolute pointer-events-none"
             style={{
-              left: x, top: y, width: size, height,
+              left: p.xPct * camera.sceneWidth, top: p.yPct * camera.sceneHeight, width: size, height,
               transform: "translate(-50%,-50%)",
               zIndex: p.kind === "effect" ? 12_000_000 : p.kind === "terrain" ? 1 : decorDrawDepth(p, parkDepthIndex({
                 kind: p.kind === "building" ? "building" : "item", yPct: p.yPct,
@@ -318,9 +445,10 @@ export default function WorldScenePlayerPage({
               data-testid={`player-new-world-object-${p.id}`}
               disabled={!isInteractive}
               onClick={event => { event.stopPropagation(); activate(p); }}
-              aria-label={action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? p.kind}
+              aria-label={isGardenPlot ? "Open Garden Plot" : isWaterSource ? "Water Source" : action === "fishing-spot" ? "Open Haunted Woods fishing spot" : asset?.name ?? npc?.name ?? p.kind}
               className="absolute inset-0 h-full w-full border-0 bg-transparent p-0"
-              style={{ pointerEvents: isInteractive ? "auto" : "none", touchAction: "none" }}>
+              style={{ pointerEvents: isInteractive ? "auto" : "none", touchAction: "none",
+                clipPath: isGardenPlot ? "polygon(50% 0%,100% 50%,50% 100%,0% 50%)" : undefined }}>
             <span className="pointer-events-none absolute inset-0" style={{
               transform: p.flipped ? "scaleX(-1)" : undefined,
             }}>
@@ -336,13 +464,29 @@ export default function WorldScenePlayerPage({
               }}><ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
                 reducedMotion={false} fireflyStrength={lighting.fireflyStrength} sceneFireflies /></span>}
               {nearby && p.kind === "terrain" && isParkTerrainDetail(p.effectType) &&
-                <PetParkTerrainDetail type={p.effectType} />}
+                <PetParkTerrainDetail type={p.effectType} tilled={isGardenPlot && !!savedPlot && savedPlot.phase !== "empty" && savedPlot.phase !== "picked"} />}
             </span>
           </button>
           {nearby && action === "beau-prize-wheel" && beauWheel.freeSpinAvailable && <span
             className="beau-free-spin-indicator" data-testid="haunted-spin-free-indicator"
             aria-label="Beau has a free spin available"><span aria-hidden="true">!</span></span>}
           </div>;
+        })}
+        {(garden.data?.plots ?? []).map(plot => {
+          if (!["planted", "seedling", "partial", "grown", "picked"].includes(plot.phase)) return null;
+          const crop = gardenCrops.get(plot.cropId ?? "");
+          const phase = plot.phase as "planted" | "seedling" | "partial" | "grown" | "picked";
+          const image = crop?.images[phase];
+          const placement = plotPlacements.get(plot.plotItemId);
+          if (!image || !placement) return null;
+          const size = placement.size * camera.scale;
+          if (!playerWorldArtworkVisibility(actualPan.x + placement.xPct * camera.sceneWidth,
+            actualPan.y + placement.yPct * camera.sceneHeight, size * 2, size * 2, viewport).nearby) return null;
+          return <PetParkCropArtwork key={plot.plotItemId + ":" + plot.phase}
+            image={image} xPct={placement.xPct} yPct={placement.yPct} size={placement.size} scale={camera.scale}
+            zIndex={parkDepthIndex({ yPct: placement.yPct, worldHeight: camera.worldHeight, size: placement.size, kind: "item" })}
+            placement={crop?.stagePlacements?.[phase]} progress={gardenCropProgress(plot, crop)}
+            showWaterProgress={wateringGardenPlotId === plot.plotItemId} />;
         })}
         </div>
         <div className="absolute inset-0 z-[14] pointer-events-none" data-testid="player-new-world-atmosphere">
@@ -383,6 +527,25 @@ export default function WorldScenePlayerPage({
         Enter {linkedPage.name}
       </button>}
     </div>}
+    {selectedGardenPlotId && !activeBuilding && (chosenPlot && gardenAnchor ? <PetParkGardenMenu
+      key={chosenPlot.plotItemId} plot={chosenPlot} anchor={gardenAnchor}
+      crops={garden.data?.crops ?? []} inventory={inventoryItems} inventoryLoading={inventory.isFetching}
+      actionUrlPrefix={gardenPrefix} onClose={() => setSelectedGardenPlotId(null)}
+      onChanged={invalidateGarden} onWateringState={setWateringGardenPlotId} /> :
+      <ViewportModalPortal blocking={false}><div role="status" className="pointer-events-none absolute inset-x-3 top-[28%] z-[76] flex justify-center">
+        <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-[#c9a65e] bg-[#143925] p-2 text-xs text-[#f4dda6]">
+          {garden.isLoading ? "Checking Garden Plot…" : "Garden Plot unavailable."}
+          <button type="button" onClick={() => setSelectedGardenPlotId(null)} aria-label="Close garden">×</button>
+        </div>
+      </div></ViewportModalPortal>)}
+    {selectedWaterSourceId && !activeBuilding && <ViewportModalPortal>
+      <PetParkWaterRefillPopup key={selectedWaterSourceId} sourceId={selectedWaterSourceId}
+        pails={pails} eligiblePails={pails.filter(gardenItemNeedsRefill)}
+        inventoryLoading={inventory.isFetching} reduceMotion={false}
+        refillPathPrefix={`/api/worlds/${encodeURIComponent(worldId)}/water-sources`}
+        onClose={() => setSelectedWaterSourceId(null)}
+        onRefilled={() => void queryClient.invalidateQueries({ queryKey: ["/api/inventory"] })} />
+    </ViewportModalPortal>}
     {selectedNpc && <div className="absolute inset-x-6 bottom-7 z-30 rounded-xl border border-[#b99952] bg-[#122a20] p-4 text-[#f6da97]"
       role="dialog" aria-label={selectedNpc.name}>
       <div className="flex justify-between items-center">
