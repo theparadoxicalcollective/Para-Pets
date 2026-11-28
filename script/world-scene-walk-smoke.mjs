@@ -34,8 +34,13 @@ const parts=["head","top","left_arm","right_arm","left_leg","right_leg","left_fo
   partType,imageUrl:art,xPct:50+(i%3-1)*7,yPct:20+i*8,widthPct:22,
   pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:10+i,
 }));
+const fit={xPct:50,yPct:50,widthPct:100,pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:5};
 const outfit={category:"bottom",inventoryId:"pants-owned",shopItemId:"pants-shop",name:"Forest Pants",
-  imageUrl:art,segments:[{partType:"left_leg",imageUrl:art,fit:{xPct:50,yPct:50,widthPct:100,pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:5},renderPlane:"with_part"}]};
+  imageUrl:art,segments:["left_leg","right_leg"].map(partType=>({partType,imageUrl:art,fit,
+    renderPlane:"with_part",canvasAligned:partType==="right_leg"}))};
+const shoes={category:"shoes",inventoryId:"shoes-owned",shopItemId:"shoes-shop",name:"Forest Boots",
+  imageUrl:art,segments:["left_foot","right_foot"].map(partType=>({partType,imageUrl:art,fit,
+    renderPlane:"with_part",canvasAligned:partType==="right_foot"}))};
 await server.listen();
 const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{
   executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:["--no-sandbox","--disable-dev-shm-usage"]}:{})});
@@ -61,7 +66,7 @@ try {
     await page.route("**/api/**",route=>{
       const req=route.request(),path=new URL(req.url()).pathname;
       if(req.method()!=="GET")writes.push(path);
-      if(path==="/api/player-avatar")return route.fulfill({json:{created:true,base:{id:"base",name:"Masc",parts},equipped:[outfit],ownedClothing:[],unavailableEquipmentSlots:[],revision:1}});
+      if(path==="/api/player-avatar")return route.fulfill({json:{created:true,base:{id:"base",name:"Masc",parts:width===390?parts.map(part=>({...part,xPct:50,yPct:50,widthPct:100})):parts},equipped:[outfit,shoes],ownedClothing:[],unavailableEquipmentSlots:[],revision:1}});
       if(path===`/api/worlds/${worldId}/player-scene`)return route.fulfill({json:scene});
       return route.fulfill({json:[]});
     });
@@ -69,7 +74,7 @@ try {
     const actor=page.getByTestId("player-world-avatar"), rig=actor.getByTestId("player-character-renderer"), joy=page.getByTestId("floating-joystick");
     await actor.waitFor({state:"visible"});
     await page.waitForFunction(()=>document.querySelectorAll('[data-testid="player-world-avatar"] [data-character-part]').length===8);
-    assert.equal(await rig.locator("[data-clothing-part]").count(),1);
+    assert.equal(await rig.locator("[data-clothing-part]").count(),4);
     const position=()=>page.evaluate(()=>{
       const a=document.querySelector('[data-testid="player-world-avatar"]').getBoundingClientRect();
       const w=document.querySelector('[data-testid="player-new-world-art"]').getBoundingClientRect();
@@ -89,6 +94,41 @@ try {
     const initial=await position();
     await start(45,0);
     await page.waitForFunction(()=>document.querySelector('[data-testid="player-world-avatar"] [data-character-motion="walk"]'));
+    // Sample the real CSS cycle on the live walking actor. Both the original
+    // part-local and full-canvas clothes/boots must follow their matching
+    // body anchors; no step should spread the legs horizontally.
+    const gait=await rig.evaluate(el=>{
+      const named=el.getAnimations({subtree:true}).filter(a=>a.animationName?.startsWith("pc-walk-"));
+      named.forEach(a=>a.pause());
+      const sample=t=>{
+        named.forEach(a=>a.currentTime=t);
+        const root=el.getBoundingClientRect();
+        return Object.fromEntries([...el.querySelectorAll("[data-character-part],[data-clothing-part]")].map(part=>{
+          const box=part.getBoundingClientRect();
+          const key=part.hasAttribute("data-character-part")?"body-":"clothing-";
+          return [key+(part.dataset.characterPart||part.dataset.clothingPart),{x:(box.x-root.x)/root.height,y:(box.y-root.y)/root.height}];
+        }));
+      };
+      const states=[0,210,420,630,840].map(sample);
+      named.forEach(a=>a.play());
+      return states;
+    });
+    const neutral=gait[0];
+    const delta=(phase,key,axis)=>gait[phase][key][axis]-neutral[key][axis];
+    const close=(a,b,label)=>assert.ok(Math.abs(a-b)<.001,label+": "+a+" vs "+b);
+    for(let phase=0;phase<gait.length;phase++){
+      for(const key of Object.keys(neutral)) close(delta(phase,key,"x"),0,"walking never spreads "+key);
+      for(const side of ["left","right"]){
+        const expected=(side==="left"&&phase===1||side==="right"&&phase===3)?-.015:0;
+        for(const key of ["body","clothing"].flatMap(type=>["leg","foot"].map(part=>type+"-"+side+"_"+part))){
+          close(delta(phase,key,"y"),expected,"matching leg/foot/garment displacement "+key);
+        }
+      }
+      close(delta(phase,"body-top","y"),0,"torso moves only with whole rig");
+      close(delta(phase,"body-head","y"),0,"head moves only with whole rig");
+      close(delta(phase,"body-left_arm","y"),phase===3?-.0035:0,"left arm counter-step");
+      close(delta(phase,"body-right_arm","y"),phase===1?-.0035:0,"right arm counter-step");
+    }
     // Rightward walking stops at the opaque fence, not at the viewport edge.
     await page.waitForFunction(()=>{
       const a=document.querySelector('[data-testid="player-world-avatar"]').getBoundingClientRect(), w=document.querySelector('[data-testid="player-new-world-art"]').getBoundingClientRect();
@@ -140,9 +180,18 @@ try {
     await page.getByRole("button",{name:"Close building"}).tap();
     await actor.waitFor({state:"visible"});
     assert.equal(await joy.count(),0);
+    // Reduced motion must leave both the body and full-canvas clothing still,
+    // without disabling joystick travel or discarding authored transforms.
+    await page.emulateMedia({reducedMotion:"reduce"});
+    await start(45,0);
+    await page.waitForFunction(()=>document.querySelector('[data-testid="player-world-avatar"] [data-character-motion="walk"]'));
+    assert.deepEqual(await rig.evaluate(el=>el.getAnimations({subtree:true}).map(a=>a.animationName).filter(name=>name?.startsWith("pc-"))),[]);
+    assert.ok(await rig.locator('[data-character-part="left_leg"]').evaluate(el=>getComputedStyle(el).transform!=="none"));
+    await touch("touchEnd",[]);
+    await joy.waitFor({state:"hidden"});
     assert.deepEqual(writes,[],"walking never writes player or authored scene data");
     assert.deepEqual(errors,[]);
     await cdp.detach();await context.close();
-    console.log("PASS world joystick, barrier, camera, pinch and building",width,height,worldId);
+    console.log("PASS world gait/clothing, reduced motion, joystick, barrier, camera, pinch and building",width,height,worldId);
   }
 } finally {await browser.close();await server.close();}
