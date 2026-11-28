@@ -11,6 +11,9 @@
   /* Keep negative-depth Back and Back Hair inside this renderer's stacking
      context, above the scene/background instead of disappearing behind it. */
   isolation: isolate;
+  /* All walk steps use the same character-relative length, even when a
+     legacy body part is small and a garment spans the whole canvas. */
+  container-type: size;
 }
 
 .player-character-renderer__anchor {
@@ -86,16 +89,12 @@
   user-select: none;
 }
 
-.player-character-renderer__motion--idle,
-.player-character-renderer__motion--walk {
+.player-character-renderer__motion--idle {
   animation-duration: 3s;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
 
-.player-character-renderer__motion--walk {
-  animation-duration: 0.72s;
-}
 
 /* Idle: only a small, readable breath/sway. Static editing never animates. */
 [data-character-motion="idle"] [data-character-motion-part="top"] {
@@ -117,27 +116,34 @@
   animation-name: pc-idle-feet;
 }
 
-/* Walk: mirrored legs and feet share phase; opposite arm swing.
-   Everything stays attached to its original artwork-relative pivot. */
-[data-character-motion="walk"] [data-character-motion-part="top"] {
-  animation-name: pc-walk-bounce;
+/* Walk: keep the front-facing artwork aligned instead of rotating each
+   limb around its own (often full-canvas) pivot. Step on the OUTER anchors
+   so the base, legacy overlays and canvas-aligned clothing all move by
+   exactly the same distance in character coordinates, even on rotated art.
+   The whole rig bobs together, with the arms counter-stepping gently. */
+.player-character-renderer[data-character-motion="walk"] {
+  --walk-cycle: 0.84s;
+  animation: pc-walk-bounce var(--walk-cycle) ease-in-out infinite;
 }
-[data-character-motion="walk"] [data-character-motion-part="head"] {
-  animation-name: pc-walk-head;
+[data-character-motion="walk"] :is([data-character-part], [data-clothing-part]) {
+  animation-duration: var(--walk-cycle);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  --walk-lift: 1.5cqh;
 }
-[data-character-motion="walk"] [data-character-motion-part="left_leg"],
-[data-character-motion="walk"] [data-character-motion-part="left_foot"] {
+[data-character-motion="walk"] :is([data-character-part="left_leg"], [data-clothing-part="left_leg"],
+  [data-character-part="left_foot"], [data-clothing-part="left_foot"],
+  [data-character-part="right_arm"], [data-clothing-part="right_arm"]) {
   animation-name: pc-walk-left;
 }
-[data-character-motion="walk"] [data-character-motion-part="right_leg"],
-[data-character-motion="walk"] [data-character-motion-part="right_foot"] {
+[data-character-motion="walk"] :is([data-character-part="right_leg"], [data-clothing-part="right_leg"],
+  [data-character-part="right_foot"], [data-clothing-part="right_foot"],
+  [data-character-part="left_arm"], [data-clothing-part="left_arm"]) {
   animation-name: pc-walk-right;
 }
-[data-character-motion="walk"] [data-character-motion-part="left_arm"] {
-  animation-name: pc-walk-right;
-}
-[data-character-motion="walk"] [data-character-motion-part="right_arm"] {
-  animation-name: pc-walk-left;
+[data-character-motion="walk"] :is([data-character-part="left_arm"], [data-clothing-part="left_arm"],
+  [data-character-part="right_arm"], [data-clothing-part="right_arm"]) {
+  --walk-lift: 0.35cqh;
 }
 
 @keyframes pc-idle-breathe {
@@ -161,27 +167,24 @@
   50% { transform: translateY(-0.25%); }
 }
 @keyframes pc-walk-bounce {
-  0%, 50%, 100% { transform: translateY(0); }
-  25%, 75% { transform: translateY(-1.7%); }
-}
-@keyframes pc-walk-head {
-  0%, 50%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(0.9deg); }
-  75% { transform: rotate(-0.9deg); }
+  0%, 50%, 100% { translate: 0 0; }
+  25%, 75% { translate: 0 -0.35%; }
 }
 @keyframes pc-walk-left {
-  0%, 100% { transform: rotate(-10deg); }
-  50% { transform: rotate(10deg); }
+  0%, 50%, 100% { translate: 0 0; }
+  25% { translate: 0 calc(-1 * var(--walk-lift)); }
 }
 @keyframes pc-walk-right {
-  0%, 100% { transform: rotate(10deg); }
-  50% { transform: rotate(-10deg); }
+  0%, 50%, 100% { translate: 0 0; }
+  75% { translate: 0 calc(-1 * var(--walk-lift)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .player-character-renderer,
+  .player-character-renderer__anchor,
+  .player-character-renderer__canvas-motion,
   .player-character-renderer__motion {
     animation: none !important;
-    transform: none !important;
   }
 }
 

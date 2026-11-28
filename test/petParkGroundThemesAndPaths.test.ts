@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { PET_PARK_GROUND_THEMES, isParkGroundTheme, parkGroundTheme, parkGroundSize } from "../shared/petParkGround";
 import { PARK_TERRAIN_DETAIL_OPTIONS, isPaintableParkTerrainDetail, isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "../shared/petParkTerrainDetails";
 import { PARK_GROUND_PALETTES } from "../client/src/lib/petParkGroundPalette";
-import { dirtPatchWorldRect, exposedDirtEdges, paintConnectedPaths, waterPathGeometry, waterShimmerPath } from "../client/src/components/PetParkTerrain";
+import { dirtPatchWorldRect, exposedDirtEdges, paintConnectedPaths, waterPathGeometry } from "../client/src/components/PetParkTerrain";
 import { PARK_WATER_BASE, PARK_WATER_TEXTURE_URL, PARK_WATER_APPEARANCE, worldWaterStyle } from "../client/src/lib/petParkWaterTexture";
 import { parkExtendPathStroke, parkPathPoint, parkPathGrid } from "../client/src/lib/petParkTerrainBrush";
 
@@ -236,24 +236,12 @@ test("world-specific water variants retain the original dimensions, lightweight 
   assert.match(painter,/previous.view.waterStyle !== view.waterStyle/);
 });
 
-test("water shimmer reuses rounded geometry and culls offscreen stamps without changing shoreline", async () => {
-  const view = { worldWidth:1000,worldHeight:1000,viewportWidth:300,viewportHeight:300,scale:1,panX:0,panY:0 };
-  const stamps=[{xPct:.15,yPct:.15,size:100},{xPct:.8,yPct:.8,size:100}];
-  const geometry=waterPathGeometry(stamps,1000,1000);
-  const path=waterShimmerPath(stamps,view,geometry);
-  assert.equal((path.match(/M/g)??[]).length,1);
-  assert.equal((path.match(/Q/g)??[]).length,4);
-  assert.equal(waterShimmerPath(stamps,{...view,panX:-350,panY:-350},geometry),"");
-  const asset=readFileSync("client/public/park-water-shimmer.webp");
-  assert.ok(asset.length<30*1024);
-  const metadata=await sharp(asset).metadata();
-  assert.equal(metadata.hasAlpha,true);
-  assert.deepEqual([metadata.width,metadata.height],[384,256]);
-  const css=readFileSync("client/src/index.css","utf8");
-  const { channels } = await sharp(asset).stats();
-  // A real highlight, not just an animation clock on nearly transparent pixels.
-  assert.ok(channels[3].mean >= 20 && channels[3].max >= 120);
-  assert.match(css,/animation: park-water-drift 8s/);
-  assert.match(css,/park-water-shimmer\[data-camera-preview="true"\]/);
-  assert.match(css,/prefers-reduced-motion: reduce\) \{\s*\.park-water-shimmer/);
+test("water uses only the original themed terrain raster, not an animated overlay", () => {
+  const painter = readFileSync("client/src/components/PetParkTerrain.tsx","utf8");
+  const css = readFileSync("client/src/index.css","utf8");
+  const variants = readFileSync("script/generate-park-water-variants.ts","utf8");
+  assert.doesNotMatch(painter, /shimmerRef|waterShimmerPath|park-water-shimmer/);
+  assert.doesNotMatch(css, /park-water-drift|park-water-shimmer/);
+  assert.doesNotMatch(variants, /park-water-shimmer/);
+  assert.match(painter, /paintConnectedPaths\(ctx, rasterView, view.waterPatches, "water_path"/);
 });

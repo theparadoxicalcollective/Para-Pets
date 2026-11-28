@@ -48,26 +48,23 @@ test("the admin preview uses the same renderer, and editing stays still and touc
   assert.doesNotMatch(panel, /previewMotion|onMovePart|Save Selected Part|transformFields/);
 });
 
-test("walking legs and their own feet share phases, arms swing opposite, and head/torso remain separate", () => {
-  const matchSelector = (parts: string[], animationName: string) => {
-    const start = css.indexOf('[data-character-motion="walk"]');
-    const end = css.indexOf("@keyframes", start);
-    const rules = css.slice(start, end);
-    const rule = new RegExp(
-      parts.map(part => `\\[data-character-motion-part="${part}"\\]`).join("[\\s\\S]*?") +
-      `[\\s\\S]*?\\{\\s*animation-name: ${animationName};`
-    );
-    assert.match(rules, rule);
-  };
-  matchSelector(["left_leg", "left_foot"], "pc-walk-left");
-  matchSelector(["right_leg", "right_foot"], "pc-walk-right");
-  matchSelector(["left_arm"], "pc-walk-right");
-  matchSelector(["right_arm"], "pc-walk-left");
-  matchSelector(["head"], "pc-walk-head");
-  matchSelector(["top"], "pc-walk-bounce");
+test("walking moves each leg, its foot and both clothing formats together without swinging artwork pivots", () => {
+  for (const [side, opposite] of [["left", "right"], ["right", "left"]]) {
+    const rule = css.split(`animation-name: pc-walk-${side};`)[0].split('[data-character-motion="walk"] :is(').at(-1)!;
+    for (const part of [`${side}_leg`, `${side}_foot`, `${opposite}_arm`]) {
+      assert.ok(rule.includes(`[data-character-part="${part}"]`));
+      assert.ok(rule.includes(`[data-clothing-part="${part}"]`));
+    }
+    const keyframes = css.split(`@keyframes pc-walk-${side} {`)[1].split("\n}")[0];
+    assert.match(keyframes, /translate: 0 calc/);
+    assert.doesNotMatch(keyframes, /rotate|transform:/);
+    assert.match(keyframes, /0%, 50%, 100% \{ translate: 0 0; \}/);
+  }
+  assert.match(css, /container-type: size/);
+  assert.match(css, /--walk-lift: 1\.5cqh/);
+  assert.match(css, /--walk-cycle: 0\.84s/);
+  assert.match(css, /animation: pc-walk-bounce var\(--walk-cycle\)/);
   assert.match(css, /\[data-character-motion="idle"\]/);
-  assert.match(css, /\[data-character-motion="walk"\]/);
-  assert.match(css, /animation-duration: 0\.72s/);
 });
 
 test("animation does not modify stored positions or re-fetch, paint canvas, run timers or touch the pet systems", () => {

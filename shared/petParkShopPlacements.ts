@@ -8,11 +8,17 @@ export type ParkShopPlacement = {
   flippedX?: boolean; // mirrored artwork, omitted in older shops = false
   priceTagXPct?: number; // price tag anchor within the item artwork, 0..1
   priceTagYPct?: number;
+  priceTagScale?: number; // percent of the original item-relative tag size
+  priceTagRotation?: number; // independent clockwise degrees
 };
 export const PARK_SHOP_MAX_ITEMS = 80;
 export const PARK_SHOP_MIN_SIZE = 5;
 export const PARK_SHOP_MAX_SIZE = 25;
-export const PARK_SHOP_ROTATION_STEP = 15;
+export const PARK_SHOP_ROTATION_STEP = 8;
+export const PARK_SHOP_PRICE_TAG_SCALE_DEFAULT = 100;
+export const PARK_SHOP_PRICE_TAG_SCALE_MIN = 50;
+export const PARK_SHOP_PRICE_TAG_SCALE_MAX = 150;
+export const PARK_SHOP_PRICE_TAG_SCALE_STEP = 10;
 export const PARK_SHOP_PRICE_TAG_MIN = .15;
 export const PARK_SHOP_PRICE_TAG_MAX = .85;
 export const PARK_SHOP_DEFAULT_PRICE_TAG = { xPct: .72, yPct: .78 } as const;
@@ -21,8 +27,8 @@ export const PARK_SHOP_DEFAULT_PRICE_TAG = { xPct: .72, yPct: .78 } as const;
 // fixed min/max pixel clamps made the player tag look larger than the preview.
 export const PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE = 148;
 export const PARK_SHOP_PRICE_TAG_PREVIEW_SIZE = 52;
-export function parkShopPriceTagSize(itemBoxPixels: number): number {
-  return itemBoxPixels * PARK_SHOP_PRICE_TAG_PREVIEW_SIZE / PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE;
+export function parkShopPriceTagSize(itemBoxPixels: number, scale = PARK_SHOP_PRICE_TAG_SCALE_DEFAULT): number {
+  return itemBoxPixels * PARK_SHOP_PRICE_TAG_PREVIEW_SIZE / PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE * scale / 100;
 }
 
 /** Item-local price tag position. Existing shop JSON without tag coordinates
@@ -42,6 +48,9 @@ export function parkShopPriceTagFromPointer(clientX: number, clientY: number,
 }
 
 function validParkShopPriceTag(point: ParkShopPlacement): boolean {
+  if (!validParkShopRotation(point.priceTagRotation) ||
+      (point.priceTagScale !== undefined && (!Number.isInteger(point.priceTagScale) ||
+        point.priceTagScale < PARK_SHOP_PRICE_TAG_SCALE_MIN || point.priceTagScale > PARK_SHOP_PRICE_TAG_SCALE_MAX))) return false;
   return (point.priceTagXPct === undefined && point.priceTagYPct === undefined) ||
     (typeof point.priceTagXPct === "number" && Number.isFinite(point.priceTagXPct) &&
      point.priceTagXPct >= PARK_SHOP_PRICE_TAG_MIN && point.priceTagXPct <= PARK_SHOP_PRICE_TAG_MAX &&
@@ -56,11 +65,21 @@ export function validParkShopRotation(value: unknown): boolean {
     (Number.isInteger(value) && (value as number) >= 0 && (value as number) < 360);
 }
 
-export function rotateParkShopPlacement(placement: ParkShopPlacement): ParkShopPlacement {
-  return { ...placement, rotation: ((placement.rotation ?? 0) + PARK_SHOP_ROTATION_STEP) % 360 };
+function stepShopRotation(rotation: number | undefined, direction: -1 | 1) {
+  return ((rotation ?? 0) + direction * PARK_SHOP_ROTATION_STEP + 360) % 360;
+}
+export function rotateParkShopPlacement(placement: ParkShopPlacement, direction: -1 | 1 = 1): ParkShopPlacement {
+  return { ...placement, rotation: stepShopRotation(placement.rotation, direction) };
+}
+export function rotateParkShopPriceTag(placement: ParkShopPlacement, direction: -1 | 1): ParkShopPlacement {
+  return { ...placement, priceTagRotation: stepShopRotation(placement.priceTagRotation, direction) };
+}
+export function resizeParkShopPriceTag(placement: ParkShopPlacement, direction: -1 | 1): ParkShopPlacement {
+  return { ...placement, priceTagScale: Math.max(PARK_SHOP_PRICE_TAG_SCALE_MIN,
+    Math.min(PARK_SHOP_PRICE_TAG_SCALE_MAX, (placement.priceTagScale ?? PARK_SHOP_PRICE_TAG_SCALE_DEFAULT) + direction * PARK_SHOP_PRICE_TAG_SCALE_STEP)) };
 }
 
-/** Mirror only the item artwork; the independently positioned price marker stays upright. */
+/** Mirror only the item artwork; the independently positioned price marker keeps its own rotation. */
 export function flipParkShopPlacement(placement: ParkShopPlacement): ParkShopPlacement {
   return { ...placement, flippedX: !(placement.flippedX ?? false) };
 }

@@ -50,6 +50,7 @@ const fixture = [
   `const bottomPieceArt = ${JSON.stringify(bottomPieceArt)};`,
   `const fit = ${JSON.stringify(fit)};`,
   'function Fixture(){',
+  ' const [motion,setMotion] = useState("static");',
   ' const [skin,setSkin] = useState(null);',
   ' const [hair,setHair] = useState(null);',
   ' const [hairVisible,setHairVisible] = useState(false);',
@@ -80,8 +81,9 @@ const fixture = [
   '  <button data-testid="hair-deep" onClick={()=>setHair("#42291f")}>Dark hair</button>',
   '  <button data-testid="clothes-show" onClick={()=>setClothesVisible(true)}>Clothes</button>',
   '  <button data-testid="clothes-color" onClick={()=>setFabricTint("#3c5677")}>Color Clothes</button>',
+  '  <button data-testid="walk" onClick={()=>setMotion(m=>m==="walk"?"static":"walk")}>Walk</button>',
   '  <div data-testid="character-swatch-frame" style={{position:"relative",width:260,height:260,background:"#152b20"}}>',
-  '    <PlayerCharacterRenderer parts={parts} clothingLayers={clothingLayers} skinTone={skin} motion="static"/>',
+  '    <PlayerCharacterRenderer parts={parts} clothingLayers={clothingLayers} skinTone={skin} motion={motion}/>',
   '  </div></div>;',
   '}',
   'createRoot(document.getElementById("root")).render(<Fixture/>);',
@@ -106,7 +108,11 @@ const vite = await createServer({
 });
 await vite.listen();
 const engine = process.env.AVATAR_BROWSER === "webkit" ? webkit : chromium;
-const browser = await engine.launch({ headless: true });
+const browser = await engine.launch({ headless: true,
+  ...(engine===chromium && process.env.CHROMIUM_EXECUTABLE_PATH?{
+    executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:["--no-sandbox","--disable-dev-shm-usage"],
+  }:{}),
+});
 function rgbAt(raw, info, x, y) {
   const at = (Math.round(y) * info.width + Math.round(x)) * info.channels;
   return [...raw.subarray(at, at + 3)];
@@ -187,6 +193,46 @@ try {
       viewport.name+": shirt overlap has no extra tint seam: "+JSON.stringify({top,topShoulderOverlap}));
     assert.ok(luminance(bottom)<135,
       viewport.name+": bottoms receive the same deep fabric color: "+JSON.stringify(bottom));
+    // The WebKit job also verifies the walking rig with tinted, composited
+    // full-canvas art. At each peak step the pants, leg and foot follow the
+    // same small vertical displacement, with no horizontal seam separation.
+    await page.getByTestId("walk").click();
+    const rig=page.getByTestId("player-character-renderer");
+    const phases=await rig.evaluate(el=>{
+      const animations=el.getAnimations({subtree:true}).filter(a=>a.animationName?.startsWith("pc-walk-"));
+      animations.forEach(a=>a.pause());
+      const samples=[0,210,630,840].map(t=>{
+        animations.forEach(a=>a.currentTime=t);
+        const root=el.getBoundingClientRect();
+        const offsets={};
+        for(const node of el.querySelectorAll("[data-character-part],[data-clothing-part]")){
+          const box=node.getBoundingClientRect();
+          offsets[(node.dataset.characterPart?"body-":"clothing-")+(node.dataset.characterPart||node.dataset.clothingPart)]=
+            {x:(box.x-root.x)/root.height,y:(box.y-root.y)/root.height};
+        }
+        return offsets;
+      });
+      animations.forEach(a=>a.cancel());
+      return samples;
+    });
+    for(let i=0;i<phases.length;i++){
+      for(const side of ["left","right"]){
+        const lift=side==="left"&&i===1||side==="right"&&i===2?-.015:0;
+        for(const key of ["body-"+side+"_leg","body-"+side+"_foot","clothing-"+side+"_leg"]){
+          assert.ok(Math.abs(phases[i][key].x-phases[0][key].x)<.001,viewport.name+": no lateral splay "+key);
+          assert.ok(Math.abs(phases[i][key].y-phases[0][key].y-lift)<.001,viewport.name+": synchronized lift "+key);
+        }
+      }
+    }
+    await page.getByTestId("walk").click();
+    assert.equal(await rig.getAttribute("data-character-motion"),"static");
+    await page.emulateMedia({reducedMotion:"reduce"});
+    await page.getByTestId("walk").click();
+    assert.equal(await rig.getAttribute("data-character-motion"),"walk");
+    // Inspect the applied style (WAAPI may retain previous animation objects
+    // after test-driven seeking/cancellation even when CSS disables motion).
+    assert.ok(await rig.evaluate(el=>[el,...el.querySelectorAll("[data-character-part],[data-clothing-part]")]
+      .every(node=>getComputedStyle(node).animationName==="none" && getComputedStyle(node).translate==="none")));
     assert.deepEqual(errors,[],viewport.name+": no runtime page errors");
     console.log("Avatar color render:",viewport.name,{original,light,deep,neutralHair,darkHair});
     await context.close();

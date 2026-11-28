@@ -332,38 +332,20 @@ try {
     const placedRipple = page.getByTestId("world-scene-placement-test-water-ripple").locator(".park-water-effect--water_ripple");
     await placedRipple.waitFor();
     assert.equal(await placedRipple.evaluate(el => getComputedStyle(el, ":before").borderTopColor), "rgba(190, 197, 239, 0.8)");
-    // The real admin editor is pinned to night in this fixture. Confirm the
-    // shared water surface is still visible and changing under that darkness.
-    const shimmer = page.getByTestId("park-water-shimmer");
-    await shimmer.waitFor({ state: "visible" });
-    const shimmerSurface = shimmer.locator(".park-water-shimmer-surface");
-    await page.waitForFunction(() => {
-      const element = document.querySelector(".park-water-shimmer-surface");
-      return element && element.getAnimations().length === 1 &&
-        getComputedStyle(element).animationPlayState === "running";
-    });
+    // The night editor uses the same sharp, static themed terrain as players.
+    // Admin-placed ripple effects remain available (asserted above).
+    await page.waitForFunction(() => document.querySelector('[data-testid="pet-park-painterly-terrain"]')?.dataset.parkWaterTexture === "ready");
+    assert.equal(await page.getByTestId("park-water-shimmer").count(),0);
     const worldArt = await page.locator("[data-world-editor-artwork]").boundingBox();
     const waterCenter = { x: worldArt.x + .62 * worldArt.width, y: worldArt.y + .5 * worldArt.height };
     const waterWidth = Math.round(worldArt.width * 150 / 1800 * .48);
     const waterHeight = Math.round(waterWidth / 2);
     const clip = { x: Math.round(waterCenter.x - waterWidth/2), y: Math.round(waterCenter.y - waterHeight/2), width: waterWidth, height: waterHeight };
-    const waterPhase = async phase => {
-      await shimmerSurface.evaluate((element, phase) => {
-        const animation = element.getAnimations()[0];
-        animation.pause();
-        animation.currentTime = Number(animation.effect.getTiming().duration) * phase;
-      }, phase);
-      return sharp(await page.screenshot({clip})).removeAlpha().raw().toBuffer();
-    };
-    const beforeRipple = await waterPhase(0);
-    let meanRipple = 0;
-    for (const phase of [.33,.67,1]) {
-      const afterRipple = await waterPhase(phase);
-      meanRipple = Math.max(meanRipple, beforeRipple.reduce((sum, value, i) => sum + Math.abs(value - afterRipple[i]), 0) / beforeRipple.length);
-    }
-    assert.ok(meanRipple > .5, name + ": visible water movement at night, pixel difference " + meanRipple);
-    await shimmerSurface.evaluate(element => element.getAnimations()[0].play());
-
+    const beforeWater = await sharp(await page.screenshot({clip})).removeAlpha().raw().toBuffer();
+    await page.waitForTimeout(600);
+    const afterWater = await sharp(await page.screenshot({clip})).removeAlpha().raw().toBuffer();
+    const meanWater = beforeWater.reduce((sum,value,i)=>sum+Math.abs(value-afterWater[i]),0)/beforeWater.length;
+    assert.ok(meanWater<.1,name+": static water at night; pixel difference "+meanWater);
 
     // Mobile software keyboards shrink/shift the visible app stage without
     // necessarily changing layout viewport units. Exercise the real editor
@@ -588,7 +570,7 @@ try {
     await page.getByTestId("world-scene-controls").waitFor({ state: "detached" });
     assert.equal(await page.getByTestId("world-scene-controls").count(), 0,
       name + ": selecting merchandise hides overlapping World bottom controls");
-    for (const label of ["Rotate merchandise clockwise 15 degrees", "Flip merchandise horizontally", "Larger merchandise"]) {
+    for (const label of ["Rotate merchandise left 8 degrees", "Rotate merchandise right 8 degrees", "Rotate merchandise right 8 degrees", "Flip merchandise horizontally", "Larger merchandise"]) {
       const button = page.getByRole("button", { name: label });
       // Wait for the previous save before each separate toolbar gesture.
       await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
@@ -618,9 +600,27 @@ try {
     assert.notDeepEqual([afterTag.priceTagXPct, afterTag.priceTagYPct],
       [beforeTag.priceTagXPct, beforeTag.priceTagYPct],
       name + ": dragging the preview tag persists image-local coordinates");
+    // Let Chromium finish synthesizing the touch click from the preceding
+    // CDP drag before Playwright starts a separate touchscreen gesture.
+    await page.waitForTimeout(650);
+    for (const label of ["Larger price tag", "Larger price tag", "Smaller price tag",
+      "Rotate price tag left 8 degrees", "Rotate price tag right 8 degrees", "Rotate price tag right 8 degrees"]) {
+      const button = page.getByRole("button", { name: label, exact: true });
+      await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
+      await Promise.all([page.waitForResponse(r => r.url().includes("/placements/" + savedShopBuilding.id) &&
+        r.request().method() === "PATCH" && r.request().postDataJSON().shopItemPlacements), button.tap()]);
+    }
+    await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
     const finalStock = worlds.haunted_woods.scene.placements.find(p =>
       p.id === savedShopBuilding.id).shopItemPlacements[0];
-    assert.equal(finalStock.rotation, 15);
+    assert.equal(finalStock.rotation, 8);
+    assert.equal(finalStock.priceTagScale, 110);
+    assert.equal(finalStock.priceTagRotation, 8);
+    assert.deepEqual([finalStock.priceTagXPct, finalStock.priceTagYPct], [afterTag.priceTagXPct, afterTag.priceTagYPct]);
+    const previewTag = preview.getByTestId("world-shop-price-tag");
+    assert.equal(await previewTag.evaluate(el => el.style.transform), "rotate(8deg)");
+    assert.ok(Math.abs(await previewTag.evaluate(el => parseFloat(el.style.width)) - 57.2) < .01);
+    assert.equal(await merchandise.getByTestId("world-shop-price-tag").evaluate(el => el.style.transform), "rotate(8deg)");
     assert.equal(finalStock.flippedX, true);
     assert.equal(finalStock.size, 14);
     await page.getByRole("button", { name: "Done editing item" }).click();
@@ -630,8 +630,10 @@ try {
     await merchandise.waitFor({ state: "visible" });
     await merchandise.tap();
     await page.getByTestId("world-shop-price-preview").waitFor();
-    assert.equal(await page.getByTestId("world-shop-rotation").textContent(), "15°");
+    assert.equal(await page.getByTestId("world-shop-rotation").textContent(), "8°");
     assert.equal(await page.getByTestId("world-shop-flip").getAttribute("aria-pressed"), "true");
+    assert.equal(await previewTag.evaluate(el => el.style.transform), "rotate(8deg)");
+    assert.ok(Math.abs(await previewTag.evaluate(el => parseFloat(el.style.width)) - 57.2) < .01);
     const restoredTag = await page.getByTestId("world-shop-price-drag-handle").evaluate(el =>
       [parseFloat(el.style.left) / 100, parseFloat(el.style.top) / 100]);
     assert.ok(Math.abs(restoredTag[0] - afterTag.priceTagXPct) < .001 &&

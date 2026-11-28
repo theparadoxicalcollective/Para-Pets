@@ -38,31 +38,32 @@ test("World renders Pet Park-style coin-only wooden tags and dedicated positioni
     'data-testid="world-shop-tag-coin"',
     'className="relative h-[148px] w-[148px] touch-none',
     'Drag the tag onto the image',
-    'Position price tag',
+    'Price tag ·',
   ]) assert.ok(world.includes(expected), "missing: " + expected);
   assert.match(world, /parkShopPriceTagFromPointer\(x, y, rect\)/);
-  assert.match(world, /<ShopPriceTag itemBoxSize=\{148\} \/>/);
-  assert.match(world, /<ShopPriceTag itemBoxSize=\{imageSize\} \/>/);
+  assert.match(world, /<ShopPriceTag itemBoxSize=\{148\} placement=\{selected\} \/>/);
+  assert.match(world, /<ShopPriceTag itemBoxSize=\{imageSize\} placement=\{p\} \/>/);
   assert.match(world, /className="pointer-events-none relative inline-block shrink-0"/);
   assert.match(world, /width: "27%", height: "27%", left: "50%", top: "61%"/);
   assert.match(park, /width: "27%", height: "27%", left: "50%", top: "61%"/);
   assert.match(world, /style=\{\{ bottom: "max\(16px, env\(safe-area-inset-bottom, 0px\)\)" \}\}/);
-  assert.match(world, /style=\{\{ bottom: "max\(132px, calc\(env\(safe-area-inset-bottom, 0px\) \+ 122px\)\)" \}\}/);
+  assert.match(world, /flex flex-col-reverse/);
   assert.match(world, /onPointerMove=\{onTagMove\} onPointerUp=\{onTagUp\}/);
   assert.match(world, /onPointerCancel=\{onTagCancel\} onLostPointerCapture=\{onTagCancel\}/);
   const tag = world.slice(world.indexOf("function ShopPriceTag"), world.indexOf("/** Pet Park-equivalent authoring"));
-  assert.doesNotMatch(tag, /\.price|toLocaleString|numeric price/);
+  assert.doesNotMatch(tag, /\.price\b|toLocaleString|numeric price/);
 });
 
 test("World shop item controls match Pet Park editing without losing world-only save routing", () => {
   const world = read("client/src/components/world-editor/WorldShopShelf.tsx");
   for (const action of [
     'aria-label="Smaller merchandise"', 'aria-label="Larger merchandise"',
-    'aria-label="Rotate merchandise clockwise 15 degrees"',
+    'aria-label="Rotate merchandise left 8 degrees"', 'aria-label="Rotate merchandise right 8 degrees"',
     'aria-label="Flip merchandise horizontally"',
     'aria-label="Remove merchandise"', 'aria-label="Done editing item"',
   ]) assert.ok(world.includes(action), "missing: " + action);
-  assert.match(world, /updateSelected\(rotateParkShopPlacement\)/);
+  assert.match(world, /updateSelected\(p => rotateParkShopPlacement\(p, -1\)\)/);
+  assert.match(world, /updateSelected\(p => rotateParkShopPlacement\(p, 1\)\)/);
   assert.match(world, /updateSelected\(flipParkShopPlacement\)/);
   assert.match(world, /aria-pressed=\{!!selected.flippedX\}/);
   assert.match(world, /Math\.max\(PARK_SHOP_MIN_SIZE, p\.size - 2\)/);

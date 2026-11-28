@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FlipHorizontal, RotateCw, Search } from "lucide-react";
+import { FlipHorizontal, RotateCcw, RotateCw, Search } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
@@ -8,7 +8,8 @@ import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
   defaultParkShopPlacement, withParkShopDefaults, parkShopPriceTagPoint,
-  parkShopPriceTagFromPointer, parkShopPriceTagSize,
+  parkShopPriceTagFromPointer, parkShopPriceTagSize, rotateParkShopPriceTag, resizeParkShopPriceTag,
+  PARK_SHOP_PRICE_TAG_SCALE_DEFAULT, PARK_SHOP_PRICE_TAG_SCALE_MIN, PARK_SHOP_PRICE_TAG_SCALE_MAX,
   rotateParkShopPlacement, flipParkShopPlacement,
   PARK_SHOP_MIN_SIZE, PARK_SHOP_MAX_SIZE, PARK_SHOP_MAX_ITEMS, PARK_SHOP_ROTATION_STEP,
   type ParkShopPlacement,
@@ -41,10 +42,11 @@ function tagAnchor(placement: ParkShopPlacement) {
 }
 /** Match the Pet Park wooden coin-only price marker, including proportional
  * scaling and the offset of the coin on the supplied wooden tag artwork. */
-function ShopPriceTag({ itemBoxSize }: { itemBoxSize: number }) {
+function ShopPriceTag({ itemBoxSize, placement }: { itemBoxSize: number; placement: ParkShopPlacement }) {
   return <span data-testid="world-shop-price-tag" aria-hidden="true"
     className="pointer-events-none relative inline-block shrink-0"
-    style={{ width: parkShopPriceTagSize(itemBoxSize), height: parkShopPriceTagSize(itemBoxSize) }}>
+    style={{ width: parkShopPriceTagSize(itemBoxSize, placement.priceTagScale), height: parkShopPriceTagSize(itemBoxSize, placement.priceTagScale),
+      transform: `rotate(${placement.priceTagRotation ?? 0}deg)` }}>
     <img src={PRICE_TAG_ART} alt="" data-testid="world-shop-tag-art" draggable={false}
       className="absolute inset-0 h-full w-full object-contain" />
     <img src={PARA_PETS_COIN_IMAGE} alt="" data-testid="world-shop-tag-coin" draggable={false}
@@ -325,14 +327,14 @@ export default function WorldShopShelf({
             : <span aria-hidden="true" className="text-xl text-[#f3d58d]">✦</span>}
           <span data-testid="world-shop-price-on-art"
             className="pointer-events-none absolute z-[1]" style={tagAnchor(p)}>
-            <ShopPriceTag itemBoxSize={imageSize} />
+            <ShopPriceTag itemBoxSize={imageSize} placement={p} />
           </span>
         </button>;
       })}
       {stock.isLoading && <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-[#10291d]/90 p-2 text-xs text-amber-100">Loading merchandise…</span>}
     </div>
     {selected && selectedItem && !showPicker && <ViewportModalPortal blocking={false}>
-      <div className="pointer-events-none absolute inset-x-2 z-[60] flex justify-center"
+      <div className="pointer-events-none absolute inset-x-2 z-[60] flex flex-col-reverse items-center gap-2"
         style={{ bottom: "max(16px, env(safe-area-inset-bottom, 0px))" }}>
         <div aria-label="Edit shop item artwork" data-testid="world-shop-edit-toolbar"
           onPointerDown={event => event.stopPropagation()}
@@ -345,11 +347,17 @@ export default function WorldShopShelf({
           <button type="button" aria-label="Larger merchandise" disabled={saving}
             onClick={() => updateSelected(p => ({ ...p, size: Math.min(PARK_SHOP_MAX_SIZE, p.size + 2) }))}
             className="min-h-9 min-w-9 rounded-lg border border-[#d7b973]/55 bg-[#1b4630]">+</button>
+          <button type="button" data-testid="world-shop-rotate-left"
+            aria-label="Rotate merchandise left 8 degrees" title="Rotate merchandise left 8°" disabled={saving}
+            onClick={() => updateSelected(p => rotateParkShopPlacement(p, -1))}
+            className="flex min-h-11 items-center gap-1 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] px-2 text-[11px]">
+            <RotateCcw size={15} aria-hidden="true" /> <span>−{PARK_SHOP_ROTATION_STEP}°</span>
+          </button>
           <button type="button" data-testid="world-shop-rotate"
-            aria-label="Rotate merchandise clockwise 15 degrees" disabled={saving}
-            onClick={() => updateSelected(rotateParkShopPlacement)}
-            className="flex min-h-9 items-center gap-1 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] px-2 text-[11px]">
-            <RotateCw size={15} aria-hidden="true" /> <span>{PARK_SHOP_ROTATION_STEP}°</span>
+            aria-label="Rotate merchandise right 8 degrees" title="Rotate merchandise right 8°" disabled={saving}
+            onClick={() => updateSelected(p => rotateParkShopPlacement(p, 1))}
+            className="flex min-h-11 items-center gap-1 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] px-2 text-[11px]">
+            <RotateCw size={15} aria-hidden="true" /> <span>+{PARK_SHOP_ROTATION_STEP}°</span>
           </button>
           <button type="button" data-testid="world-shop-flip"
             aria-label="Flip merchandise horizontally" aria-pressed={!!selected.flippedX} disabled={saving}
@@ -365,31 +373,44 @@ export default function WorldShopShelf({
           <button type="button" aria-label="Done editing item" onClick={() => selectItem(null)}
             className="min-h-9 rounded-lg border border-[#d7b973]/55 bg-[#214c34] px-2 text-[10px]">Done</button>
         </div>
+        {!draggingItem && <div data-testid="world-shop-price-preview"
+          className="pointer-events-auto self-end flex w-[212px] max-w-full flex-col items-center gap-1.5 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl"
+          onPointerDown={event => event.stopPropagation()}>
+          <strong className="text-[11px]">Price tag · {selected.priceTagScale ?? PARK_SHOP_PRICE_TAG_SCALE_DEFAULT}% · {selected.priceTagRotation ?? 0}°</strong>
+          <div ref={pricePreviewRef} data-testid="world-shop-price-preview-art"
+            className="relative h-[148px] w-[148px] touch-none rounded-lg ring-1 ring-inset ring-[#927e50]/45 bg-[#26452f]/75">
+            {itemArt(selectedItem) ? <img src={itemArt(selectedItem) ?? ""} alt=""
+              draggable={false} className="pointer-events-none h-full w-full select-none object-contain"
+              style={{ transform: "rotate(" + (selected.rotation ?? 0) + "deg) scaleX(" +
+                (selected.flippedX ? -1 : 1) + ")", transformOrigin: "center center" }} />
+              : <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center text-3xl">✦</span>}
+            <button type="button" data-testid="world-shop-price-drag-handle"
+              aria-label={"Move price tag for " + selectedItem.name} disabled={saving}
+              onPointerDown={event => onTagDown(event, selected)}
+              onPointerMove={onTagMove} onPointerUp={onTagUp}
+              onPointerCancel={onTagCancel} onLostPointerCapture={onTagCancel}
+              className="absolute z-[2] cursor-grab touch-none rounded-md outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 active:cursor-grabbing"
+              style={tagAnchor(selected)}>
+              <ShopPriceTag itemBoxSize={148} placement={selected} />
+            </button>
+          </div>
+          <div aria-label="Edit price tag" className="grid w-full touch-manipulation grid-cols-4 gap-1">
+            <button type="button" aria-label="Smaller price tag" title="Smaller price tag" disabled={saving || (selected.priceTagScale ?? PARK_SHOP_PRICE_TAG_SCALE_DEFAULT) <= PARK_SHOP_PRICE_TAG_SCALE_MIN}
+              onClick={() => updateSelected(p => resizeParkShopPriceTag(p, -1))}
+              className="flex min-h-11 items-center justify-center gap-0.5 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] text-[10px] disabled:opacity-45">− Size</button>
+            <button type="button" aria-label="Larger price tag" title="Larger price tag" disabled={saving || (selected.priceTagScale ?? PARK_SHOP_PRICE_TAG_SCALE_DEFAULT) >= PARK_SHOP_PRICE_TAG_SCALE_MAX}
+              onClick={() => updateSelected(p => resizeParkShopPriceTag(p, 1))}
+              className="flex min-h-11 items-center justify-center gap-0.5 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] text-[10px] disabled:opacity-45">+ Size</button>
+            <button type="button" aria-label="Rotate price tag left 8 degrees" title="Rotate price tag left 8 degrees" disabled={saving}
+              onClick={() => updateSelected(p => rotateParkShopPriceTag(p, -1))}
+              className="flex min-h-11 items-center justify-center gap-0.5 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] text-[10px] disabled:opacity-45"><RotateCcw size={12} aria-hidden="true" /> −8°</button>
+            <button type="button" aria-label="Rotate price tag right 8 degrees" title="Rotate price tag right 8 degrees" disabled={saving}
+              onClick={() => updateSelected(p => rotateParkShopPriceTag(p, 1))}
+              className="flex min-h-11 items-center justify-center gap-0.5 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] text-[10px] disabled:opacity-45"><RotateCw size={12} aria-hidden="true" /> +8°</button>
+          </div>
+          <span className="text-center text-[10px] text-[#ead1a0]/80">Drag the tag onto the image</span>
+        </div>}
       </div>
-      {!draggingItem && <div data-testid="world-shop-price-preview"
-        className="pointer-events-auto absolute right-2 z-[60] flex w-[174px] flex-col items-center gap-1.5 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl"
-        style={{ bottom: "max(132px, calc(env(safe-area-inset-bottom, 0px) + 122px))" }}
-        onPointerDown={event => event.stopPropagation()}>
-        <strong className="text-[11px]">Position price tag</strong>
-        <div ref={pricePreviewRef} data-testid="world-shop-price-preview-art"
-          className="relative h-[148px] w-[148px] touch-none rounded-lg ring-1 ring-inset ring-[#927e50]/45 bg-[#26452f]/75">
-          {itemArt(selectedItem) ? <img src={itemArt(selectedItem) ?? ""} alt=""
-            draggable={false} className="pointer-events-none h-full w-full select-none object-contain"
-            style={{ transform: "rotate(" + (selected.rotation ?? 0) + "deg) scaleX(" +
-              (selected.flippedX ? -1 : 1) + ")", transformOrigin: "center center" }} />
-            : <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center text-3xl">✦</span>}
-          <button type="button" data-testid="world-shop-price-drag-handle"
-            aria-label={"Move price tag for " + selectedItem.name} disabled={saving}
-            onPointerDown={event => onTagDown(event, selected)}
-            onPointerMove={onTagMove} onPointerUp={onTagUp}
-            onPointerCancel={onTagCancel} onLostPointerCapture={onTagCancel}
-            className="absolute z-[2] cursor-grab touch-none rounded-md outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 active:cursor-grabbing"
-            style={tagAnchor(selected)}>
-            <ShopPriceTag itemBoxSize={148} />
-          </button>
-        </div>
-        <span className="text-center text-[10px] text-[#ead1a0]/80">Drag the tag onto the image</span>
-      </div>}
     </ViewportModalPortal>}
     {showPicker && <ViewportModalPortal>
       <div data-testid="world-shop-picker" className="pointer-events-auto absolute inset-0 z-[75] flex items-end justify-center">
