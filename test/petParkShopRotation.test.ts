@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   defaultParkShopPlacement, flipParkShopPlacement, rotateParkShopPlacement, validParkShopPlacements,
-  withParkShopDefaults, PARK_SHOP_ROTATION_STEP,
+  withParkShopDefaults, PARK_SHOP_ROTATION_STEP, rotateParkShopPriceTag, resizeParkShopPriceTag,
   parkShopPriceTagPoint, parkShopPriceTagFromPointer, parkShopPriceTagSize,
   PARK_SHOP_DEFAULT_PRICE_TAG, PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE,
 } from "../shared/petParkShopPlacements";
@@ -13,13 +13,13 @@ const read = (filename: string) => readFileSync(filename, "utf8");
 test("shop item rotation is backwards-compatible and validated in existing JSON positions", () => {
   const legacy = { itemId: "scythe", xPct: .52, yPct: .42, size: 12 };
   assert.equal(validParkShopPlacements([legacy]), true, "existing shops have no rotation field");
-  assert.equal(PARK_SHOP_ROTATION_STEP, 15);
+  assert.equal(PARK_SHOP_ROTATION_STEP, 8);
   assert.equal(defaultParkShopPlacement("hoe", 0).rotation, 0);
   assert.equal(defaultParkShopPlacement("hoe", 0).flippedX, false);
-  assert.deepEqual(rotateParkShopPlacement(legacy), { ...legacy, rotation: 15 });
-  const nearlyFull = { ...legacy, rotation: 345 };
+  assert.deepEqual(rotateParkShopPlacement(legacy), { ...legacy, rotation: 8 });
+  const nearlyFull = { ...legacy, rotation: 352 };
   assert.equal(rotateParkShopPlacement(nearlyFull).rotation, 0, "full rotations wrap");
-  assert.equal(rotateParkShopPlacement({ ...legacy, rotation: 90 }).rotation, 105);
+  assert.equal(rotateParkShopPlacement({ ...legacy, rotation: 90 }).rotation, 98);
   for (const bad of [-1, 360, 720, 15.5, null, "15", {}, NaN, Infinity]) {
     assert.equal(validParkShopPlacements([{ ...legacy, rotation: bad }]), false,
       "reject invalid rotation " + String(bad));
@@ -51,11 +51,11 @@ test("shop rotation saves through existing building PATCH, never a separate room
   const editor = read("client/src/components/PetParkShopShelf.tsx");
   const routes = read("server/routes/petParkAdmin.routes.ts");
   const scene = read("client/src/pages/PetParkPage.tsx");
-  assert.match(editor, /rotateParkShopPlacement\(placement\)/);
+  assert.match(editor, /rotateParkShopPlacement\(placement, direction\)/);
   assert.match(editor, /changeStock\(ids, next\)/);
   assert.match(editor, /shopItemIds: next\.ids, shopItemPlacements: next\.layout/);
   assert.match(editor, /data-testid="pet-park-shop-rotate"/);
-  assert.match(editor, /aria-label="Rotate merchandise clockwise 15 degrees"/);
+  assert.match(editor, /aria-label="Rotate merchandise right 8 degrees"/);
   assert.match(editor, /disabled=\{save\.isPending\}/);
   assert.match(editor, /data-testid="pet-park-shop-rotation"/);
   assert.ok(editor.includes("rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flippedX ? -1 : 1})"));
@@ -97,7 +97,7 @@ test("shop prices use bounded image-local tag positions without changing merchan
   const positioned = { ...legacy, ...point };
   assert.equal(validParkShopPlacements([positioned]), true);
   assert.deepEqual(parkShopPriceTagPoint(positioned), { xPct: .35, yPct: 40 / 180 });
-  assert.deepEqual(rotateParkShopPlacement(positioned), { ...positioned, rotation: 60 },
+  assert.deepEqual(rotateParkShopPlacement(positioned), { ...positioned, rotation: 53 },
     "rotating the artwork retains the price tag coordinates");
   assert.deepEqual(withParkShopDefaults(["hoe"], [positioned]), [positioned]);
   assert.deepEqual(parkShopPriceTagFromPointer(-999, 3000, rect),
@@ -125,9 +125,9 @@ test("shop sticker uses the identical proportional size and anchor for editor an
     }
   }
   const editor = read("client/src/components/PetParkShopShelf.tsx");
-  assert.match(editor, /const tagSize = parkShopPriceTagSize\(itemBoxSize\)/);
-  assert.match(editor, /<ShopPriceTag itemBoxSize=\{dimension\} \/>/);
-  assert.match(editor, /<ShopPriceTag itemBoxSize=\{148\} \/>/);
+  assert.match(editor, /const tagSize = parkShopPriceTagSize\(itemBoxSize, placement\.priceTagScale\)/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{dimension\} placement=\{placement\} \/>/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{148\} placement=\{editPlacement\} \/>/);
   assert.match(editor, /style=\{priceTagAnchorStyle\(placement\)\}/);
   assert.match(editor, /style=\{priceTagAnchorStyle\(editPlacement\)\}/);
   assert.match(editor, /ring-1 ring-inset/, "preview's visual border may not shrink the item's coordinate box");
@@ -146,11 +146,11 @@ test("admin price preview and shopper coin-only wooden tags reuse the authentica
   assert.match(editor, /parkShopPriceTagFromPointer\(clientX, clientY, rect\)/);
   assert.match(editor, /changeStock\(ids, layout\.map/);
   assert.match(editor, /data-testid="pet-park-shop-price-on-art"/);
-  assert.match(editor, /<ShopPriceTag itemBoxSize=\{dimension\} \/>/);
-  assert.match(editor, /<ShopPriceTag itemBoxSize=\{148\} \/>/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{dimension\} placement=\{placement\} \/>/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{148\} placement=\{editPlacement\} \/>/);
   assert.match(editor, /src=\{PARK_SHOP_PRICE_TAG_IMAGE\}/);
   assert.match(editor, /from "@assets\/price_tag\.png\?url"/);
-  assert.match(editor, /const tagSize = parkShopPriceTagSize\(itemBoxSize\)/);
+  assert.match(editor, /const tagSize = parkShopPriceTagSize\(itemBoxSize, placement\.priceTagScale\)/);
   const tag = editor.slice(editor.indexOf("function ShopPriceTag"), editor.indexOf("/** Merchandise is positioned"));
   assert.doesNotMatch(tag, /price\.toLocaleString|\{price\}|bg-\[#173c27\]/,
     "wood tag has only artwork and coin; no numeric price or old CSS badge");
@@ -165,4 +165,37 @@ test("admin price preview and shopper coin-only wooden tags reuse the authentica
   assert.match(server, /validParkShopPlacements\(body\.shopItemPlacements\)/);
   assert.match(player, /price: shopItems\.price/);
   assert.doesNotMatch(editor, /priceTagMutation|\/api\/pet-park\/price-tag/);
+});
+
+test("shop item and price tag can independently rotate both ways and resize without changing legacy placements", () => {
+  const original = { itemId: "hoe", xPct: .52, yPct: .46, size: 12, rotation: 15,
+    flippedX: true, priceTagXPct: .4, priceTagYPct: .6 };
+  assert.equal(rotateParkShopPlacement(original, -1).rotation, 7);
+  assert.equal(rotateParkShopPlacement(original, 1).rotation, 23);
+  assert.equal(rotateParkShopPlacement({ ...original, rotation: 0 }, -1).rotation, 352);
+  const left = rotateParkShopPriceTag(original, -1);
+  assert.deepEqual(left, { ...original, priceTagRotation: 352 });
+  assert.deepEqual(rotateParkShopPriceTag(left, 1), { ...original, priceTagRotation: 0 });
+  const changed = resizeParkShopPriceTag(left, 1);
+  assert.deepEqual(changed, { ...original, priceTagRotation: 352, priceTagScale: 110 });
+  assert.equal(parkShopPriceTagSize(148, changed.priceTagScale), 57.2);
+  assert.equal(parkShopPriceTagSize(148, 50), 26);
+  assert.equal(parkShopPriceTagSize(148, 150), 78);
+  assert.equal(resizeParkShopPriceTag({ ...changed, priceTagScale: 145 }, 1).priceTagScale, 150);
+  assert.equal(resizeParkShopPriceTag({ ...changed, priceTagScale: 55 }, -1).priceTagScale, 50);
+  assert.deepEqual(rotateParkShopPlacement(changed, 1), { ...changed, rotation: 23 });
+  assert.deepEqual(flipParkShopPlacement(changed), { ...changed, flippedX: false });
+  const saved = JSON.parse(JSON.stringify(changed));
+  assert.equal(validParkShopPlacements([saved]), true);
+  assert.deepEqual(withParkShopDefaults(["hoe"], [saved]), [changed]);
+  for (const invalid of [-1, 360, 2.5, null, "8", NaN, Infinity])
+    assert.equal(validParkShopPlacements([{ ...original, priceTagRotation: invalid }]), false);
+  for (const invalid of [49, 151, 100.5, null, "100", NaN, Infinity])
+    assert.equal(validParkShopPlacements([{ ...original, priceTagScale: invalid }]), false);
+  for (const file of ["client/src/components/PetParkShopShelf.tsx", "client/src/components/world-editor/WorldShopShelf.tsx"]) {
+    const editor = read(file);
+    for (const label of ["Rotate merchandise left 8 degrees", "Rotate merchandise right 8 degrees",
+      "Smaller price tag", "Larger price tag", "Rotate price tag left 8 degrees", "Rotate price tag right 8 degrees"])
+      assert.ok(editor.includes('aria-label="' + label + '"'), file + ": " + label);
+  }
 });

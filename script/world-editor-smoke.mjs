@@ -570,7 +570,7 @@ try {
     await page.getByTestId("world-scene-controls").waitFor({ state: "detached" });
     assert.equal(await page.getByTestId("world-scene-controls").count(), 0,
       name + ": selecting merchandise hides overlapping World bottom controls");
-    for (const label of ["Rotate merchandise clockwise 15 degrees", "Flip merchandise horizontally", "Larger merchandise"]) {
+    for (const label of ["Rotate merchandise left 8 degrees", "Rotate merchandise right 8 degrees", "Rotate merchandise right 8 degrees", "Flip merchandise horizontally", "Larger merchandise"]) {
       const button = page.getByRole("button", { name: label });
       // Wait for the previous save before each separate toolbar gesture.
       await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
@@ -600,9 +600,27 @@ try {
     assert.notDeepEqual([afterTag.priceTagXPct, afterTag.priceTagYPct],
       [beforeTag.priceTagXPct, beforeTag.priceTagYPct],
       name + ": dragging the preview tag persists image-local coordinates");
+    // Let Chromium finish synthesizing the touch click from the preceding
+    // CDP drag before Playwright starts a separate touchscreen gesture.
+    await page.waitForTimeout(650);
+    for (const label of ["Larger price tag", "Larger price tag", "Smaller price tag",
+      "Rotate price tag left 8 degrees", "Rotate price tag right 8 degrees", "Rotate price tag right 8 degrees"]) {
+      const button = page.getByRole("button", { name: label, exact: true });
+      await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
+      await Promise.all([page.waitForResponse(r => r.url().includes("/placements/" + savedShopBuilding.id) &&
+        r.request().method() === "PATCH" && r.request().postDataJSON().shopItemPlacements), button.tap()]);
+    }
+    await page.getByRole("status").filter({ hasText: "Saving shop…" }).waitFor({state: "detached"});
     const finalStock = worlds.haunted_woods.scene.placements.find(p =>
       p.id === savedShopBuilding.id).shopItemPlacements[0];
-    assert.equal(finalStock.rotation, 15);
+    assert.equal(finalStock.rotation, 8);
+    assert.equal(finalStock.priceTagScale, 110);
+    assert.equal(finalStock.priceTagRotation, 8);
+    assert.deepEqual([finalStock.priceTagXPct, finalStock.priceTagYPct], [afterTag.priceTagXPct, afterTag.priceTagYPct]);
+    const previewTag = preview.getByTestId("world-shop-price-tag");
+    assert.equal(await previewTag.evaluate(el => el.style.transform), "rotate(8deg)");
+    assert.ok(Math.abs(await previewTag.evaluate(el => parseFloat(el.style.width)) - 57.2) < .01);
+    assert.equal(await merchandise.getByTestId("world-shop-price-tag").evaluate(el => el.style.transform), "rotate(8deg)");
     assert.equal(finalStock.flippedX, true);
     assert.equal(finalStock.size, 14);
     await page.getByRole("button", { name: "Done editing item" }).click();
@@ -612,8 +630,10 @@ try {
     await merchandise.waitFor({ state: "visible" });
     await merchandise.tap();
     await page.getByTestId("world-shop-price-preview").waitFor();
-    assert.equal(await page.getByTestId("world-shop-rotation").textContent(), "15°");
+    assert.equal(await page.getByTestId("world-shop-rotation").textContent(), "8°");
     assert.equal(await page.getByTestId("world-shop-flip").getAttribute("aria-pressed"), "true");
+    assert.equal(await previewTag.evaluate(el => el.style.transform), "rotate(8deg)");
+    assert.ok(Math.abs(await previewTag.evaluate(el => parseFloat(el.style.width)) - 57.2) < .01);
     const restoredTag = await page.getByTestId("world-shop-price-drag-handle").evaluate(el =>
       [parseFloat(el.style.left) / 100, parseFloat(el.style.top) / 100]);
     assert.ok(Math.abs(restoredTag[0] - afterTag.priceTagXPct) < .001 &&

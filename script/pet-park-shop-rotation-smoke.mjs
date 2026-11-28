@@ -46,7 +46,7 @@ const art="data:image/svg+xml;base64,"+Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><path d="M35 180 L100 30 L162 40 L52 185 Z" fill="#a2bb72"/></svg>',
 ).toString("base64");
 await server.listen();
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:["--no-sandbox","--disable-dev-shm-usage"]} : {})});
 try {
   for(const [label,width,height] of [["phone",390,844],["tablet",834,1194]]) {
     const ctx=await browser.newContext({viewport:{width,height},hasTouch:true,isMobile:true});
@@ -152,27 +152,42 @@ try {
       {xPct:.5,yPct:.4,size:12},label+": moving a tag does not move the merchandise");
     const rotate=page.getByTestId("pet-park-shop-rotate");
     await rotate.waitFor({state:"visible"});
-    await rotate.click();
-    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(15deg) scaleX(1)");
-    assert.equal(layout[0].rotation,15,label+": rotating persists through the normal building PATCH");
+    await page.getByRole("button",{name:"Rotate merchandise left 8 degrees",exact:true}).tap();
+    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(352deg) scaleX(1)");
+    assert.equal(layout[0].rotation,352);
+    await rotate.tap();
+    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(0deg) scaleX(1)");
+    await rotate.tap();
+    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(8deg) scaleX(1)");
+    assert.equal(layout[0].rotation,8,label+": rotating persists through the normal building PATCH");
     assert.deepEqual({xPct:layout[0].xPct,yPct:layout[0].yPct,size:layout[0].size},
       {xPct:.5,yPct:.4,size:12},label+": orientation does not move or resize merchandise");
     await rotate.click();
-    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(30deg) scaleX(1)");
-    assert.equal(layout[0].rotation,30,label+": rotation advances by 15 degrees each tap");
+    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(16deg) scaleX(1)");
+    assert.equal(layout[0].rotation,16,label+": rotation advances by 8 degrees each tap");
     assert.equal(layout[0].priceTagXPct,tagPosition.x,label+": rotation does not reset the price tag X");
     assert.equal(layout[0].priceTagYPct,tagPosition.y,label+": rotation does not reset the price tag Y");
+    const beforeTagTransforms={...layout[0]};
+    for (const action of ["Larger price tag","Larger price tag","Smaller price tag",
+      "Rotate price tag left 8 degrees","Rotate price tag right 8 degrees","Rotate price tag right 8 degrees"]) {
+      const button=page.getByRole("button",{name:action,exact:true});
+      await Promise.all([page.waitForResponse(r=>r.request().method()==="PATCH" && r.url().includes("/api/admin/pet-park/buildings/")),button.tap()]);
+    }
+    assert.deepEqual(layout[0],{...beforeTagTransforms,priceTagScale:110,priceTagRotation:8});
+    assert.equal(await sceneTag.evaluate(el=>el.style.transform),"rotate(8deg)");
+    assert.ok(Math.abs(await handle.getByTestId("pet-park-shop-price-tag").evaluate(el=>parseFloat(el.style.width))-57.2)<.01);
+    compareTags(await previewGeometry(),await sceneGeometry(),"independent tag scale and rotation");
     const flip=page.getByTestId("pet-park-shop-flip");
     await page.waitForFunction(() => {
       const button=document.querySelector('[data-testid="pet-park-shop-flip"]');
       return button && !button.disabled;
     });
     await flip.click();
-    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(30deg) scaleX(-1)");
+    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(16deg) scaleX(-1)");
     assert.equal(layout[0].flippedX,true,label+": mirror state is saved with existing item placement");
     assert.equal(await flip.getAttribute("aria-pressed"),"true",label+": flip button indicates its state");
     assert.equal(await preview.getByTestId("pet-park-shop-price-preview-art").locator("img").first()
-      .evaluate(el=>el.style.transform),"rotate(30deg) scaleX(-1)",
+      .evaluate(el=>el.style.transform),"rotate(16deg) scaleX(-1)",
       label+": preview mirrors artwork too");
     assert.equal(layout[0].priceTagXPct,tagPosition.x,label+": flipping keeps tag X");
     assert.equal(layout[0].priceTagYPct,tagPosition.y,label+": flipping keeps tag Y");
@@ -194,18 +209,20 @@ try {
     await page.mouse.up();
     await preview.waitFor({state:"visible"});
     await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-item-scythe"]')?.style.left !== (window.innerWidth*.5)+"px");
-    assert.equal(layout[0].rotation,30,label+": drag retains stored rotation");
+    assert.equal(layout[0].rotation,16,label+": drag retains stored rotation");
     assert.equal(layout[0].flippedX,true,label+": drag retains stored flip");
     assert.equal(layout[0].priceTagXPct,tagPosition.x,label+": merchandise drag keeps tag X");
     assert.equal(layout[0].priceTagYPct,tagPosition.y,label+": merchandise drag keeps tag Y");
     await page.reload({waitUntil:"domcontentloaded"});
     await image.waitFor({state:"visible"});
-    assert.equal(await image.evaluate(el=>el.style.transform),"rotate(30deg) scaleX(-1)",label+": saved rotation and flip survive reload");
+    assert.equal(await image.evaluate(el=>el.style.transform),"rotate(16deg) scaleX(-1)",label+": saved rotation and flip survive reload");
     assert.ok(Math.abs(parseFloat(await page.getByTestId("pet-park-shop-price-on-art").evaluate(el=>el.style.left))/100-tagPosition.x)<.001,
       label+": saved tag placement survives reload");
     await artButton.click();
     await preview.waitFor({state:"visible"});
     compareTags(await previewGeometry(),await sceneGeometry(),"saved editor reload");
+    assert.equal(await sceneTag.evaluate(el=>el.style.transform),"rotate(8deg)");
+    assert.ok(Math.abs(await handle.getByTestId("pet-park-shop-price-tag").evaluate(el=>parseFloat(el.style.width))-57.2)<.01);
     const savedGeometry=await sceneGeometry();
     assert.equal(await page.getByTestId("pet-park-shop-merchandise").getByText("Scythe").count(),0);
     await page.getByTestId("open-shop-picker").click();
@@ -216,7 +233,7 @@ try {
     await page.goto("http://127.0.0.1:4192/fixture?role=visitor",{waitUntil:"domcontentloaded"});
     const buyButton=page.getByRole("button",{name:"Buy Scythe"});
     await buyButton.waitFor({state:"visible"});
-    assert.equal(await buyButton.getByTestId("pet-park-shop-artwork").evaluate(el=>el.style.transform),"rotate(30deg) scaleX(-1)",
+    assert.equal(await buyButton.getByTestId("pet-park-shop-artwork").evaluate(el=>el.style.transform),"rotate(16deg) scaleX(-1)",
       label+": players see the stored rotation and flip");
     assert.equal(await page.getByTestId("pet-park-shop-merchandise").getByText("Scythe").count(),0,
       label+": visitors never see floating labels");
@@ -227,6 +244,8 @@ try {
     assert.ok((await buyButton.getByTestId("pet-park-shop-tag-art").getAttribute("src")).includes("price_tag.png"));
     assert.ok(Math.abs(parseFloat(await page.getByTestId("pet-park-shop-price-on-art").evaluate(el=>el.style.top))/100-tagPosition.y)<.001,
       label+": visitors see the saved tag position");
+    assert.equal(await buyButton.getByTestId("pet-park-shop-price-tag").evaluate(el=>el.style.transform),"rotate(8deg)");
+    assert.equal(await page.getByRole("button",{name:"Larger price tag"}).count(),0);
     compareTags(savedGeometry,await geometry(buyButton,
       buyButton.getByTestId("pet-park-shop-price-tag")),"visitor purchase view");
     await buyButton.click();
