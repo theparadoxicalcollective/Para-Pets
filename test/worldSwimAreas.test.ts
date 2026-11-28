@@ -33,9 +33,14 @@ test("scene reads retain only known building IDs and referenced fish artwork", a
   const room = {...area,id: randomUUID(),buildingId,fish:[{...fish,id:randomUUID()}]};
   const missing = {...area,id: randomUUID(),buildingId: randomUUID(),fish:[]};
   const deleted = {...area,id: randomUUID(),fish:[{...fish,id:randomUUID(),fishId:randomUUID()}]};
-  const catalog = [{id:fishId,name:"Gold Fish",imageUrl:"/fish.png",facingDirection:"left"}];
+  const catalog = [{id:fishId,name:"Gold Fish",imageUrl:"/fish.png",facingDirection:"left",starRarity:3,fishSwimZone:"bottom"}];
   const queried: unknown[] = [];
-  const db = {select: () => ({from(table: unknown) {
+  const db = {select: (fields: Record<string,unknown>) => ({from(table: unknown) {
+    if (table === shopItems) {
+      assert.equal(fields.facingDirection,shopItems.facingDirection);
+      assert.equal(fields.starRarity,shopItems.starRarity);
+      assert.equal(fields.fishSwimZone,shopItems.fishSwimZone);
+    }
     queried.push(table);
     const rows = table === gameSettings ? [{value: JSON.stringify([area,room,missing,deleted])}] : catalog;
     return {where: () => ({limit: async () => rows, then: (resolve: (r: unknown[]) => unknown) => Promise.resolve(rows).then(resolve)})};

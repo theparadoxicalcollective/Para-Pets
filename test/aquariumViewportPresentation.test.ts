@@ -35,10 +35,11 @@ test("Aquarium blocking overlays remain inside the top Aquarium owner", () => {
 });
 
 
-test("Aquarium keeps fish simulation in canonical tank percentages", () => {
-  assert.match(aquarium, /if \(x < 5\)/);
-  assert.match(aquarium, /if \(x > 91\)/);
-  assert.match(aquarium, /const yMin = isBottom \? BOTTOM_HARD_MIN : 22/);
-  assert.match(aquarium, /const yMax = isBottom \? BOTTOM_HARD_MAX : 71/);
-  assert.doesNotMatch(aquarium, /clientWidth|clientHeight/);
+test("Aquarium measures actual tank geometry only to keep rarity-scaled artwork within the viewport", () => {
+  const motion = readFileSync("client/src/lib/aquariumFishMotion.ts", "utf8");
+  assert.match(aquarium, /new ResizeObserver\(measure\)/);
+  assert.match(aquarium, /stepAquariumFish\(prev, nextTick, tankSizeRef\.current\.width, tankSizeRef\.current\.height\)/);
+  assert.match(motion, /return \{ left: Math\.max\(5, half\), right: Math\.min\(91, 100 - half\) \}/);
+  assert.match(motion, /const BOTTOM_MIN = FISH_BOTTOM_MIN \* 100/);
+  assert.match(motion, /const BOTTOM_MAX = FISH_BOTTOM_MAX \* 100/);
 });
