@@ -220,6 +220,7 @@ export function HomeOutdoorAtmosphereLayer({
   fireflies = [],
   fireflyStrength = 0,
   reducedMotion = false,
+  sceneWindow,
 }: {
   darkness: number;
   nightStrength: number;
@@ -237,6 +238,9 @@ export function HomeOutdoorAtmosphereLayer({
   fireflies?: readonly ParkFireflyField[];
   fireflyStrength?: number;
   reducedMotion?: boolean;
+  /** Player worlds only: restrict the same mask to an overscanned camera
+   * window in scene pixels instead of rasterizing the whole expanded world. */
+  sceneWindow?: { x: number; y: number; width: number; height: number };
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
   const safeLamp = Math.max(0, Math.min(1, lampStrength));
@@ -264,6 +268,15 @@ export function HomeOutdoorAtmosphereLayer({
   const maskId = `home-outdoor-darkness-mask-${rawMaskId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const maskWidth = hasSceneBox ? imgWidth : 1;
   const maskHeight = hasSceneBox ? sceneHeight : 1;
+  // Keep light centers and radii expressed in the ORIGINAL scene dimensions.
+  // Only the SVG's output rectangle changes; the camera translates that
+  // rectangle as one surface until it crosses the next overscan cell.
+  const windowX = hasSceneBox && sceneWindow ? Math.max(0, sceneWindow.x) : 0;
+  const windowY = hasSceneBox && sceneWindow ? Math.max(0, sceneWindow.y) : 0;
+  const windowWidth = sceneWindow && hasSceneBox
+    ? Math.max(1, Math.min(maskWidth, sceneWindow.x + sceneWindow.width) - windowX) : maskWidth;
+  const windowHeight = sceneWindow && hasSceneBox
+    ? Math.max(1, Math.min(maskHeight, sceneWindow.y + sceneWindow.height) - windowY) : maskHeight;
   const activeFireflies = parkLampFalloff && hasSceneBox && fireflyStrength > 0 ? fireflies : [];
   const activeLights = hasSceneBox
     ? effects.filter(effect => isHouseInteriorLightEffectType(effect.type))
@@ -306,11 +319,17 @@ export function HomeOutdoorAtmosphereLayer({
         aria-hidden="true"
         colorInterpolation="sRGB"
         data-testid="home-outdoor-darkness-layer"
-        viewBox={`0 0 ${maskWidth} ${maskHeight}`}
+        viewBox={`${windowX} ${windowY} ${windowWidth} ${windowHeight}`}
         preserveAspectRatio="none"
         style={{
           position: "absolute",
-          ...(hasSceneBox ? {
+          ...(hasSceneBox && sceneWindow ? {
+            left: 0,
+            top: 0,
+            width: windowWidth,
+            height: windowHeight,
+            transform: `translate3d(${panX + windowX}px,${panY + windowY}px,0)`,
+          } : hasSceneBox ? {
             left: panX,
             top: panY,
             width: imgWidth,
@@ -391,13 +410,13 @@ export function HomeOutdoorAtmosphereLayer({
             id={maskId}
             maskUnits="userSpaceOnUse"
             maskContentUnits="userSpaceOnUse"
-            x={0}
-            y={0}
-            width={maskWidth}
-            height={maskHeight}
+            x={windowX}
+            y={windowY}
+            width={windowWidth}
+            height={windowHeight}
             style={{ maskType: "luminance" }}
           >
-            <rect x={0} y={0} width={maskWidth} height={maskHeight} fill="white" />
+            <rect x={windowX} y={windowY} width={windowWidth} height={windowHeight} fill="white" />
             {activeFireflies.length > 0 &&
               <g data-testid="park-scene-firefly-illumination">{renderFireflies("mask")}</g>}
             {activeLights.map((effect, index) => {
@@ -417,10 +436,10 @@ export function HomeOutdoorAtmosphereLayer({
           </mask>
         </defs>
         <rect
-          x={0}
-          y={0}
-          width={maskWidth}
-          height={maskHeight}
+          x={windowX}
+          y={windowY}
+          width={windowWidth}
+          height={windowHeight}
           fill="black"
           mask={`url(#${maskId})`}
           style={{

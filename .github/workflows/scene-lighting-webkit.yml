@@ -7,6 +7,9 @@ on:
       - 'client/src/lib/parkSceneLighting.ts'
       - 'shared/petParkAtmosphere.ts'
       - 'script/park-world-scene-lamp-pixels-smoke.mjs'
+      - 'script/world-scene-raster-smoke.mjs'
+      - 'client/src/components/PetParkTerrain.tsx'
+      - 'client/src/lib/petParkTerrain.ts'
       - '.github/workflows/scene-lighting-webkit.yml'
   workflow_dispatch:
 
@@ -34,4 +37,6 @@ jobs:
       - name: Check real neutral lamp illumination and falloff in WebKit
         env:
           SCENE_LIGHT_BROWSER: webkit
-        run: node script/park-world-scene-lamp-pixels-smoke.mjs
+        run: |
+          node script/park-world-scene-lamp-pixels-smoke.mjs
+          node script/world-scene-raster-smoke.mjs

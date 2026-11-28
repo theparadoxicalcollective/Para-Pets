@@ -123,6 +123,7 @@ jobs:
           node script/world-access-smoke.mjs
           node script/world-editor-attached-page-smoke.mjs
           node script/world-scene-player-smoke.mjs
+          node script/world-scene-raster-smoke.mjs
           node script/world-scene-haunted-spin-smoke.mjs
           node script/world-scene-haunted-fishing-smoke.mjs
           node script/world-scene-soul-exchange-smoke.mjs

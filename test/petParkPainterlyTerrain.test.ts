@@ -57,5 +57,10 @@ test("terrain is visual-only behind the existing interactive world and keeps ori
   assert.match(painter, /ctx\.clip\(\)/);
   assert.match(painter, /requestAnimationFrame/);
   assert.match(painter, /Math\.min\(window\.devicePixelRatio \|\| 1, 1\.5\)/);
-  assert.doesNotMatch(painter, /document\.createElement\(["']canvas/);
+  // Offscreen rasters are bounded and opt-in for published worlds only.
+  // The original park stays on one visible canvas and the direct painter.
+  assert.doesNotMatch(page, /cacheRasterTiles/);
+  assert.match(painter, /view\.cacheRasterTiles && tiles\.length <= PARK_TERRAIN_TILE_LIMIT/);
+  assert.match(painter, /cache\.tiles\.size > PARK_TERRAIN_TILE_LIMIT/);
+  assert.equal((painter.match(/return <canvas/g) ?? []).length, 1);
 });

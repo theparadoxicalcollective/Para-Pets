@@ -28,7 +28,7 @@ import { clampPlayerWorldZoom, PLAYER_WORLD_ZOOM_STEP } from "@shared/worlds/wor
 import type { WorldSceneAsset, WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
 import { resolveWorldSceneAction, resolveWorldSceneInteriorAction, type WorldSceneFishingAction } from "@shared/worlds/worldSceneActions";
 import WorldSceneArtwork from "@/components/world/WorldSceneArtwork";
-import { playerWorldSceneQuery, playerWorldArtworkVisibility, playerWorldCullOrigin, PLAYER_WORLD_CULL_CELL, playerWorldRoomCamera, type PlayerScene } from "@/lib/playerWorldScene";
+import { playerWorldSceneQuery, playerWorldArtworkVisibility, playerWorldCullOrigin, PLAYER_WORLD_CULL_CELL, PLAYER_WORLD_INITIAL_ZOOM, playerWorldRoomCamera, type PlayerScene } from "@/lib/playerWorldScene";
 import BeauPrizeWheelDialog from "@/components/world/BeauPrizeWheelDialog";
 import { useWorldSceneBeauWheel } from "@/components/world/useWorldSceneBeauWheel";
 
@@ -51,14 +51,14 @@ export default function WorldScenePlayerPage({
   // Start unmeasured instead of flashing a legacy phone-sized scene on
   // tablets; actual viewport dimensions come from this page's ResizeObserver.
   const [viewport, setViewport] = useState({ width: 1, height: 1 });
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(PLAYER_WORLD_INITIAL_ZOOM);
   const [pan, setPan] = useState<Point | null>(null);
   const points = useRef(new Map<number, Point>());
   const drag = useRef<{ id: number; x: number; y: number; pan: Point } | null>(null);
   const pinch = useRef<{ distance: number; zoom: number; center: Point; pan: Point; scale: number } | null>(null);
   const cameraFrame = useRef<number | null>(null);
   const pendingCamera = useRef<{ pan: Point; zoom: number } | null>(null);
-  const latestCamera = useRef<{ pan: Point; zoom: number }>({ pan: {x: 0, y: 0}, zoom: 1 });
+  const latestCamera = useRef<{ pan: Point; zoom: number }>({ pan: {x: 0, y: 0}, zoom: PLAYER_WORLD_INITIAL_ZOOM });
   const gestureRect = useRef<DOMRect | null>(null);
   const moved = useRef(false);
   const [inside, setInside] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export default function WorldScenePlayerPage({
   });
 
   useEffect(() => {
-    setZoom(1); setPan(null); setInside(null);
+    setZoom(PLAYER_WORLD_INITIAL_ZOOM); setPan(null); setInside(null);
     setSelectedGardenPlotId(null); setWateringGardenPlotId(null); setSelectedWaterSourceId(null);
     if (cameraFrame.current !== null) cancelAnimationFrame(cameraFrame.current);
     cameraFrame.current = null; pendingCamera.current = null; gestureRect.current = null;
@@ -217,14 +217,23 @@ export default function WorldScenePlayerPage({
   };
   const atmospherePlacements = useMemo(() => renderPlacements.filter(p =>
     p.kind === "effect" || p.decorEffects.length > 0), [renderPlacements]);
-  const atmosphere = useMemo(() => {
-    const shape = { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale };
-    return {
-      lights: parkOutdoorLightEffects(atmospherePlacements, shape, actualPan, viewport),
-      fireflies: parkOutdoorFireflyFields(atmospherePlacements, shape, actualPan, viewport),
-    };
-  }, [atmospherePlacements, camera.sceneWidth, camera.sceneHeight, camera.scale,
-    actualPan.x, actualPan.y, viewport.width, viewport.height]);
+  const cullX = playerWorldCullOrigin(actualPan.x);
+  const cullY = playerWorldCullOrigin(actualPan.y);
+  const sceneWindow = useMemo(() => ({
+    x: -cullX - PLAYER_WORLD_CULL_CELL, y: -cullY - PLAYER_WORLD_CULL_CELL,
+    width: viewport.width + 2 * PLAYER_WORLD_CULL_CELL,
+    height: viewport.height + 2 * PLAYER_WORLD_CULL_CELL,
+  }), [cullX, cullY, viewport.width, viewport.height]);
+  const atmosphereShape = useMemo(() => ({
+    width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale,
+  }), [camera.sceneWidth, camera.sceneHeight, camera.scale]);
+  // Lamps must cover the overscanned mask, so their list is stable within a
+  // camera cell. Fireflies retain the original actual-viewport selection cap.
+  const lights = useMemo(() => parkOutdoorLightEffects(atmospherePlacements, atmosphereShape,
+    { x: -sceneWindow.x, y: -sceneWindow.y }, sceneWindow),
+    [atmospherePlacements, atmosphereShape, sceneWindow]);
+  const fireflies = useMemo(() => parkOutdoorFireflyFields(atmospherePlacements, atmosphereShape, actualPan, viewport),
+    [atmospherePlacements, atmosphereShape, actualPan.x, actualPan.y, viewport]);
 
   function queueCamera(nextPan: Point, nextZoom: number) {
     const previous = latestCamera.current;
@@ -388,8 +397,6 @@ export default function WorldScenePlayerPage({
   // authored data, or live interaction/effect state changes.
   const activateLatest = useRef(activate);
   activateLatest.current = activate;
-  const cullX = playerWorldCullOrigin(actualPan.x);
-  const cullY = playerWorldCullOrigin(actualPan.y);
   const placementArtwork = useMemo(() => {
     const cullViewport = { width: viewport.width + 2 * PLAYER_WORLD_CULL_CELL,
       height: viewport.height + 2 * PLAYER_WORLD_CULL_CELL };
@@ -486,7 +493,7 @@ export default function WorldScenePlayerPage({
           { x: event.clientX - rect.left, y: event.clientY - rect.top });
       }}>
       {sceneContent && viewportReady && !activeBuilding && <>
-        <PetParkTerrain
+        <PetParkTerrain cacheRasterTiles
           groundTheme={worldGroundRenderTheme(groundTheme)}
           groundPalette={worldGroundPalette(groundTheme)}
           viewportWidth={viewport.width} viewportHeight={viewport.height}
@@ -516,7 +523,8 @@ export default function WorldScenePlayerPage({
         <div className="absolute inset-0 z-[14] pointer-events-none" data-testid="player-new-world-atmosphere">
           <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(lighting.nightStrength)}
             nightStrength={lighting.nightStrength} lampStrength={lighting.lampStrength}
-            effects={atmosphere.lights} fireflies={atmosphere.fireflies}
+            effects={lights} fireflies={fireflies}
+            sceneWindow={sceneWindow}
             fireflyStrength={lighting.fireflyStrength}
             panX={actualPan.x} panY={actualPan.y}
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}

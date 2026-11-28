@@ -54,5 +54,8 @@ test("terrain reuses the same camera, repaints uncovered raster immediately, and
   assert.match(painter,/ctx\.setTransform\(ratio, 0, 0, ratio, 0, 0\)/);
   assert.match(page,/<PetParkTerrain/);
   assert.match(page,/queueCameraUpdate\(parkClampCamera/);
-  assert.doesNotMatch(painter,/document\.createElement\(["']canvas/);
+  // Offscreen tiles never add another stage or change the park's painter.
+  assert.doesNotMatch(page, /cacheRasterTiles/);
+  assert.match(painter, /view\.cacheRasterTiles && tiles\.length <= PARK_TERRAIN_TILE_LIMIT/);
+  assert.equal((painter.match(/return <canvas/g) ?? []).length, 1);
 });

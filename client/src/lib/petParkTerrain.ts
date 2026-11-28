@@ -90,3 +90,21 @@ export function parkTerrainNoise(x: number, y: number, salt = 0): number {
   hash = Math.imul(hash ^ (hash >>> 13), 1274126177);
   return ((hash ^ (hash >>> 16)) >>> 0) / 4294967296;
 }
+
+
+/** Backing-pixel tiles aligned to the scaled world's origin. No device or
+ * map-sized allocation: every tile is the same bounded raster size. */
+export const PARK_TERRAIN_TILE_PIXELS = 512;
+export const PARK_TERRAIN_TILE_GUTTER = 24;
+export const PARK_TERRAIN_TILE_LIMIT = 24;
+
+export function parkTerrainRasterTileWindow(originX: number, originY: number, width: number, height: number) {
+  const tiles: { x: number; y: number }[] = [];
+  const size = PARK_TERRAIN_TILE_PIXELS;
+  for (let row = Math.floor(originY / size); row < Math.ceil((originY + height) / size); row++) {
+    for (let col = Math.floor(originX / size); col < Math.ceil((originX + width) / size); col++) {
+      tiles.push({ x: col * size, y: row * size });
+    }
+  }
+  return tiles;
+}
