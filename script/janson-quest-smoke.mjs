@@ -192,14 +192,20 @@ try {
       await page.getByTestId('button-remove-from-cart-fish-qa').waitFor({state:'visible'});
     }
     const confirm=page.getByTestId('button-confirm-sell');
-    await activate(confirm);
-    await page.waitForFunction(()=>!document.querySelector('[data-testid="button-confirm-sell"]')?.disabled);
+    const isSaleResponse=response=>new URL(response.url()).pathname==='/api/fishing/sell' && response.request().method()==='POST';
+    // Wait for the actual POST response: the button can still be enabled
+    // immediately after a click, before the mutation's pending render.
+    const [failedSale]=await Promise.all([page.waitForResponse(isSaleResponse),activate(confirm)]);
+    assert.equal(failedSale.status(),503,name+': first sale must fail');
+    await page.waitForFunction(()=>document.querySelector('[data-testid="button-confirm-sell"]')?.disabled===false);
     assert.equal(counts.saleAttempts,1);
     assert.equal(counts.sold,0);
     await page.getByTestId('button-remove-from-cart-fish-qa').waitFor({state:'visible'});
     saleFails=false;
-    await activate(confirm);
+    const [retriedSale]=await Promise.all([page.waitForResponse(isSaleResponse),activate(confirm)]);
+    assert.equal(retriedSale.status(),200,name+': retry must succeed');
     await page.getByTestId('button-find-fishing-spots-from-market').waitFor({state:'visible'});
+    assert.equal(counts.saleAttempts,2);
     assert.equal(counts.sold,1);
     const hintsBefore=await page.evaluate(()=>window.fixtureFishingHints);
     await activate(page.getByTestId('button-find-fishing-spots-from-market'));
